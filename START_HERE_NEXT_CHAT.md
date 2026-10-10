@@ -372,3 +372,10 @@
 - 집중 75 PASS, 전체 **754 pytest PASS / exit 0 (신규 26)**, 30 ID handoff PASS. 합성 KR 분할/현금 지급 +10% 및 누락된 상폐 이벤트를 강제로 삭제한 경우 null 판정 직접 CLI 실행; 연구 파생 보고서만 ZIP SHA/복원 PASS. US DST 합성 +5% 별도 회귀. 원본 데이터/API/물리 SSD 탈착 미실시.
 - 정확한 4경로 Git Public 안전검사 scanned=4 suspicious=0 후 **코드 commit `1c42d47df4767c3c13836329b2413bab25d09d05` GitHub main 정상 push / local=remote SHA 확인**. 이 문서와 PROJECT_STATE 후속 변경의 실제 commit 여부는 현 Git 확인 우선.
 - 다음: 독립 거래소 상장/상폐·기업 영구ID·현금정산·배당 분할·수익지수/빈티지 원천 근거를 확보해 검증하는 인터페이스 및 5_5 성숙된 실제 미래 결과 평가. 외부 API는 D-017 로컬 구현 후, SSD 재연결/재부팅은 D-021 API 후 최종 검증만. 기존 정상 코드 재작성 금지.
+
+## 2026-10-11 최신 코드 릴리스 — 2_2·2_5 기업행동 금액/상폐 지급 상충 차단 (772 PASS)
+
+- 실제 Mac/T5DATA 연결 검증, `faab41d` clean baseline에서 이전 이중 빈티지 `cash_exit_lineage.py` CONTINUE. 과거에는 split 2:1 ↔ issuer 3:1, 주당 상폐현금 55 ↔ claim 54, dividend 1 ↔ claim 2여도 이벤트 타입·날짜가 같아 연구용 총수익이 통과하는 오류를 발견. 신규 18케이스 중 수정 전 12 FAIL 재현.
+- 정상 코드 보존한 채 `cash_exit_lineage.py` 이벤트ID/분할·배당·상폐현금 금액/통화/선택적 지급시각 충돌을 검사; 옵션 `--require-lineage-amount-claims`를 단독 모듈과 기존 `audit-cash-delist` CLI에 추가해 금액 원천 누락도 엄격 모드에서 차단. 기본 과거 오프라인 연구 호환 유지. 변경 4경로 `src/eraleader/cash_exit_lineage.py`, `src/eraleader/cli.py`, `tests/test_cash_exit_amount_claims.py`, `docs/68_DUAL_VINTAGE_CASH_EXIT_LINEAGE.md`.
+- 집중 **93 PASS**, 전체 **772/772 pytest PASS/exit 0**, handoff 30작업 PASS, Public Git 안전검사 4 경로 scanned=4/suspicious=0. 실제 로컬 합성 CLI: strict 미제출 null, KR 동일 금액 +10% 연구 수익, 분할비율 상충 null, 파생 보고서 1개 SHA ZIP 백업·복원 PASS. 독립 공급자·실시장 수익률·미래 후보 정확도 인증 아님.
+- 코드 정상 commit/push `0dfb4418b03e6b323f744c0a11d55521c4fee787`, local/remote main SHA 일치; 이 인수인계 문서는 별도 갱신. 다음 독립 법적 상장/상폐·기업행동/현금 지급·수익률원천 PIT 증빙과 전향 라벨. API D-017 및 물리 SSD D-021 마지막 단계. REWRITE 금지.

@@ -346,3 +346,9 @@
 - 실제 원격 맥북/T5DATA Online 확인, 기존 인수인계·AGENTS/PROJECT_STATE/DECISIONS·docs/58/38 및 Git 확인. 5_3 `ranked_discovery.py` 양성 적중은 거래소 현지 **날짜**만 보아 horizon 1분 초과 후 등장도 early_hit로 과대계상: KR·US DST 포함 새 6 회귀 중 **수정 전 2 FAIL** 확인, 정확한 현지 시각 마감으로 수정, 이후 집중 **83 PASS**, 전체 **707 PASS/exit 0**, handoff 30작업 PASS.
 - 지난 회차에서 안전검사 차단으로 남았던 17개 staged 변경 전부 그대로 포함하여 `python3 scripts/check_git_safety.py` scanned=17/suspicious=0, `git diff --cached --check` PASS 후 **정상 commit/push 성공**. GitHub main/로컬 SHA **`b5f653f6aa1cc9b996488b1efeda00c275b4d856`** 일치. 이전 `ec9feea`/17개 미커밋 설명은 *과거 시점 기록*이며 현재 해당 코드들은 이미 GitHub에 반영됨. 상태문서의 후속 Git 적용 결과는 PROJECT_STATE 최신 및 실제 git 우선.
 - 미래 대장주 실적, 독립 공급자 PIT·상폐/조정수익·실제 만기 라벨/정밀도 및 1_1~6_5 전체 운영 검증은 **미완료**. 다음은 2_2/2_5 실제 원천 인증과 5_5 전향 결과. 외부 API D-017 이후, SSD 물리 탈착·재연결/재부팅 D-021 최종 단계. 기존 정상 코드 보존/CONTINUE.
+
+## 2026-10-11 최신 — 5_4/5_5 홀드아웃 만기 일정·성과대조 정확한 거래소 시각
+
+- 5_5 `holdout_maturity.py`와 `holdout_outcome_reconcile.py`도 처음 등록 후 180일 **현지 날짜만** 비교해 만기일 16:59를 자정부터 성숙 처리. 음성 라벨 대조가 기존 `frozen_holdout.py` 17:00 마감과 불일치하여 결과 예외 발생까지 실측. KR·US DST 경계 신규 합성 회귀 5케이스 중 **수정 전 4 FAIL** 재현, 실제 시각 마감으로 보완. 기존 2개 잘못된 자정 만기 기대 교정, `horizon_end_utc` 추적 필드 추가. 전체 **712 pytest PASS/exit 0**, handoff 30 ID PASS, staged 6 경로 Public safety 이상 0.
+- 검증 코드·테스트·문서 6개 경로 **commit `5cbc6636e33d0972c5c7222119f90cf97b169002` → GitHub Public main push 성공**, 원격·로컬 SHA 일치, 코드 릴리스 후 working tree clean. 앞서 `b5f653f` 17경로 개발 릴리스 및 `6206d12` 문서 릴리스도 반영. 최종 SHA는 실제 `git status`/PROJECT_STATE 하단 우선.
+- 다음 실제 미완료는 5_5 `outcome_source_claims.py` 남은 날짜 단위 만기 주장 검증 및 2_2/2_5 공식 원천 PIT·상폐·기업행동·조정가격 증빙, 전향적 실적. 과거 합성 테스트는 대장주 발굴 정확도 인증 아님. 외부 API D-017 후순위, SSD 물리 탈착·재부팅 D-021 최종 단계만.

@@ -24,6 +24,7 @@ from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .adjusted_crosscheck import compare_total_return_indexes
 from .frozen_holdout import freeze_registered_candidates, evaluate_frozen_candidates
+from .holdout_maturity import audit_holdout_maturity
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
@@ -443,6 +444,17 @@ def execute_watch_progression(args) -> dict:
             "historical_backfills":result["excluded_retrospective_observations"],
             "official_state_promotions":0}
 
+def execute_holdout_maturity(args) -> dict:
+    result = audit_holdout_maturity(
+        Path(args.freeze_file), as_of=args.as_of, sample_limit=args.sample_limit)
+    path = Path(args.out) / "holdout_maturity_research.json"
+    write_json(path, result)
+    return {"status":result["status"],"path":str(path),
+            "eligible_frozen_candidates":result["eligible_frozen_candidates"],
+            "horizon_elapsed_count":result["horizon_elapsed_count"],
+            "horizon_pending_count":result["horizon_pending_count"],
+            "actual_known_outcomes":0,"official_leader_promotions":0}
+
 def execute_publication_verify(args) -> dict:
     verified=verify_pit_publication(Path(args.out))
     if verified is None:
@@ -556,6 +568,12 @@ def main(argv=None):
     provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")
     provenance.add_argument("--decision-at",required=True,help="Timezone-aware as-of cutoff")
     provenance.add_argument("--out",default=str(OUT))
+    maturity=sub.add_parser("audit-holdout-maturity",
+                      help="Calendar-only full-horizon readiness; does NOT generate leader outcomes")
+    maturity.add_argument("--freeze-file",required=True)
+    maturity.add_argument("--as-of",required=True,help="Timezone-aware audit timestamp not in future")
+    maturity.add_argument("--sample-limit",type=int,default=20)
+    maturity.add_argument("--out",default=str(OUT))
     hf=sub.add_parser("freeze-holdout",help="Seal an actual-registration research holdout before future labels")
     hf.add_argument("--ledger",required=True,help="Existing prospective.sqlite")
     hf.add_argument("--market",choices=["KR","US"],required=True)
@@ -650,6 +668,7 @@ def main(argv=None):
         elif args.command=="audit-evidence-gate":result=execute_evidence_gate(args)
         elif args.command=="audit-watch-progression":result=execute_watch_progression(args)
         elif args.command=="verify-pit-publication":result=execute_publication_verify(args)
+        elif args.command=="audit-holdout-maturity":result=execute_holdout_maturity(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

@@ -230,3 +230,8 @@
 
 - `src/eraleader/pit_publication.py`, `docs/54_VERSIONED_PIT_BATCH_PUBLICATION.md`: 명시적 `batch --integrate-pit-research`은 임시 세대에 양국 SQLite/HTML/6보고서를 모두 만든 뒤 파일 SHA256 영수증 검증·동일 SSD의 디렉터리 및 `current_pit_batch.json` 원자적 교체로 게시. 새 CLI `verify-pit-publication --out`으로 **현재 검증된 세대만** 조회, 이전 세대 불변, 중간 US 실패·마지막 포인터 교체 실패시 이전 정상 결과 유지, 오염된 게시 파일은 거부. 합성 오류주입 테스트 11개 신규, 전체 **pytest 415 PASS**, 실제 read-only KR/US 과거 캐시+합성 PIT 배치에서 두 세대 각각 25 산출물 검증. 기본 자동배치/launchd 및 T5DATA 원시 데이터 무수정. 실시간 발굴성능, 외부 PIT 공증/실제 전원 차단 시험 미인증.
 - 작업/커밋 SHA는 `PROJECT_STATE.md` 최신 검증 기록과 실제 Git 우선.
+
+## 2026-10-10 5_3/5_5 음성결과 검증 및 동결 후보 평가기간 만기 일정
+
+- 다른 세션의 5_3 음성 라벨 30일/180일 누출 수정은 **418 독립 pytest PASS** 후 코드 커밋 `35614e7` 원격 푸시 완료. 새 `src/eraleader/holdout_maturity.py` + CLI `audit-holdout-maturity` / `docs/55_HOLDOUT_MATURITY_SCHEDULE.md`: 동결된 모델·라벨 정의·평가기간을 보존하면서 당시 **등록일(시장 현지일)** 기준 평가기간 종료/미경과를 계산. 결과 라벨을 읽거나 성공·실패를 추측하지 않는다. 신규 11 합성 회귀, 전체 `pytest 429 PASS`, CLI/derived JSON SHA ZIP 백업·복원 PASS. 합성 4개 만기 경과, **실제 결과 레이블 0**, 확정 대장주 0, API 0.
+- D-021 물리 SSD 분리/재연결과 재부팅 실험은 API 연결 후 마지막으로 미룸; 코딩과 합성 복구만 수행. 최신 Git sha/푸시는 실제 `PROJECT_STATE.md` 마지막 확인 결과와 `git status -sb`를 우선한다.

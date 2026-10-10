@@ -250,3 +250,11 @@
 
 - 신규 `src/eraleader/pit_chain.py` + CLI `audit-pit-chain`, `docs/58_PIT_TO_OUTCOME_EVIDENCE_CHAIN.md`: 한국·미국 시장별 원천 빈티지/영구기업ID/행동/거래소캘린더/가격/PIT 종목군 5가지 파생감사를 동결 후보등록 시각과 성과라벨 원문 주장에 연결. 근거 시각/시장 다르면 차단, 라벨 누락도 성공·실패로 조작 금지. 합성 기존 5/5 증거라도 미성숙 라벨 1건 → 차단 1건, 실제 로컬 캐시 감사 1/5만 투입하면 차단 8건. 독립 PIT/진짜 적중률은 무조건 미인증·확정 대장주 0. 신규 테스트 12개 포함 전체 **470 pytest PASS**, 결과 파생 JSON SHA ZIP 복구 PASS. `D-021` 물리 SSD/맥북 재부팅 시험 API 연결 후 최종 단계.
 - 다른 세션의 새 `src/eraleader/ranked_discovery.py`는 본 작업 소유 아님, 보존하고 Git 상태를 먼저 확인. 마지막 커밋·푸시 SHA는 `PROJECT_STATE.md`와 실제 Git의 최신 기록 우선.
+
+## 2026-10-10 20시대 다음 회차 5_3 top-K 연구 인수인계
+- `src/eraleader/ranked_discovery.py`, `tests/test_ranked_discovery.py`, `docs/58_RANKED_DISCOVERY_PRECISION_AT_K.md` 추가, **38 신규 및 전체 508 pytest PASS**. 랭킹 스냅샷 봉인·K별 조기 적중/리드타임 및 성숙기간 음성 검열, 합성 CLI 재현; 공식 실제 적중률/과거 PIT 인증 아님. 세 파일만 Public Git staged, 안전검사 scanned=3/suspicious=0.
+- Git commit 요청은 원격 안전검사에서 차단되어 **이번 세 파일의 SHA/push 없음**. 확인 시 remote/local main `a803160eca7d286222af4f6543b420d671a3d2c2` 는 기존 PIT chain 릴리스이며 top-K 기능 미포함. 위 3파일/PROJECT_STATE 최신 기록과 `git status -sb`부터 확인. 다른 세션 작업 보호, 1~6 완료 선언 금지, API·물리 SSD 재연결/재부팅 연기(D-021).
+
+## 2026-10-10 5_3 top-K 랭킹 별도 릴리스 푸시 검증
+
+- 지난 회차가 안전검사 때문에 Git 커밋을 못 했던 랭킹 연구 3파일은 후속 회차에서 **508개 독립테스트 PASS 후 commit `8e69421f51afd88e1792e9ad1fb739e811a41c41`을 실제 GitHub main에 푸시**, local/remote SHA 동일 확인. 지난 기록의 '아직 미푸시'는 더 이상 현재 상황 아님. 코드 `src/eraleader/ranked_discovery.py` / 테스트 `tests/test_ranked_discovery.py` / 문서 `docs/58_RANKED_DISCOVERY_PRECISION_AT_K.md` (PIT 체인 문서도 58 번호이므로 파일명으로 구별). 합성 순위 봉인·상위 K개 미래 라벨 검열 성능 계산만 구현, 실제 당시 발굴 성과 인증 X. 현재 최종 Git/원격 SHA는 `PROJECT_STATE.md` 하단 실측 우선.

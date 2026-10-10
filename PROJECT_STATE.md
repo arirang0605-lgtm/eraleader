@@ -275,3 +275,9 @@
 - **Tests:** `PYTHONPATH=src python3 -m pytest tests/test_pit_coverage.py -q` **7 PASS**, entire `PYTHONPATH=src python3 -m pytest tests -q` **97 PASS**, no test failures. Synthetic isolated data and existing SQLite fixture used; no external API or paid raw inputs.
 - **Still blocked:** authoritative historical issuer registry, exact identity merges, delisting settlements, split/dividend vendor adjusted-price crosscheck and independent PIT financial source. Without these, future-leader discovery quality and full 1~6 completion remain unverified. Next source priority = official PIT universe/action coverage sources when permitted, offline reproducible audit; 5_4/5_5 holdout after trustworthy outcomes.
 - **Git commit and remote status**: follow final checkpoint after staged safety scan, commit and remote SHA equality verification.
+
+## 2026-10-10 final verified PIT audit source commit and push
+
+- **Source commit**: `e022d66234f51b2153f3fca4c46902026865ee79` (`feat: audit PIT membership coverage against observed price universes`), `git push origin main` successful; `git ls-remote origin refs/heads/main` returned the identical full SHA. Source test total **97 pytest PASS**, handoff 30 IDs PASS; six staged files scanned by `scripts/check_git_safety.py` with **0 suspected secret files**.
+- Previous code checkpoint `40187424836d98ad5eb4a8112f8a207cd2afeabd` remains in history with automated local research schedule and 90 tests. Production leader accuracy or PIT source completeness is not certified.
+- Next first genuine unmet task: 2_2/2_5 authenticated historical listing and delisting/corporate-action availability + independent price-adjustment comparison; then 5-stage real prospective lead-time validation; review 6_5 launchd status and logs when the machine reboots.

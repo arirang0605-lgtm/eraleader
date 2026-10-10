@@ -40,6 +40,7 @@ from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
 from .calendar_audit import audit_exchange_calendar
 from .delist_cash import reconstruct_cash_delisting
+from .cash_exit_lineage import audit_dual_vintage_cash_exit
 from .issuer_lineage import audit_issuer_lineage
 from .evidence_gate import evaluate_local_evidence
 from .pit_coverage import reconcile_membership_to_prices
@@ -449,11 +450,19 @@ def execute_cash_delist(args) -> dict:
         raise ValueError("Unsupported cash-delisting research schema")
     if bundle.get("price_basis")!="raw_unadjusted":
         raise ValueError("Raw unadjusted price basis required")
-    result=reconstruct_cash_delisting(
-        bundle["bars"],bundle["actions"],bundle.get("settlement"),
-        security_id=args.security_id,market=args.market,
-        decision_at=args.decision_at,evaluated_at=args.evaluated_at,
-        price_basis=bundle["price_basis"])
+    if bool(args.decision_lineage) != bool(args.evaluation_lineage):
+        raise ValueError("Two dated issuer lineage vintages must be provided together")
+    if args.decision_lineage:
+        result=audit_dual_vintage_cash_exit(
+            Path(args.file),Path(args.decision_lineage),Path(args.evaluation_lineage),
+            security_id=args.security_id,market=args.market,
+            decision_at=args.decision_at,evaluated_at=args.evaluated_at)
+    else:
+        result=reconstruct_cash_delisting(
+            bundle["bars"],bundle["actions"],bundle.get("settlement"),
+            security_id=args.security_id,market=args.market,
+            decision_at=args.decision_at,evaluated_at=args.evaluated_at,
+            price_basis=bundle["price_basis"])
     target=Path(args.out)/"cash_delisting_research.json"
     write_json(target,result)
     return {"status":result["status"],"path":str(target),
@@ -840,6 +849,8 @@ def main(argv=None):
     cd.add_argument("--market",choices=["KR","US"],required=True)
     cd.add_argument("--decision-at",required=True)
     cd.add_argument("--evaluated-at",required=True)
+    cd.add_argument("--decision-lineage",help="As-of-decision issuer JSON (research-only)")
+    cd.add_argument("--evaluation-lineage",help="Later issuer/corporate event JSON (research-only)")
     cd.add_argument("--out",default=str(OUT))
     ii=sub.add_parser("audit-issuer-lineage",help="Offline permanent issuer/ticker/event identity conflicts")
     ii.add_argument("--file",required=True,help="Local eraleader.issuer_lineage_research.v1 input")

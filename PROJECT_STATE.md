@@ -8,7 +8,7 @@
 
 > 2026-10-10 KST. 이 절이 현재 상태의 단일 기준(SSOT)입니다. 아래 이전 기록은 작성 당시의 역사적 상태입니다.
 
-- **현재(2026-10-10 최신)**: 기존 1~6 로컬 기초 통합 + 2_2·2_3 오프라인 PIT/3_1~3_3 산업·실적 피처에 이어 **3_4·3_5 가격·재무·산업 시점 결합, 4_2~4_5 상태·이벤트 이력(합성 검증), 5_2 조기 발견 리드타임/오탐 계산기, 6_2 통합 연구 웹페이지** 추가. **전체 pytest 49개 PASS, 로컬 e2e PASS**. 실전용 완전한 PIT·검증된 미래 대장주 성능·전체 30개 작업 완성은 **미완료**. 상세 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`.
+- **현재(2026-10-10 최신)**: 기존 1~6 로컬 기초 통합 + 2_2·2_3 오프라인 PIT/3_1~3_3 산업·실적 피처에 이어 **3_4·3_5 가격·재무·산업 시점 결합, 4_2~4_5 상태·이벤트 이력(합성 검증), 5_2 조기 발견 리드타임/오탐 계산기, 6_2 통합 연구 웹페이지** 추가. **전체 pytest 54개 PASS, 로컬 e2e 및 한국·미국 실제 캐시 배치 PASS**. 5_3 워크포워드 분리/6단계 KR+US 배치 추가; `docs/30_WALKFORWARD_LOCAL_BATCH.md` 참고. 실전용 완전한 PIT·검증된 미래 대장주 성능·전체 30개 작업 완성은 **미완료**. 상세 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`.
 - **테스트 근거**: marcap 1995~2026 연도별 Parquet 32개 / 15,648,407행 메타데이터 대조 PASS. 005930 2025년 1월 18거래일 로컬 캐시 조회 PASS. 기존 미국 업종 모멘텀 계산 실행 PASS. **투자 성능·PIT 적합성 검증은 아님**.
 - **Git 상태(2026-10-10 최신)**: 사용자 **Public GitHub 업로드 승인**. 로컬 origin을 `https://github.com/arirang0605-lgtm/eraleader.git`에 연결해 **최초 main push 성공**, 초기 원격 체크포인트 `eb439ba`. `.secrets/`는 owner-only이며 Git ignore. 이후 커밋·추가 push 상태는 이 파일 하단 최신 기록 참고.
 - **기존 재활용**: `/Volumes/T5DATA/CycleOS-Lab_BacktestEngine` 읽기 전용, `/Volumes/T5DATA/backtestengine`은 확인 당시 빈 폴더. 분할·배당·상폐·공시 이용시각·라이선스 추가 검증 필요.
@@ -198,3 +198,13 @@
 - **미완료:** 실제 공시 PIT/산업원천·상폐·기업행동 총체 검증, 타임머신·워크포워드/홀드아웃/ablation, 라이브 자동 보고·알림, 1~6단계 전체 30개 세부 기능. 최종 목표 미래 대장주 조기 발견 성능은 아직 실증되지 않음.
 - **다음 미완료:** `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`에 따라 2_2·2_5 PIT 강화 → 4~5 실증/워크포워드 → 6 로컬 자동 운영 검증. 외부 API는 마지막.
 - **추가 push 커밋 SHA/결과:** 바로 다음 체크포인트 기록에서 확인.
+
+## 2026-10-10 추가 체크포인트 — 5_3 워크포워드 / 6_1~6_5 로컬 배치 부분 완성
+
+- **변경**: `src/eraleader/walkforward.py`, `src/eraleader/batch.py`, `src/eraleader/cli.py`, `tests/test_walkforward.py`, `tests/test_batch.py`, `docs/30_WALKFORWARD_LOCAL_BATCH.md`. 시점별 오프라인 연구 결과 `state_history.sqlite` 연결·재실행 안정성 보강.
+- **검증**: `PYTHONPATH=src python3 -m pytest tests -q` → **54 PASS**. 기존 한국·미국 웹/보고서 회귀 포함.
+- **실제 SSD 배치 명령**: `PYTHONPATH=src python3 -m eraleader batch --kr-as-of 2026-10-02 --us-as-of 2026-02-23 --out output/batch_20261010 --top 20 --days 550` → PASS (국가 2개, Markdown 보고서 6개, 신규 WATCH 알림 미리보기 최초 40건). 동일 재실행 → PASS, 신규 알림 0건.
+- **워크포워드**: 학습 컷오프 이후 라벨 누수 차단·7일 embargo 등 구조 테스트 PASS. 독립 역사 PIT 백테스트/실전 투자성과는 아직 검증 전.
+- **한계**: KR·US 마지막 시세 기준일이 다르며 실시간 아님; 재무·산업 신뢰된 PIT 불완전 → 실제 대장주 확정 0건. 라이브 API/알림 없음. 전체 30개 작업 완성 선언 금지.
+- **다음**: 상폐/기업행동 시점별 수익 조정, 실제 오프라인 자료 커버리지, 최종 상태/리드타임 검증, 로컬 일정·복구/운영 품질 (상세 `docs/30_WALKFORWARD_LOCAL_BATCH.md`).
+- **Git 후속 SHA/푸시**: 다음 체크포인트 기록에서 확인.

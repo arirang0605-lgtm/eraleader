@@ -185,3 +185,10 @@ PYTHONPATH=src python3 -m eraleader serve --port 8765
 - 최초 발굴→정식 평가 시점의 **조기 발견 품질 계산기** `validate-discovery`, 상태·변경 이벤트 이력 `state_history.py` 구현. 연구용 synthetic fixture만 검증함.
 - **pytest 49개 PASS**, 로컬 HTTP e2e PASS. 30개 세부 작업 전체 완료는 아니며 PIT/실전 모델 검증·외부 API 연결은 보류.
 - GitHub **Public push 사용 승인됨**, `main`에 최초 push 성공. API/인증키는 `.secrets/` 로컬 전용(Git ignore)으로 보관. 후속 체크포인트는 `PROJECT_STATE.md` 최신 기록을 기준으로 한다.
+
+## 15. KR·US 로컬 배치와 워크포워드 (2026-10-10)
+
+- [실제 구현 및 재현 명령: 30_WALKFORWARD_LOCAL_BATCH.md](docs/30_WALKFORWARD_LOCAL_BATCH.md).
+- **연구용 batch**: `PYTHONPATH=src python3 -m eraleader batch --kr-as-of 2026-10-02 --us-as-of 2026-02-23 --out output/batch_20261010`. 실제 SSD 캐시로 2개 국가·일/주/월 보고서 6개·로컬 HTML·알림 미리보기 생성 PASS, 재실행 새 알림 0건.
+- **walkforward**: 피처/라벨 시점 분리 및 embargo, 미래 라벨 격리 (아직 완성된 실전 검증 아님). **pytest 54 PASS**.
+- 소스 가격 관측일이 양국마다 다르므로 해당 실행을 최신 실전 장마감 리포트로 오해하지 않는다. API·실제 메일·메시지 전송은 없음.

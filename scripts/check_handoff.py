@@ -37,6 +37,11 @@ required=[
  "tests/test_research.py",
  "tests/test_state_history.py",
  "tests/test_discovery_metrics.py",
+ "docs/30_WALKFORWARD_LOCAL_BATCH.md",
+ "src/eraleader/walkforward.py",
+ "src/eraleader/batch.py",
+ "tests/test_walkforward.py",
+ "tests/test_batch.py",
 ]
 errors=[]
 for name in required:

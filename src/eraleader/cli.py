@@ -17,6 +17,8 @@ from .offline_pit import OfflineLedger
 from .offline_features import financial_snapshot
 from .research import integrated_snapshot
 from .discovery_metrics import evaluate_early_discovery
+from .walkforward import walk_forward_split
+from .state_history import StateHistory
 
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"output"
@@ -130,7 +132,19 @@ def execute_integrated(args) -> dict:
     else:
         write_json(target,result)
     page=write_integrated_dashboard(result,Path(args.out)/'site')
-    return {"status":"OFFLINE_INTEGRATION_RESEARCH_ONLY","dashboard":str(page),
+    ledger=StateHistory(Path(args.out)/'state_history.sqlite')
+    try:
+        observations=[{"security_id":row["security_id"],"components":{},
+                       "evidence":{"financial_pit":False,
+                                   "historic_universe_pit":False,
+                                   "corporate_actions_pit":False},
+                       "input_run_id":result["run_id"]}
+                      for row in result["company_rows"]]
+        tracked=ledger.record(args.market,args.as_of,observations)
+    finally:
+        ledger.close()
+    return {"status":"OFFLINE_INTEGRATION_RESEARCH_ONLY",
+            "state_events":len(tracked["new_state_events"]),"dashboard":str(page),
             "path":str(target),"company_count":result["company_count"],
             "growth_screen_hits":result["research_growth_screen_count"],
             "official_leaders":0,"pit_certified":False}
@@ -148,6 +162,20 @@ def execute_validation(args) -> dict:
             "true_early_discoveries":result["true_early_discoveries"],
             "false_discoveries":result["false_discoveries"],
             "censored":result["censored"],"note":"Synthetic/partial outcomes not performance certification"}
+
+def execute_walkforward(args) -> dict:
+    samples=json.loads(Path(args.snapshots).read_text(encoding="utf-8"))
+    outcomes=json.loads(Path(args.outcomes).read_text(encoding="utf-8"))
+    if not isinstance(samples,list) or not isinstance(outcomes,list):
+        raise ValueError("Walkforward input must be lists")
+    result=walk_forward_split(samples,outcomes,train_ends_at=args.train_ends_at,
+                               test_ends_at=args.test_ends_at,embargo_days=args.embargo_days)
+    target=Path(args.out)/"walkforward_research.json"
+    write_json(target,result)
+    return {"status":result["status"],"path":str(target),
+            "train_samples":len(result["training"]),
+            "test_candidates":len(result["test_candidates"]),
+            "historic_universe_certified":False}
 
 def main(argv=None):
     parser=argparse.ArgumentParser(prog="eraleader",description="Offline EraLeader prototype (APIs disabled)")
@@ -197,6 +225,20 @@ def main(argv=None):
     evaluate.add_argument("--evaluated-at",required=True)
     evaluate.add_argument("--horizon-days",type=int,default=180)
     evaluate.add_argument("--out",default=str(OUT))
+    wf=sub.add_parser("walkforward",help="Horizon/embargo PIT split; research only")
+    wf.add_argument("--snapshots",required=True)
+    wf.add_argument("--outcomes",required=True)
+    wf.add_argument("--train-ends-at",required=True)
+    wf.add_argument("--test-ends-at",required=True)
+    wf.add_argument("--embargo-days",type=int,default=7)
+    wf.add_argument("--out",default=str(OUT))
+    batch=sub.add_parser("batch",help="Explicit-date offline KR+US reporting batch")
+    batch.add_argument("--kr-as-of",required=True)
+    batch.add_argument("--us-as-of",required=True)
+    batch.add_argument("--out",default=str(OUT))
+    batch.add_argument("--legacy",default=str(LEGACY_DEFAULT))
+    batch.add_argument("--days",type=int,default=550)
+    batch.add_argument("--top",type=int,default=20)
     args=parser.parse_args(argv)
     try:
         if args.command=="run":result=execute_run(args)
@@ -207,6 +249,10 @@ def main(argv=None):
         elif args.command=="offline-features":result=execute_offline_features(args)
         elif args.command=="offline-integrated":result=execute_integrated(args)
         elif args.command=="validate-discovery":result=execute_validation(args)
+        elif args.command=="walkforward":result=execute_walkforward(args)
+        elif args.command=="batch":
+            from .batch import execute_local_batch
+            result=execute_local_batch(args)
         else:
             site=Path(args.out)/"site"
             site.mkdir(parents=True,exist_ok=True)

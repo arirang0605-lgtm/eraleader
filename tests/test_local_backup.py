@@ -152,3 +152,21 @@ def test_prospective_registry_survives_verified_backup_restore(tmp_path):
         assert records[0]["status"]=="PROSPECTIVE_RESEARCH_ONLY_PIT_NOT_CERTIFIED"
     finally:
         restored_ledger.close()
+
+def test_total_return_audit_json_is_allowlisted_without_raw_payload(tmp_path):
+    output=tmp_path/"audit"
+    output.mkdir()
+    report={"status":"RESEARCH_RETURN_SERIES_DISAGREE",
+            "historic_price_actions_pit_certified":False,
+            "exception_samples":[{"session":"2024-04-03","deviation_bps":200}]}
+    (output/"total_return_crosscheck_research.json").write_text(json.dumps(report))
+    (output/"raw_source_dump.json").write_text('{"api_key":"DO_NOT_COPY"}')
+    archive=tmp_path/"audit.zip"
+    create_backup(output,archive)
+    assert verify_backup(archive)["file_count"]==1
+    with ZipFile(archive) as reader:
+        assert reader.namelist()==["total_return_crosscheck_research.json","MANIFEST.json"]
+    restored=tmp_path/"restored_audit"
+    restore_backup(archive,restored)
+    assert json.loads((restored/"total_return_crosscheck_research.json").read_text())==report
+    assert not (restored/"raw_source_dump.json").exists()

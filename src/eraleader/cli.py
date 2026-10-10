@@ -20,6 +20,7 @@ from .discovery_metrics import evaluate_early_discovery
 from .walkforward import walk_forward_split
 from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
+from .adjusted_crosscheck import compare_total_return_indexes
 from .universe_audit import audit_observed_universe
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
@@ -232,6 +233,26 @@ def execute_universe_audit(args) -> dict:
             "halted_count":audit["halted_count"],
             "historic_membership_certified":False}
 
+def execute_return_crosscheck(args) -> dict:
+    bundle=json.loads(Path(args.file).read_text(encoding="utf-8"))
+    if bundle.get("schema_version")!="total_return_crosscheck_v1":
+        raise ValueError("Unsupported total-return crosscheck schema")
+    if bundle.get("provenance") not in ("synthetic_fixture","external_public_file","user_supplied"):
+        raise ValueError("Explicit offline provenance required")
+    if bundle.get("price_basis")!="raw_unadjusted":
+        raise ValueError("Raw unadjusted price basis required")
+    result=compare_total_return_indexes(
+        bundle["bars"],bundle["actions"],bundle["reference"],
+        decision_at=args.decision_at,evaluated_at=args.evaluated_at,
+        security_id=args.security_id,market=args.market,
+        raw_source_id=bundle["raw_source_id"],
+        tolerance_bps=args.tolerance_bps)
+    target=Path(args.out)/"total_return_crosscheck_research.json"
+    write_json(target,result)
+    return {"status":result["status"],"path":str(target),
+            "intervals_outside_tolerance":result["intervals_outside_tolerance"],
+            "historic_price_actions_pit_certified":False}
+
 def execute_prospective_export(args) -> dict:
     registry_path=Path(args.out)/"prospective.sqlite"
     if not registry_path.is_file():
@@ -351,6 +372,14 @@ def main(argv=None):
     ua.add_argument("--legacy",default=str(LEGACY_DEFAULT))
     ua.add_argument("--days",type=int,default=30)
     ua.add_argument("--out",default=str(OUT))
+    check=sub.add_parser("audit-total-return",help="Compare raw corporate-action return and separate local total-return index")
+    check.add_argument("--file",required=True,help="Offline total_return_crosscheck_v1 JSON bundle")
+    check.add_argument("--security-id",required=True)
+    check.add_argument("--market",choices=["KR","US"],required=True)
+    check.add_argument("--decision-at",required=True)
+    check.add_argument("--evaluated-at",required=True)
+    check.add_argument("--tolerance-bps",type=float,default=5.0)
+    check.add_argument("--out",default=str(OUT))
     prospect=sub.add_parser("prospective-signals",help="Export first actually registered research WATCH signals")
     prospect.add_argument("--market",choices=["KR","US"],required=True)
     prospect.add_argument("--out",default=str(OUT))
@@ -384,6 +413,7 @@ def main(argv=None):
         elif args.command=="audit-universe":result=execute_universe_audit(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
+        elif args.command=="audit-total-return":result=execute_return_crosscheck(args)
         elif args.command in ("backup-local","verify-backup","restore-backup"):
             result=execute_backup(args)
         elif args.command=="batch":

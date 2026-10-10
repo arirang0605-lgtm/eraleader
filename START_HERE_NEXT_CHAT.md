@@ -117,3 +117,7 @@
 - **최신 개발** `docs/35_PROSPECTIVE_SIGNAL_REGISTRY.md`: `prospective.sqlite`에 연구용 성장 관찰 신호를 실행 시각에 별도 등록, 과거 데이터 재실행의 조기 발굴 성과 소급 차단. CLI `prospective-signals`, KR/US 신규 HTML 등록화면, DB 온라인 백업·복구 포함.
 - `pytest 111개 PASS`; 2024 합성자료를 2026-10-10 실행한 결과 기록일은 2026-10-10(과거자료 backfill=true). 로컬 웹/e2e, 검증 백업·복구 성공, 실제 인증 후보 0. **실전 PIT 및 실제 발견 성능 미인증**. 다음은 원천 독립 자료/기업행동·상폐/조정가격 교차검증과 봉인 홀드아웃.
 - 실제 HEAD/원격 push 증거는 `PROJECT_STATE.md` 맨 마지막 체크포인트와 `git status -sb`로 먼저 확인.
+
+## 2026-10-10 추가 개발 — 2_5 원시 주가/기업행동 대 독립 총수익지수 비교 계약
+- `src/eraleader/adjusted_crosscheck.py`, CLI `audit-total-return`, 문서 `docs/36_TOTAL_RETURN_CROSSCHECK.md`. 합성 split/dividend 수익률(0%) vs 참조지수 일치/200bp 불일치 탐지, 자료 게시시각 검사. 현물 시장의 **실제 독립 공급자 검증은 미완료**, 시세/기업행동 PIT 인증 불가. 전체 `pytest 131개 PASS`, 외부 API 호출 0.
+- `PROJECT_STATE.md` 맨 아래 SHA+푸시 기록 및 실제 Git 상태부터 확인. 정상 코드 보존, 다음은 역사적 실제 데이터 원본 증빙 + 5단계 홀드아웃 품질.

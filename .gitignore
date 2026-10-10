@@ -1,0 +1,31 @@
+# Secrets and personal environment
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+.DS_Store
+._*
+# Locally cached market data and generated results
+storage/
+output/
+results/
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.parquet
+*.csv
+*.jsonl
+# generated exports
+site/
+reports/
+# Packaging
+build/
+dist/
+*.egg-info/

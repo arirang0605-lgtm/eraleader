@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2300" height="1380" viewBox="0 0 2300 1380">
+<defs><linearGradient id="canvas" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#F9FBFF"/><stop offset="1" stop-color="#EEF4FA"/></linearGradient><linearGradient id="header"><stop stop-color="#062B52"/><stop offset="1" stop-color="#21578B"/></linearGradient></defs>
+<rect x="0" y="0" width="2300" height="1380" rx="0" fill="url(#canvas)" stroke="none" stroke-width="0"/>
+<rect x="0" y="0" width="2300" height="173" rx="0" fill="url(#header)" stroke="none" stroke-width="0"/>
+<text x="44" y="72" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="73" font-weight="800" text-anchor="start">EraLeader</text>
+<text x="445" y="65" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="43" font-weight="820" text-anchor="start">4단계  |  잠재 · 확정 대장주 및 교체 판정</text>
+<text x="47" y="126" fill="#CEE8FF" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="27" font-weight="560" text-anchor="start">종목의 주도력 변화와 신규 후보를 상태 머신과 이벤트 이력으로 관리</text>
+<rect x="1880" y="49" width="365" height="60" rx="12" fill="#2C6B9D" stroke="#70B4E8" stroke-width="1"/>
+<text x="2062" y="88" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="23" font-weight="740" text-anchor="middle">독립 설계 · 실개발 명세</text>
+<rect x="48.0" y="209" width="534.5" height="679" rx="24" fill="#FFFFFF" stroke="#CBD9E8" stroke-width="2"/>
+<rect x="48.0" y="209" width="534.5" height="111" rx="22" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="48.0" y="297" width="534.5" height="23" rx="0" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="69.0" y="231" width="54" height="53" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="96.0" y="268" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="29" font-weight="800" text-anchor="middle">1</text>
+<text x="138.0" y="268" fill="#173855" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="31" font-weight="800" text-anchor="start">입력 자료</text>
+<text x="68.0" y="311" fill="#4B6580" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="20" font-weight="550" text-anchor="start">2·3단계 분석 결과 재사용</text>
+<rect x="66.0" y="347" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="79.0" y="360" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="100.0" y="379" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">현재 점수</text>
+<text x="100.0" y="414" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">산업·실적·RS·수급 점수</text>
+<rect x="66.0" y="448" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="79.0" y="461" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="100.0" y="480" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">이전 상태</text>
+<text x="100.0" y="515" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">최초 발굴일·전주 상태</text>
+<rect x="66.0" y="549" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="79.0" y="562" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="100.0" y="581" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">주봉 신호</text>
+<text x="100.0" y="616" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">주간 마감 확정 추세</text>
+<rect x="66.0" y="650" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="79.0" y="663" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="100.0" y="682" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">실적 근거</text>
+<text x="100.0" y="717" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">공시·당시 추정치 변화</text>
+<rect x="66.0" y="751" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="79.0" y="764" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="100.0" y="783" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">유효성</text>
+<text x="100.0" y="818" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">거래정지·결측·상폐 여부</text>
+<rect x="65.0" y="861" width="500.5" height="8" rx="4" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<text x="593.5" y="579" fill="#4D8FCD" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="62" font-weight="800" text-anchor="middle">›</text>
+<rect x="604.5" y="209" width="534.5" height="679" rx="24" fill="#FFFFFF" stroke="#CBD9E8" stroke-width="2"/>
+<rect x="604.5" y="209" width="534.5" height="111" rx="22" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="604.5" y="297" width="534.5" height="23" rx="0" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="625.5" y="231" width="54" height="53" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="652.5" y="268" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="29" font-weight="800" text-anchor="middle">2</text>
+<text x="694.5" y="268" fill="#173855" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="31" font-weight="800" text-anchor="start">구현 모듈</text>
+<text x="624.5" y="311" fill="#4B6580" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="20" font-weight="550" text-anchor="start">규칙 기반 상태 머신</text>
+<rect x="622.5" y="347" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="635.5" y="360" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="656.5" y="379" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">잠재 후보</text>
+<text x="656.5" y="414" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">가속·RS 또는 65~79 가설</text>
+<rect x="622.5" y="448" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="635.5" y="461" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="656.5" y="480" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">확정 후보</text>
+<text x="656.5" y="515" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">80+ 및 실적·추세 교차확인</text>
+<rect x="622.5" y="549" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="635.5" y="562" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="656.5" y="581" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">약화 감지</text>
+<text x="656.5" y="616" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">복수 조건·추세 훼손 확인</text>
+<rect x="622.5" y="650" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="635.5" y="663" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="656.5" y="682" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">교체 탐색</text>
+<text x="656.5" y="717" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">후발주와 기존주 상대 비교</text>
+<rect x="622.5" y="751" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="635.5" y="764" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="656.5" y="783" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">상태 안정화</text>
+<text x="656.5" y="818" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">연속확인·히스테리시스</text>
+<rect x="621.5" y="861" width="500.5" height="8" rx="4" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<text x="1150.0" y="579" fill="#4D8FCD" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="62" font-weight="800" text-anchor="middle">›</text>
+<rect x="1161.0" y="209" width="534.5" height="679" rx="24" fill="#FFFFFF" stroke="#CBD9E8" stroke-width="2"/>
+<rect x="1161.0" y="209" width="534.5" height="111" rx="22" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="1161.0" y="297" width="534.5" height="23" rx="0" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="1182.0" y="231" width="54" height="53" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1209.0" y="268" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="29" font-weight="800" text-anchor="middle">3</text>
+<text x="1251.0" y="268" fill="#173855" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="31" font-weight="800" text-anchor="start">생성 산출물</text>
+<text x="1181.0" y="311" fill="#4B6580" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="20" font-weight="550" text-anchor="start">시간순 이벤트 원장</text>
+<rect x="1179.0" y="347" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1192.0" y="360" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1213.0" y="379" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">잠재 TOP 20</text>
+<text x="1213.0" y="414" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">초기 대장주 후보</text>
+<rect x="1179.0" y="448" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1192.0" y="461" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1213.0" y="480" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">확정 TOP 10</text>
+<text x="1213.0" y="515" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">모델상 현재 주도주</text>
+<rect x="1179.0" y="549" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1192.0" y="562" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1213.0" y="581" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">신규·승격</text>
+<text x="1213.0" y="616" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">최초 발견일·이유</text>
+<rect x="1179.0" y="650" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1192.0" y="663" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1213.0" y="682" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">약화·교체</text>
+<text x="1213.0" y="717" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">경쟁기업 우위 이벤트</text>
+<rect x="1179.0" y="751" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1192.0" y="764" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1213.0" y="783" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">상태 이력</text>
+<text x="1213.0" y="818" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">WATCH/POTENTIAL/PAUSED</text>
+<rect x="1178.0" y="861" width="500.5" height="8" rx="4" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<text x="1706.5" y="579" fill="#4D8FCD" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="62" font-weight="800" text-anchor="middle">›</text>
+<rect x="1717.5" y="209" width="534.5" height="679" rx="24" fill="#FFFFFF" stroke="#CBD9E8" stroke-width="2"/>
+<rect x="1717.5" y="209" width="534.5" height="111" rx="22" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="1717.5" y="297" width="534.5" height="23" rx="0" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="1738.5" y="231" width="54" height="53" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1765.5" y="268" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="29" font-weight="800" text-anchor="middle">4</text>
+<text x="1807.5" y="268" fill="#173855" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="31" font-weight="800" text-anchor="start">검증 기준</text>
+<text x="1737.5" y="311" fill="#4B6580" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="20" font-weight="550" text-anchor="start">신호·알림 중복 방지</text>
+<rect x="1735.5" y="347" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1748.5" y="360" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1769.5" y="379" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">재실행 동일성</text>
+<text x="1769.5" y="414" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">같은 입력이면 같은 상태</text>
+<rect x="1735.5" y="448" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1748.5" y="461" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1769.5" y="480" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">미확정봉 금지</text>
+<text x="1769.5" y="515" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">임시 주봉으로 승격 금지</text>
+<rect x="1735.5" y="549" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1748.5" y="562" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1769.5" y="581" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">상태 흔들림 억제</text>
+<text x="1769.5" y="616" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">임계값 반복 왕복 방지</text>
+<rect x="1735.5" y="650" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1748.5" y="663" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1769.5" y="682" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">교체 후보 근거</text>
+<text x="1769.5" y="717" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">산업 내 동일 시점 비교</text>
+<rect x="1735.5" y="751" width="498.5" height="89" rx="11" fill="#F7F9FD" stroke="#E2EAF3" stroke-width="1"/>
+<rect x="1748.5" y="764" width="8" height="60" rx="4" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1769.5" y="783" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="760" text-anchor="start">자료 오류 시</text>
+<text x="1769.5" y="818" fill="#294760" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="21" font-weight="550" text-anchor="start">PAUSED + 신호 차단</text>
+<rect x="1734.5" y="861" width="500.5" height="8" rx="4" fill="#FFF0E3" stroke="none" stroke-width="0"/>
+<rect x="48" y="913" width="2204" height="195" rx="20" fill="#FFFFFF" stroke="#CDDEED" stroke-width="2"/>
+<text x="77" y="962" fill="#173B60" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="34" font-weight="800" text-anchor="start">4단계 개발 실행 순서</text>
+<rect x="78.0" y="986" width="414.4" height="91" rx="14" fill="#FFF0E3" stroke="#D8E6F1" stroke-width="1"/>
+<rect x="91.0" y="1007" width="50" height="50" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="116.0" y="1041" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="27" font-weight="800" text-anchor="middle">1</text>
+<text x="153.0" y="1041" fill="#193A56" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="720" text-anchor="start">상태 정의</text>
+<rect x="511.4" y="986" width="414.4" height="91" rx="14" fill="#FFF0E3" stroke="#D8E6F1" stroke-width="1"/>
+<rect x="524.4" y="1007" width="50" height="50" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="549.4" y="1041" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="27" font-weight="800" text-anchor="middle">2</text>
+<text x="586.4" y="1041" fill="#193A56" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="720" text-anchor="start">후보 승격 규칙</text>
+<rect x="944.8" y="986" width="414.4" height="91" rx="14" fill="#FFF0E3" stroke="#D8E6F1" stroke-width="1"/>
+<rect x="957.8" y="1007" width="50" height="50" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="982.8" y="1041" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="27" font-weight="800" text-anchor="middle">3</text>
+<text x="1019.8" y="1041" fill="#193A56" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="720" text-anchor="start">약화·교체 감지</text>
+<rect x="1378.1999999999998" y="986" width="414.4" height="91" rx="14" fill="#FFF0E3" stroke="#D8E6F1" stroke-width="1"/>
+<rect x="1391.1999999999998" y="1007" width="50" height="50" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1416.1999999999998" y="1041" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="27" font-weight="800" text-anchor="middle">4</text>
+<text x="1453.1999999999998" y="1041" fill="#193A56" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="720" text-anchor="start">이벤트 원장</text>
+<rect x="1811.6" y="986" width="414.4" height="91" rx="14" fill="#FFF0E3" stroke="#D8E6F1" stroke-width="1"/>
+<rect x="1824.6" y="1007" width="50" height="50" rx="13" fill="#B86623" stroke="none" stroke-width="0"/>
+<text x="1849.6" y="1041" fill="white" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="27" font-weight="800" text-anchor="middle">5</text>
+<text x="1886.6" y="1041" fill="#193A56" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="24" font-weight="720" text-anchor="start">누수·중복 테스트</text>
+<rect x="48" y="1132" width="2204" height="93" rx="15" fill="#ECF2FB" stroke="#D1DFEE" stroke-width="1"/>
+<text x="79" y="1173" fill="#173A5B" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="29" font-weight="790" text-anchor="start">핵심 방지 규칙</text>
+<text x="79" y="1207" fill="#344D66" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="23" font-weight="570" text-anchor="start">확정 대장주 = 규칙상 현재 주도주. 미래 수익률 보증이나 자동 매매 신호가 아님</text>
+<rect x="48" y="1249" width="2204" height="92" rx="16" fill="#FFF0E3" stroke="#D2E1ED" stroke-width="1"/>
+<text x="75" y="1302" fill="#B86623" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="27" font-weight="750" text-anchor="start">Gate 4  |  후보 TOP20·주도주 TOP10·변화 이벤트·변화 이유·최초 발굴일</text>
+<text x="55" y="1370" fill="#627892" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="18" font-weight="550" text-anchor="start">문서: docs/16_STAGE4_LEADER_STATE_MACHINE.md      |      상태: 구현 설계 · API/실데이터 연결은 검증 전</text>
+<text x="2254" y="1370" fill="#627892" font-family="Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="18" font-weight="500" text-anchor="end">T5DATA / eraleader    •    2026.10.10</text>
+</svg>

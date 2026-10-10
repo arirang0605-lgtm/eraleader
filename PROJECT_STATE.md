@@ -1,0 +1,153 @@
+# PROJECT_STATE — 실제 작업 상태
+
+## 최상위 목표 (2026-10-10 사용자 명시적 교정)
+
+**미래 대장주를 조기에 발견하는 능력의 구현·실운영이 최종 목적. 과거 데이터와 백테스트는 그 능력의 작동 여부를 검증하는 수단**이다. 개발/모델 성능 평가에서 이 두 역할을 절대 바꿔 말하지 않는다.
+
+## 최신 스냅샷 — 새 대화 기준
+
+> 2026-10-10 KST. 이 절이 현재 상태의 단일 기준(SSOT)입니다. 아래 이전 기록은 작성 당시의 역사적 상태입니다.
+
+- **현재(2026-10-10 개발 착수)**: 로컬 Python 패키지·가격 캐시 어댑터·SQLite PIT fixture/이력·가격 관찰 랭킹·state-logic fixture·모멘텀 baseline·정적 웹/알림 dry-run/Markdown 보고서가 **첫 통합 실행 PASS**. 자동 pytest **17개 통과** + 로컬 HTTP/e2e 확인. 다만 **실제 기업/산업 PIT·대장주 확정/성능 검증·API/실전 알림은 미완료**. 상세: `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`.
+- **테스트 근거**: marcap 1995~2026 연도별 Parquet 32개 / 15,648,407행 메타데이터 대조 PASS. 005930 2025년 1월 18거래일 로컬 캐시 조회 PASS. 기존 미국 업종 모멘텀 계산 실행 PASS. **투자 성능·PIT 적합성 검증은 아님**.
+- **Git 상태(2026-10-10)**: SSD `/Volumes/T5DATA/eraleader`에서 **로컬 Git 저장소 `main` 초기화 완료**. GitHub `arirang0605-lgtm/eraleader`는 당시 Public·size 0. 원격 연결·push **미진행**. 로컬 커밋 SHA는 아래 최신 개발 실행 기록에서 확인. 상세: `docs/26_GITHUB_REPO_HANDOFF.md`.
+- **기존 재활용**: `/Volumes/T5DATA/CycleOS-Lab_BacktestEngine` 읽기 전용, `/Volumes/T5DATA/backtestengine`은 확인 당시 빈 폴더. 분할·배당·상폐·공시 이용시각·라이선스 추가 검증 필요.
+- **다음 작업**: `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`의 미완료 목록. 최우선은 **2_2 역사 종목/기업행동 및 3_1~3_3 오프라인 재무·산업 PIT importer** 구축→4단계 실제 근거 판정 통합→5단계 객관적 발굴 성능 검증. API 연결은 로컬 1~6기능 완성 후 별도.
+- **재개 순서**: `START_HERE_NEXT_CHAT.md` → `AGENTS.md` → 상태 상단 → 관련 상세 MD 1~2개. 기존 코드 무단 재작성, 반복 전체 대화 분석 금지.
+
+---
+
+## 이전 시점 기록 (최신 상태를 덮어쓰지 않음)
+
+- 기준일: 2026-10-10 (KST)
+- 저장 경로: /Volumes/T5DATA/eraleader
+- 현재 단계: P0 — 설계·요구사항 Markdown 기록
+- 문서 작성 상태: 이 문서와 docs/ 아래 명세 작성 중
+- Git 저장소: **이 SSD 폴더에서는 아직 확인된 Git 초기화/커밋 없음**
+- 실전 데이터 연결: **미구현/미검증**
+- 산업·기업 점수 프로그램: **이 폴더에서 구현 여부 미확인**
+- PIT 백테스트: **이 폴더에서 미구현/미검증**
+- 대시보드: **미구현**
+- 알림·보고서: **미구현**
+- 외부 MarketOS 연결: **미구현(선택 사항)**
+
+## 확인된 로컬 환경
+
+- 연결 PC: SHMOONui-MacBookAir.local (macOS)
+- T5DATA 외장 SSD: /Volumes/T5DATA 마운트 확인
+- 이 폴더: 최초 점검 시 빈 폴더
+- Python 버전: 3.12.7 확인
+- 존재가 확인된 다른 프로젝트 경로:
+  - /Volumes/T5DATA/CycleOS-Lab_BacktestEngine
+  - /Volumes/T5DATA/backtestengine
+  - /Volumes/T5DATA/marketos
+- 위 폴더들의 실제 소스/API 호환성은 **아직 점검하지 않음**.
+
+## 이전 대화에 나온 결과에 관한 주의
+
+이전 대화에서 EraLeader v0.1 ZIP 시제품과 가상 데이터 8개 테스트 통과가 언급되었다. **이번 SSD 폴더에 그 코드/테스트 산출물이 있다고 확인된 것은 아니다.** 파일 확보 후 실제 테스트로 재검증할 것.
+
+## 다음 작업 — 실행 우선순위
+
+1. 문서 작성·정합성 검사 완료.
+2. 사용자 승인하에 독립 Git 저장소(Private) 생성/연결. 기존 다른 프로젝트는 수정하지 않음.
+3. 기존 v0.1 원본을 확보할 수 있으면 무변경으로 가져와 실행·테스트·버전 기록. 없으면 이 문서를 바탕으로 최소 코드 골격 구축.
+4. /Volumes/T5DATA/CycleOS-Lab_BacktestEngine 과 /Volumes/T5DATA/backtestengine 을 **읽기 전용으로** 점검 후 범용 엔진 재사용 가능성 결정.
+5. 실제 데이터 1개 소스 → PIT 보관 → 최소 점수 → 소규모 검증 → 결과 저장까지 일관 동작시켜 첫 MVP 구축.
+6. Git 체크포인트와 PROJECT_STATE.md를 결과 기반으로 갱신.
+
+## 차단/미결정 사항
+
+- 데이터 공급자 이용 승인 및 API 인증정보(실제 수집 시 필요)
+- 미국 장기 시세·상장폐지 자료의 공급 범위 및 비용
+- 과거 실적 컨센서스 이력: 선택적 유료 데이터, 없이도 제한적인 MVP 가능
+- 외부 서버·알림 채널·로그인 방식: MVP 이후 확정
+- 과거 백테스트 엔진 호환성: 코드 점검 필요
+
+## 최종 완료 기준
+
+상세: docs/10_TEST_ACCEPTANCE.md
+'완료'는 UI 시연이 아니라 실제 데이터 수집부터 후보 생성/검증/화면/알림/보고까지 자동 실행한 증거가 있는 경우에만 사용.
+
+## 추가 문서화 기록 (2026-10-10)
+- `docs/13_DATA_COLLECTION_IMPLEMENTATION.md`: 주가·재무·산업/거시·공시/뉴스 데이터별 공식 수집 출처, PIT, 비용·단계별 구축 명세를 **문서로** 저장함.
+- `EraLeader_데이터수집_전체구조도.{svg,png}` 및 `render_data_collection.py`: 데이터 수집 구조도와 재생성 스크립트를 보존함.
+- **이번 기록은 설계·자료 작성이며 실제 API 호출·백테스트·운영 기능 구현으로 간주하지 않음.**
+
+
+## 2~6단계 구체 개발 문서화 결과 (2026-10-10)
+
+- \`docs/14_STAGE2_PIT_DATA_ENGINE.md\`부터 \`docs/18_STAGE6_DASHBOARD_ALERT_REPORT.md\`까지 **단계별 상세 개발 명세 5개 신규 작성**.
+- \`docs/19_STAGES_2_TO_6_INDEX.md\` — 전체 단계별 자료 수집·입력, 코드 목표, 결과, 테스트 및 PNG/SVG 찾아보기.
+- \`EraLeader_2단계_...\` ~ \`EraLeader_6단계_...\` PNG/SVG 각 1장(총 10개)와 \`EraLeader_2-6단계_통합구조도\` PNG/SVG(2개), \`render_stages_2_to_6.py\` 생성.
+- 실제 SSD 원본 파일 존재, SVG XML 파싱, PNG 크기·내용을 검증함. 아래 추가 검증 기록 참조.
+- **실제로 개발된 분석·백테스트·대시보드 프로그램은 아직 이 폴더에서 확인되지 않았으며 문서/그림 작업만 완료됨.**
+- 다음 단계는 P1 독립 코드 골격 및 P2/PIT 최소 코드를 검증하는 것. 5단계의 백테스트 기초를 PIT 구현 직후 조기 구축하는 사용자 확정 원칙 유지.
+
+## 2~6단계 파일 검증 (2026-10-10)
+- 신규 개발 상세 MD 5개, 문서 인덱스 1개, 파일 무결성 보고서 1개를 생성함.
+- 개별 PNG 5개+통합 PNG 1개, 개별 SVG 5개+통합 SVG 1개: 실제 저장 확인.
+- PNG 6개 전부 2300×1380, SVG 6개 XML 파싱 정상, README/인덱스의 상대 링크 오류 0개.
+- 검사 보고서: `docs/20_STAGES_2_TO_6_VALIDATION.md`.
+- **검사한 것은 문서·그림 파일이다. 실제 기능 구현 및 전략 성능은 미검증 상태 유지.**
+
+## 전체설계도 세부 번호 일원화 및 그림 정리 (2026-10-10)
+- 새 통합 전체설계도: `EraLeader_전체설계도_1-6단계_세부번호.png` / `.svg` (1_1~6_5, 총 30개 작업 ID).
+- 상세 개발 번호표: `docs/21_MASTER_ARCHITECTURE_NUMBERING.md`.
+- 중복 이미지 삭제 기록: `docs/22_IMAGE_CLEANUP_LOG.md` (구형 그림 7개 삭제).
+- 유지한 그림: 최신 통합 1장, 1단계 상세 1장, 2~6단계 상세 5장, 각각 PNG+SVG(총 14개).
+- 옛 합본을 재생성하지 않게 개별 상세도 생성 스크립트 호출 변경, README/인덱스 링크 갱신.
+- 문서·그림 정리 완료이며 실데이터 API 및 발굴/백테스트 코드 완료로 해석 금지.
+
+## 기존 로컬 백테스트 자산 점검 (2026-10-10, 사용자 요청)
+
+- \`/Volumes/T5DATA/backtestengine\`: 빈 폴더로 확인.
+- \`/Volumes/T5DATA/CycleOS-Lab_BacktestEngine\`: 활용 대상. 기존 소스 **수정 없이** 데이터·코드 확인.
+- \`datasets/external_validation/marcap/data\`: 32개 연도별 Parquet(1995~2026), 파일 메타데이터 합계 15,648,407행이 원본 검증 요약과 일치. 원 검증 요약의 종목코드 수 6,953, 날짜 최대 2026-10-02. 가격조정/PIT 적격성은 미검증.
+- 미국 S&P500 주봉 901,171행, NASDAQ100 주봉 153,582행 등의 기존 로컬 데이터를 확인함. 구성 종목군 시점 편향 주의.
+- **재사용 테스트 실행 PASS**: \`scripts/verify_backtestengine_reuse.py\` -> \`results/reuse_probe/local_assets_audit.json\`.
+- **실제 기존 전략 스모크 실행 PASS**: \`tools/backtest_mvp/grid_mom_rotation.py\` 단일 설정 -> \`results/reuse_probe/sector_mom_baseline_one_config.csv\`. 모멘텀 업종 baseline 연산 결과이지 투자/주도주 검증 아님.
+- 재사용 점검 상세: \`docs/23_BACKTESTENGINE_LOCAL_REUSE.md\`.
+- **다음 단계:** 기존 marcap/미국 자료를 읽기 전용으로 사용하는 EraLeader 어댑터 구축→최초 종목/기간 최소 재현→PIT 공시·기업행동 보완→기존 baseline과 신규 발굴 점수 공정 비교.
+- 외부 백테스트 폴더의 로직·데이터·Git 상태는 이번 작업 중 변경하지 않았음.
+
+- **첫 기존 데이터 연결 테스트 PASS:** \`scripts/read_cached_marcap.py\`가 외부 \`marcap-2025.parquet\`에서 005930의 2025-01-02~01-31 **18개 거래일**을 실제 조회. 인터넷·원본 복사 없이 \`results/reuse_probe/marcap_sample_query.json\` 저장. 이는 read-only 가격 조회 최소 어댑터이며 PIT 적격성은 미검증.
+
+### 최신 추가 증거: 새 대화 인수인계 자동 점검
+- `scripts/check_handoff.py` 최초 실행 **PASS**, 필수 14개 파일, 1_1~6_5(30개), 통합 그림 3240×2600, 전체 PNG 7장/SVG 7장, 손상된 링크/누락 파일 0개.
+- 새 대화에서는 이 스크립트 1회 실행 후 `docs/25_NEXT_IMPLEMENTATION_SPRINT.md`의 가장 첫 미완료 개발 작업부터 진행.
+- 이 PASS는 문서·연동 경로/기존 재사용 **기초 증거 존재**에 대한 검사이며 PIT 완성/대장주 검증 성공은 아님.
+
+## 목표 역할 정정 기록 — 2026-10-10
+
+- 사용자 명시적 교정: **최종 목적=미래 대장주를 조기에 발견하는 능력의 구현과 실운영**. **과거 데이터와 백테스트=그 능력이 당시 알 수 있던 정보로 작동하는지 검증하는 수단**.
+- 변경 문서: `README.md`, `START_HERE_NEXT_CHAT.md`, `AGENTS.md`, `DECISIONS.md`, `PROJECT_STATE.md`, `docs/00_VISION_SCOPE.md`, `docs/04_BACKTEST_VALIDATION.md`, `scripts/check_handoff.py`.
+- 실제 검증: `python3 scripts/check_handoff.py` → **PASS**, 필수 14개 파일, 고유 작업번호 30개, 구조도 PNG 7개/SVG 7개, 오류 0개.
+- 미해결: 아직 실제 미래 발굴 엔진 및 PIT 통합 장기 성능 검증은 미구현; 역사적 성능도 미래 탐지 능력을 보장하지 않음.
+- 다음 개발: `docs/25_NEXT_IMPLEMENTATION_SPRINT.md`에서 첫 미완료 코딩/PIT 테스트부터 진행. 이 목적 정의를 신규 알고리즘·사용자 화면·사후 성과 검증의 상위 기준으로 유지.
+- Git: 독립 저장소 미초기화/커밋 없음.
+
+## GitHub 저장소 실확인 및 인수인계 지침 업데이트 (2026-10-10)
+
+- GitHub 커넥터로 `arirang0605-lgtm/eraleader` 실제 생성 확인; 기본 브랜치 `main`, size 0, PUBLIC, 계정에 admin/push/pull 권한 있음.
+- 로컬 SSD `eraleader/.git` 없음. Git 원격 연결·코드 업로드는 아직 수행하지 않았으며, 공개 저장소 상태에서 임의 push하지 않음.
+- 변경 파일: `README.md`, `AGENTS.md`, `PROJECT_STATE.md`, `DECISIONS.md`, `START_HERE_NEXT_CHAT.md` 및 신규 `docs/26_GITHUB_REPO_HANDOFF.md`.
+- 테스트: `python3 scripts/check_handoff.py` → PASS, 필수 14개 파일·30작업ID·그림 PNG/SVG 각각 7개, 오류 0개; README/START_HERE 내부 링크 오류 0개.
+- 미해결: GitHub 공개/비공개 설정 사용자 확인 필요; 이후 로컬 초기화·`.gitignore`/비밀정보 검사·remote 연결·최초 commit/push.
+- 다음 작업: 기존 데이터 우선 재사용하면서 P1 로컬 독립 Python 패키지와 PIT 최소 구현 진행, Git 보안 설정은 최초 commit 이전에 처리.
+- Git 커밋/푸시 정보: 없음(실행하지 않음).
+
+## 로컬 우선 개발 첫 통합 실행 결과 — 2026-10-10
+
+**개발 목표 변경:** 사용자 결정에 따라 외부 API 연결은 나중으로 미루고 **1~6단계 로컬 작동 기능**부터 만든다. 세부 구현/실행 명령/제약은 `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`.
+
+- **P1 / 1_1·1_5**: `src/eraleader/data.py`는 `CycleOS-Lab_BacktestEngine`의 KR marcap 및 US S&P500 주간 캐시를 **읽기 전용**으로 로딩. 외부 데이터 다운로드 0건.
+- **2_1·2_3·2_4(부분)**: 원본 0값 OHLC 거래정지/무거래 자료는 거래 불가능으로 표시·주요 순위에서 제외. 550일 한국 데이터 **1,062,518행 중 정지/무거래 51,213행, 별도 이상 1행**을 발견했고 이상 1행은 격리해 출처·건수를 기록. SQLite PIT fixture의 공시 공개시각/정정 버전·중복 방지 테스트 PASS.
+- **3_4·3_5(가격 전용)**: 한국/미국 3·6개월 RS 가격 관찰 점수 및 상위 20개를 생성. 실적/산업 데이터 없어 종합 100점 및 POTENTIAL/CONFIRMED **보류(WATCH)**.
+- **4_1~4_5(부분)**: WATCH 이벤트·상태 저장. 미래 PIT 근거가 모두 확보된 경우에만 승격하는 순수 상태 머신을 합성 fixture로 검증(실제 확정 대장주 없음).
+- **5_1(연구 baseline)**: t신호 → t+1 수익률 연구용 주간 모멘텀 baseline 실행 성공, 52개 평가기간. 기업행동·시장구성 PIT 및 거래비용 검증 전이므로 결과 수익률 **공식 성과 아님**.
+- **6_1~6_5(부분)**: SQLite/JSON 스냅샷, 브라우저용 `output/site/index.html`, KR/US HTML, 상태변경 알림 dry-run, KR 일·주·월/US 주간 Markdown 보고 생성. localhost HTTP 3개 경로 200 확인, 연구용 WATCH 이벤트 44개 중복 없고 재실행 경고 0개.
+- **테스트**: `PYTHONPATH=src python3 -m pytest tests -q` → **17 PASS**; `PYTHONPATH=src python3 scripts/verify_local_mvp.py` → **PASS**; `python3 scripts/check_handoff.py` → **PASS**(초기 Git 확인 이전).
+- **주요 파일**: `pyproject.toml`, `.gitignore`, `src/eraleader/*.py`, `tests/*.py`, `scripts/verify_local_mvp.py`, `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`. 실행 결과는 **SSD의 `output/`** 아래 저장하며 원격 Git 업로드 제외.
+- **Git**: 로컬 `main` 초기화·파일 추가됨. 현재 원격 origin 설정 및 GitHub push **없음** (GitHub가 Public이므로 승인 전 push 금지). 커밋 SHA는 후속 실행 기록에 기재.
+- **최우선 다음 작업**: **2_2 역사 종목군/기업행동 PIT 보완 + 3_1~3_3 오프라인 재무·산업 입력 계약**을 구현하고, 4단계 후보 승격을 실제 검증 가능한 PIT 자료로 연결. 사용자의 최종 목표는 미래 대장주 조기 발굴이며 과거는 검증 수단이다.

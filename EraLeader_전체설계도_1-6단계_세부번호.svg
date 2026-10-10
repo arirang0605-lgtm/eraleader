@@ -1,0 +1,427 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3240" height="2600" viewBox="0 0 3240 2600">
+<defs>
+<linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#FAFCFF"/><stop offset="1" stop-color="#EFF4FA"/></linearGradient>
+<linearGradient id="head" x1="0" x2="1"><stop stop-color="#082C53"/><stop offset="1" stop-color="#1B5489"/></linearGradient>
+</defs>
+<rect x="0" y="0" width="3240" height="2600" rx="0" fill="url(#bg)" stroke="none" stroke-width="1"/>
+<rect x="0" y="0" width="3240" height="196" rx="0" fill="url(#head)" stroke="none" stroke-width="1"/>
+<text x="60" y="87" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="90" fill="white" font-weight="820" text-anchor="start">EraLeader</text>
+<text x="568" y="84" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="54" fill="#F5FAFF" font-weight="760" text-anchor="start">시대의 대장주 검색기  |  1~6단계 전체 설계도</text>
+<text x="65" y="150" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#D2E8FF" font-weight="530" text-anchor="start">각 단계 세부 작업의 고유 번호를 1_1 → 6_5로 통일 · 자료 수집부터 PIT 검증, 발굴, 백테스트, 결과 제공까지</text>
+<rect x="2768" y="49" width="405" height="69" rx="17" fill="#286595" stroke="#8ABEEB" stroke-width="1.4"/>
+<text x="2970" y="95" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="24" fill="white" font-weight="740" text-anchor="middle">독립 프로젝트 · 필요 시 연동</text>
+<text x="3175" y="171" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="23" fill="#E0EFFF" font-weight="500" text-anchor="end">개발 설계 / 2026-10-10</text>
+<rect x="43" y="225" width="3154" height="318" rx="23" fill="#FFFFFF" stroke="#C9D8E9" stroke-width="2.2"/>
+<rect x="44" y="225" width="366" height="318" rx="19" fill="#E6F3FF" stroke="none" stroke-width="1"/>
+<rect x="65" y="248" width="79" height="78" rx="20" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="104" y="303" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="48" fill="white" font-weight="820" text-anchor="middle">1</text>
+<text x="68" y="366" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#123754" font-weight="780" text-anchor="start">데이터 수집</text>
+<text x="68" y="415" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="24" fill="#405C78" font-weight="540" text-anchor="start">한국·미국 시세·공시·산업 변화</text>
+<rect x="66" y="454" width="322" height="60" rx="11" fill="#FFFFFF" stroke="#C9DEEB" stroke-width="1"/>
+<text x="79" y="492" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="22" fill="#176BB0" font-weight="720" text-anchor="start">산출: 원본 시세·재무·이벤트</text>
+<rect x="430" y="242" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="430" y="242" width="543" height="77" rx="15" fill="#E6F3FF" stroke="none" stroke-width="1"/>
+<rect x="444" y="255" width="102" height="52" rx="13" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="495" y="292" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">1_1</text>
+<text x="562" y="293" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">한국·미국 주가</text>
+<rect x="456" y="348" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="479" y="366" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">KRX 일봉·미국 시세 API</text>
+<rect x="456" y="394" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="479" y="412" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">상장·상폐·기업행동</text>
+<rect x="456" y="440" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="479" y="458" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">실시간·분봉은 별도 검토</text>
+<text x="980.0" y="403" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="987" y="242" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="987" y="242" width="543" height="77" rx="15" fill="#E6F3FF" stroke="none" stroke-width="1"/>
+<rect x="1001" y="255" width="102" height="52" rx="13" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1052" y="292" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">1_2</text>
+<text x="1119" y="293" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">기업 재무·공시</text>
+<rect x="1013" y="348" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1036" y="366" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">OpenDART · SEC EDGAR</text>
+<rect x="1013" y="394" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1036" y="412" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">분기·연간 보고/현금흐름</text>
+<rect x="1013" y="440" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1036" y="458" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">공시 접수시각 보존</text>
+<text x="1537.0" y="403" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="1544" y="242" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="1544" y="242" width="543" height="77" rx="15" fill="#E6F3FF" stroke="none" stroke-width="1"/>
+<rect x="1558" y="255" width="102" height="52" rx="13" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1609" y="292" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">1_3</text>
+<text x="1676" y="293" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">거시·산업 통계</text>
+<rect x="1570" y="348" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1593" y="366" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">ECOS · KOSIS · FRED</text>
+<rect x="1570" y="394" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1593" y="412" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">ALFRED 과거 빈티지</text>
+<rect x="1570" y="440" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="1593" y="458" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">산업 성장·투자 통계</text>
+<text x="2094.0" y="403" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2101" y="242" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2101" y="242" width="543" height="77" rx="15" fill="#E6F3FF" stroke="none" stroke-width="1"/>
+<rect x="2115" y="255" width="102" height="52" rx="13" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2166" y="292" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">1_4</text>
+<text x="2233" y="293" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">공시·뉴스·기타</text>
+<rect x="2127" y="348" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2150" y="366" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">계약·수주·정책·GDELT</text>
+<rect x="2127" y="394" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2150" y="412" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">컨센서스는 필요시 유료</text>
+<rect x="2127" y="440" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2150" y="458" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">출처·발표일 기록</text>
+<text x="2651.0" y="403" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2658" y="242" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2658" y="242" width="543" height="77" rx="15" fill="#E6F3FF" stroke="none" stroke-width="1"/>
+<rect x="2672" y="255" width="102" height="52" rx="13" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2723" y="292" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">1_5</text>
+<text x="2790" y="293" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">자동 증분 수집</text>
+<rect x="2684" y="348" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2707" y="366" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">API 어댑터·호출 제한</text>
+<rect x="2684" y="394" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2707" y="412" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">원본 캐시·재시도</text>
+<rect x="2684" y="440" width="7" height="18" rx="4" fill="#176BB0" stroke="none" stroke-width="1"/>
+<text x="2707" y="458" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">원자료 변경 없이 보관</text>
+<text x="226" y="573" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="28" fill="#176BB0" font-weight="760" text-anchor="middle">▼</text>
+<rect x="43" y="576" width="3154" height="318" rx="23" fill="#FFFFFF" stroke="#C9D8E9" stroke-width="2.2"/>
+<rect x="44" y="576" width="366" height="318" rx="19" fill="#E1F7F2" stroke="none" stroke-width="1"/>
+<rect x="65" y="599" width="79" height="78" rx="20" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="104" y="654" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="48" fill="white" font-weight="820" text-anchor="middle">2</text>
+<text x="68" y="717" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#123754" font-weight="780" text-anchor="start">PIT 검증·저장</text>
+<text x="68" y="766" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="24" fill="#405C78" font-weight="540" text-anchor="start">과거 당시 알 수 있었던 정보 복원</text>
+<rect x="66" y="805" width="322" height="60" rx="11" fill="#FFFFFF" stroke="#C9DEEB" stroke-width="1"/>
+<text x="79" y="843" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="22" fill="#0C867E" font-weight="720" text-anchor="start">산출: PIT DB·품질보고서</text>
+<rect x="430" y="593" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="430" y="593" width="543" height="77" rx="15" fill="#E1F7F2" stroke="none" stroke-width="1"/>
+<rect x="444" y="606" width="102" height="52" rx="13" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="495" y="643" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">2_1</text>
+<text x="562" y="644" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">원본 품질검사</text>
+<rect x="456" y="699" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="479" y="717" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">중복·결측·이상치 탐지</text>
+<rect x="456" y="745" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="479" y="763" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">가격·재무 단위 정합성</text>
+<rect x="456" y="791" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="479" y="809" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">오류/누락 명시</text>
+<text x="980.0" y="754" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="987" y="593" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="987" y="593" width="543" height="77" rx="15" fill="#E1F7F2" stroke="none" stroke-width="1"/>
+<rect x="1001" y="606" width="102" height="52" rx="13" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1052" y="643" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">2_2</text>
+<text x="1119" y="644" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">종목·기업행동</text>
+<rect x="1013" y="699" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1036" y="717" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">상장·상폐·티커 변경</text>
+<rect x="1013" y="745" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1036" y="763" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">분할·배당·거래정지</text>
+<rect x="1013" y="791" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1036" y="809" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">당시 시장 구성 재현</text>
+<text x="1537.0" y="754" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="1544" y="593" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="1544" y="593" width="543" height="77" rx="15" fill="#E1F7F2" stroke="none" stroke-width="1"/>
+<rect x="1558" y="606" width="102" height="52" rx="13" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1609" y="643" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">2_3</text>
+<text x="1676" y="644" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">PIT 시점 필터</text>
+<rect x="1570" y="699" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1593" y="717" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">공시일 ≠ 사업기간 종료일</text>
+<rect x="1570" y="745" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1593" y="763" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">available_at ≤ 판단 시각</text>
+<rect x="1570" y="791" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="1593" y="809" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">미래정보 유입 차단</text>
+<text x="2094.0" y="754" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2101" y="593" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2101" y="593" width="543" height="77" rx="15" fill="#E1F7F2" stroke="none" stroke-width="1"/>
+<rect x="2115" y="606" width="102" height="52" rx="13" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2166" y="643" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">2_4</text>
+<text x="2233" y="644" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">표준화·저장</text>
+<rect x="2127" y="699" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2150" y="717" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">공통 종목ID·통화·시간</text>
+<rect x="2127" y="745" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2150" y="763" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">DuckDB / Parquet</text>
+<rect x="2127" y="791" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2150" y="809" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">수정·정정 버전 보존</text>
+<text x="2651.0" y="754" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2658" y="593" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2658" y="593" width="543" height="77" rx="15" fill="#E1F7F2" stroke="none" stroke-width="1"/>
+<rect x="2672" y="606" width="102" height="52" rx="13" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2723" y="643" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">2_5</text>
+<text x="2790" y="644" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">품질 회귀검증</text>
+<rect x="2684" y="699" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2707" y="717" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">후행 공시 추가해도 과거 불변</text>
+<rect x="2684" y="745" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2707" y="763" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">스냅샷/실행 해시</text>
+<rect x="2684" y="791" width="7" height="18" rx="4" fill="#0C867E" stroke="none" stroke-width="1"/>
+<text x="2707" y="809" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">결측 시 평가 보류</text>
+<text x="226" y="924" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="28" fill="#0C867E" font-weight="760" text-anchor="middle">▼</text>
+<rect x="43" y="927" width="3154" height="318" rx="23" fill="#FFFFFF" stroke="#C9D8E9" stroke-width="2.2"/>
+<rect x="44" y="927" width="366" height="318" rx="19" fill="#ECEAFE" stroke="none" stroke-width="1"/>
+<rect x="65" y="950" width="79" height="78" rx="20" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="104" y="1005" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="48" fill="white" font-weight="820" text-anchor="middle">3</text>
+<text x="68" y="1068" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#123754" font-weight="780" text-anchor="start">발굴 분석 엔진</text>
+<text x="68" y="1117" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="24" fill="#405C78" font-weight="540" text-anchor="start">산업·기업·주가 정량 평가</text>
+<rect x="66" y="1156" width="322" height="60" rx="11" fill="#FFFFFF" stroke="#C9DEEB" stroke-width="1"/>
+<text x="79" y="1194" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="22" fill="#5D54BE" font-weight="720" text-anchor="start">산출: 산업 TOP·기업 점수</text>
+<rect x="430" y="944" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="430" y="944" width="543" height="77" rx="15" fill="#ECEAFE" stroke="none" stroke-width="1"/>
+<rect x="444" y="957" width="102" height="52" rx="13" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="495" y="994" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">3_1</text>
+<text x="562" y="995" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">산업 성장성</text>
+<rect x="456" y="1050" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="479" y="1068" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">산업 매출·투자·CAPEX</text>
+<rect x="456" y="1096" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="479" y="1114" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">업종 RS·산업 확산</text>
+<rect x="456" y="1142" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="479" y="1160" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">초기 가중치 20점</text>
+<text x="980.0" y="1105" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="987" y="944" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="987" y="944" width="543" height="77" rx="15" fill="#ECEAFE" stroke="none" stroke-width="1"/>
+<rect x="1001" y="957" width="102" height="52" rx="13" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1052" y="994" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">3_2</text>
+<text x="1119" y="995" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">기업 경쟁력</text>
+<rect x="1013" y="1050" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1036" y="1068" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">시장점유율·수익성</text>
+<rect x="1013" y="1096" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1036" y="1114" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">마진·FCF·성장 지속성</text>
+<rect x="1013" y="1142" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1036" y="1160" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">초기 가중치 20점</text>
+<text x="1537.0" y="1105" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="1544" y="944" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="1544" y="944" width="543" height="77" rx="15" fill="#ECEAFE" stroke="none" stroke-width="1"/>
+<rect x="1558" y="957" width="102" height="52" rx="13" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1609" y="994" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">3_3</text>
+<text x="1676" y="995" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">실적 모멘텀</text>
+<rect x="1570" y="1050" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1593" y="1068" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">매출/영업이익 성장 가속</text>
+<rect x="1570" y="1096" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1593" y="1114" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">EPS 예상 상향(자료 있을 때)</text>
+<rect x="1570" y="1142" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="1593" y="1160" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">초기 가중치 25점</text>
+<text x="2094.0" y="1105" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2101" y="944" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2101" y="944" width="543" height="77" rx="15" fill="#ECEAFE" stroke="none" stroke-width="1"/>
+<rect x="2115" y="957" width="102" height="52" rx="13" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2166" y="994" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">3_4</text>
+<text x="2233" y="995" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">주가 RS·수급</text>
+<rect x="2127" y="1050" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2150" y="1068" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">6·12개월 상대강도·주봉</text>
+<rect x="2127" y="1096" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2150" y="1114" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">신고가·기관 수급(가용 시)</text>
+<rect x="2127" y="1142" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2150" y="1160" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">초기 가중치 25+10점</text>
+<text x="2651.0" y="1105" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2658" y="944" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2658" y="944" width="543" height="77" rx="15" fill="#ECEAFE" stroke="none" stroke-width="1"/>
+<rect x="2672" y="957" width="102" height="52" rx="13" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2723" y="994" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">3_5</text>
+<text x="2790" y="995" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">종합 점수·근거</text>
+<rect x="2684" y="1050" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2707" y="1068" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">업종 내 퍼센타일 평가</text>
+<rect x="2684" y="1096" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2707" y="1114" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">실적·추세·위험 분해</text>
+<rect x="2684" y="1142" width="7" height="18" rx="4" fill="#5D54BE" stroke="none" stroke-width="1"/>
+<text x="2707" y="1160" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">기준값은 백테스트로 검증</text>
+<text x="226" y="1275" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="28" fill="#5D54BE" font-weight="760" text-anchor="middle">▼</text>
+<rect x="43" y="1278" width="3154" height="318" rx="23" fill="#FFFFFF" stroke="#C9D8E9" stroke-width="2.2"/>
+<rect x="44" y="1278" width="366" height="318" rx="19" fill="#FFF0E0" stroke="none" stroke-width="1"/>
+<rect x="65" y="1301" width="79" height="78" rx="20" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="104" y="1356" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="48" fill="white" font-weight="820" text-anchor="middle">4</text>
+<text x="68" y="1419" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#123754" font-weight="780" text-anchor="start">대장주 판정</text>
+<text x="68" y="1468" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="24" fill="#405C78" font-weight="540" text-anchor="start">잠재 → 확정 → 약화·교체 추적</text>
+<rect x="66" y="1507" width="322" height="60" rx="11" fill="#FFFFFF" stroke="#C9DEEB" stroke-width="1"/>
+<text x="79" y="1545" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="22" fill="#C46C24" font-weight="720" text-anchor="start">산출: 후보 순위·상태 이벤트</text>
+<rect x="430" y="1295" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="430" y="1295" width="543" height="77" rx="15" fill="#FFF0E0" stroke="none" stroke-width="1"/>
+<rect x="444" y="1308" width="102" height="52" rx="13" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="495" y="1345" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">4_1</text>
+<text x="562" y="1346" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">관찰 종목군</text>
+<rect x="456" y="1401" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="479" y="1419" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">전체 산업·기업 후보 추적</text>
+<rect x="456" y="1447" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="479" y="1465" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">기본 점수·최초 발견일</text>
+<rect x="456" y="1493" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="479" y="1511" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">상태: WATCH</text>
+<text x="980.0" y="1456" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="987" y="1295" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="987" y="1295" width="543" height="77" rx="15" fill="#FFF0E0" stroke="none" stroke-width="1"/>
+<rect x="1001" y="1308" width="102" height="52" rx="13" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1052" y="1345" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">4_2</text>
+<text x="1119" y="1346" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">잠재 대장주</text>
+<rect x="1013" y="1401" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1036" y="1419" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">성장 가속·RS 조기 신호</text>
+<rect x="1013" y="1447" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1036" y="1465" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">잠재 후보 TOP 20</text>
+<rect x="1013" y="1493" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1036" y="1511" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">65~79점은 초기 가설</text>
+<text x="1537.0" y="1456" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="1544" y="1295" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="1544" y="1295" width="543" height="77" rx="15" fill="#FFF0E0" stroke="none" stroke-width="1"/>
+<rect x="1558" y="1308" width="102" height="52" rx="13" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1609" y="1345" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">4_3</text>
+<text x="1676" y="1346" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">확정 대장주</text>
+<rect x="1570" y="1401" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1593" y="1419" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">실적 + 추세 복수 조건</text>
+<rect x="1570" y="1447" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1593" y="1465" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">확정 후보 TOP 10</text>
+<rect x="1570" y="1493" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="1593" y="1511" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">80점 이상도 검증 필요</text>
+<text x="2094.0" y="1456" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2101" y="1295" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2101" y="1295" width="543" height="77" rx="15" fill="#FFF0E0" stroke="none" stroke-width="1"/>
+<rect x="2115" y="1308" width="102" height="52" rx="13" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2166" y="1345" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">4_4</text>
+<text x="2233" y="1346" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">주도력 약화</text>
+<rect x="2127" y="1401" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2150" y="1419" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">실적 둔화·RS·주봉 훼손</text>
+<rect x="2127" y="1447" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2150" y="1465" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">상태 변경·위험 사유</text>
+<rect x="2127" y="1493" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2150" y="1511" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">미확정봉은 경고만</text>
+<text x="2651.0" y="1456" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2658" y="1295" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2658" y="1295" width="543" height="77" rx="15" fill="#FFF0E0" stroke="none" stroke-width="1"/>
+<rect x="2672" y="1308" width="102" height="52" rx="13" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2723" y="1345" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">4_5</text>
+<text x="2790" y="1346" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">교체 후보·이력</text>
+<rect x="2684" y="1401" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2707" y="1419" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">업종 내 후발주와 비교</text>
+<rect x="2684" y="1447" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2707" y="1465" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">연속 확인·중복 이벤트 방지</text>
+<rect x="2684" y="1493" width="7" height="18" rx="4" fill="#C46C24" stroke="none" stroke-width="1"/>
+<text x="2707" y="1511" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">상태 전이 로그 보존</text>
+<text x="226" y="1626" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="28" fill="#C46C24" font-weight="760" text-anchor="middle">▼</text>
+<rect x="43" y="1629" width="3154" height="318" rx="23" fill="#FFFFFF" stroke="#C9D8E9" stroke-width="2.2"/>
+<rect x="44" y="1629" width="366" height="318" rx="19" fill="#F3EAFB" stroke="none" stroke-width="1"/>
+<rect x="65" y="1652" width="79" height="78" rx="20" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="104" y="1707" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="48" fill="white" font-weight="820" text-anchor="middle">5</text>
+<text x="68" y="1770" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#123754" font-weight="780" text-anchor="start">단계별 백테스트</text>
+<text x="68" y="1819" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="24" fill="#405C78" font-weight="540" text-anchor="start">조기 발굴 능력과 위험 별도 평가</text>
+<rect x="66" y="1858" width="322" height="60" rx="11" fill="#FFFFFF" stroke="#C9DEEB" stroke-width="1"/>
+<text x="79" y="1896" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="22" fill="#8A50A6" font-weight="720" text-anchor="start">산출: 평가보고서·모델 검증</text>
+<rect x="430" y="1646" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="430" y="1646" width="543" height="77" rx="15" fill="#F3EAFB" stroke="none" stroke-width="1"/>
+<rect x="444" y="1659" width="102" height="52" rx="13" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="495" y="1696" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">5_1</text>
+<text x="562" y="1697" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">초기 검증 기반</text>
+<rect x="456" y="1752" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="479" y="1770" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">PIT 직후 최소 baseline 구축</text>
+<rect x="456" y="1798" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="479" y="1816" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">산업·실적·RS 개별 평가</text>
+<rect x="456" y="1844" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="479" y="1862" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">백테스트를 뒤로 미루지 않음</text>
+<text x="980.0" y="1807" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="987" y="1646" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="987" y="1646" width="543" height="77" rx="15" fill="#F3EAFB" stroke="none" stroke-width="1"/>
+<rect x="1001" y="1659" width="102" height="52" rx="13" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1052" y="1696" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">5_2</text>
+<text x="1119" y="1697" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">과거 시점 재현</text>
+<rect x="1013" y="1752" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1036" y="1770" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">당시 종목군·공시만 사용</text>
+<rect x="1013" y="1798" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1036" y="1816" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">다음 거래가능 시점 체결</text>
+<rect x="1013" y="1844" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1036" y="1862" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">상폐·분할·비용 반영</text>
+<text x="1537.0" y="1807" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="1544" y="1646" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="1544" y="1646" width="543" height="77" rx="15" fill="#F3EAFB" stroke="none" stroke-width="1"/>
+<rect x="1558" y="1659" width="102" height="52" rx="13" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1609" y="1696" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">5_3</text>
+<text x="1676" y="1697" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">발굴 능력 검증</text>
+<rect x="1570" y="1752" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1593" y="1770" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">precision@K · recall@K</text>
+<rect x="1570" y="1798" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1593" y="1816" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">최초 발견 리드타임</text>
+<rect x="1570" y="1844" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="1593" y="1862" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">허위 후보율·실패 이력</text>
+<text x="2094.0" y="1807" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2101" y="1646" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2101" y="1646" width="543" height="77" rx="15" fill="#F3EAFB" stroke="none" stroke-width="1"/>
+<rect x="2115" y="1659" width="102" height="52" rx="13" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2166" y="1696" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">5_4</text>
+<text x="2233" y="1697" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">수익·위험 평가</text>
+<rect x="2127" y="1752" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2150" y="1770" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">시장·업종대비 초과수익</text>
+<rect x="2127" y="1798" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2150" y="1816" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">CAGR · MDD · 회전율</text>
+<rect x="2127" y="1844" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2150" y="1862" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">수수료·슬리피지 차감</text>
+<text x="2651.0" y="1807" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2658" y="1646" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2658" y="1646" width="543" height="77" rx="15" fill="#F3EAFB" stroke="none" stroke-width="1"/>
+<rect x="2672" y="1659" width="102" height="52" rx="13" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2723" y="1696" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">5_5</text>
+<text x="2790" y="1697" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">최종 강건성</text>
+<rect x="2684" y="1752" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2707" y="1770" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">Walk-forward 반복 검증</text>
+<rect x="2684" y="1798" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2707" y="1816" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">미사용 Holdout 분리</text>
+<rect x="2684" y="1844" width="7" height="18" rx="4" fill="#8A50A6" stroke="none" stroke-width="1"/>
+<text x="2707" y="1862" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">과최적화/미래 누수 방지</text>
+<text x="226" y="1977" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="28" fill="#8A50A6" font-weight="760" text-anchor="middle">▼</text>
+<rect x="43" y="1980" width="3154" height="318" rx="23" fill="#FFFFFF" stroke="#C9D8E9" stroke-width="2.2"/>
+<rect x="44" y="1980" width="366" height="318" rx="19" fill="#E2F7EC" stroke="none" stroke-width="1"/>
+<rect x="65" y="2003" width="79" height="78" rx="20" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="104" y="2058" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="48" fill="white" font-weight="820" text-anchor="middle">6</text>
+<text x="68" y="2121" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#123754" font-weight="780" text-anchor="start">사용자 결과 제공</text>
+<text x="68" y="2170" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="24" fill="#405C78" font-weight="540" text-anchor="start">웹·알림·보고서 3종 모두 제공</text>
+<rect x="66" y="2209" width="322" height="60" rx="11" fill="#FFFFFF" stroke="#C9DEEB" stroke-width="1"/>
+<text x="79" y="2247" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="22" fill="#168369" font-weight="720" text-anchor="start">산출: 휴대폰·PC 결과 조회</text>
+<rect x="430" y="1997" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="430" y="1997" width="543" height="77" rx="15" fill="#E2F7EC" stroke="none" stroke-width="1"/>
+<rect x="444" y="2010" width="102" height="52" rx="13" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="495" y="2047" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">6_1</text>
+<text x="562" y="2048" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">공통 결과 DB/API</text>
+<rect x="456" y="2103" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="479" y="2121" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">확정 랭킹·이벤트 스냅샷</text>
+<rect x="456" y="2149" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="479" y="2167" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">모델 버전·데이터 기준시각</text>
+<rect x="456" y="2195" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="479" y="2213" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">선택적 외부 읽기 API</text>
+<text x="980.0" y="2158" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="987" y="1997" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="987" y="1997" width="543" height="77" rx="15" fill="#E2F7EC" stroke="none" stroke-width="1"/>
+<rect x="1001" y="2010" width="102" height="52" rx="13" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1052" y="2047" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">6_2</text>
+<text x="1119" y="2048" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">웹 대시보드</text>
+<rect x="1013" y="2103" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1036" y="2121" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">한국·미국 대장주/잠재 순위</text>
+<rect x="1013" y="2149" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1036" y="2167" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">종목 상세·성과·근거</text>
+<rect x="1013" y="2195" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1036" y="2213" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">휴대폰·PC 반응형</text>
+<text x="1537.0" y="2158" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="1544" y="1997" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="1544" y="1997" width="543" height="77" rx="15" fill="#E2F7EC" stroke="none" stroke-width="1"/>
+<rect x="1558" y="2010" width="102" height="52" rx="13" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1609" y="2047" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">6_3</text>
+<text x="1676" y="2048" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">상태변경 자동 알림</text>
+<rect x="1570" y="2103" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1593" y="2121" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">신규·확정·약화·교체</text>
+<rect x="1570" y="2149" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1593" y="2167" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">텔레그램/메일 등 설정</text>
+<rect x="1570" y="2195" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="1593" y="2213" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">중복·재전송 방지</text>
+<text x="2094.0" y="2158" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2101" y="1997" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2101" y="1997" width="543" height="77" rx="15" fill="#E2F7EC" stroke="none" stroke-width="1"/>
+<rect x="2115" y="2010" width="102" height="52" rx="13" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2166" y="2047" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">6_4</text>
+<text x="2233" y="2048" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">정기 분석 보고서</text>
+<rect x="2127" y="2103" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2150" y="2121" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">일간/주간/월간 자동 생성</text>
+<rect x="2127" y="2149" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2150" y="2167" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">실제 선정 이후 성과 비교</text>
+<rect x="2127" y="2195" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2150" y="2213" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">웹·PDF·이메일 옵션</text>
+<text x="2651.0" y="2158" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="40" fill="#5091C6" font-weight="800" text-anchor="middle">›</text>
+<rect x="2658" y="1997" width="543" height="283" rx="17" fill="#F8FAFD" stroke="#D9E4F0" stroke-width="1.2"/>
+<rect x="2658" y="1997" width="543" height="77" rx="15" fill="#E2F7EC" stroke="none" stroke-width="1"/>
+<rect x="2672" y="2010" width="102" height="52" rx="13" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2723" y="2047" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="31" fill="white" font-weight="830" text-anchor="middle">6_5</text>
+<text x="2790" y="2048" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="30" fill="#173A58" font-weight="790" text-anchor="start">독립 운영·연동</text>
+<rect x="2684" y="2103" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2707" y="2121" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">배치 스케줄·로그·백업</text>
+<rect x="2684" y="2149" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2707" y="2167" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">GitHub/PROJECT_STATE 보존</text>
+<rect x="2684" y="2195" width="7" height="18" rx="4" fill="#168369" stroke="none" stroke-width="1"/>
+<text x="2707" y="2213" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="25" fill="#324F6A" font-weight="550" text-anchor="start">MarketOS는 선택적 연동</text>
+<rect x="43" y="2360" width="3154" height="185" rx="19" fill="#E5EFFA" stroke="#C5D8EC" stroke-width="1.5"/>
+<text x="73" y="2414" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="37" fill="#173D60" font-weight="820" text-anchor="start">개발·검증의 고정 원칙</text>
+<text x="74" y="2464" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="27" fill="#375872" font-weight="630" text-anchor="start">미래정보 사용 금지(PIT) · 상장폐지 포함 · 점수/임계값은 검증 전 가설 · 백테스트는 초기에 기반 구축 후 매 단계 반복</text>
+<text x="74" y="2514" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="27" fill="#375872" font-weight="600" text-anchor="start">Python 자동 실행으로 토큰 절약 · GitHub 상태 보존 · 화면/알림/보고는 동일 결과 DB 사용 · MarketOS와 분리 운영</text>
+<text x="53" y="2586" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="22" fill="#516A85" font-weight="540" text-anchor="start">현재 상태: 개발 명세·설계도 문서화  |  실제 API 연결·정량 전략의 투자성과·실서비스는 아직 구현 및 검증 전</text>
+<text x="3187" y="2586" font-family="Apple SD Gothic Neo,Noto Sans CJK KR,sans-serif" font-size="21" fill="#516A85" font-weight="540" text-anchor="end">EraLeader / Master Blueprint v2</text>
+</svg>

@@ -13,6 +13,7 @@ import json
 import math
 import os
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from statistics import median
 from zoneinfo import ZoneInfo
 
@@ -270,6 +271,8 @@ def main(argv: list[str] | None = None) -> int:
     freeze.add_argument("--model-version", required=True)
     freeze.add_argument("--horizon-days", type=int, required=True)
     freeze.add_argument("--k", type=int, required=True)
+    freeze.add_argument("--prospective-ledger",type=Path,
+                        help="Optional fail-closed WATCH registration preflight before freeze file is created")
     evaluate = sub.add_parser("evaluate")
     evaluate.add_argument("--freeze", type=Path, required=True)
     evaluate.add_argument("--outcomes", type=Path)
@@ -277,9 +280,28 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "freeze":
-        result = freeze_ranked_snapshot(args.input, args.out, market=args.market,
-                                         snapshot_at=args.snapshot_at, model_version=args.model_version,
-                                         horizon_days=args.horizon_days, k=args.k)
+        if args.prospective_ledger is not None:
+            # Preflight a disposable candidate BEFORE exclusively creating
+            # the final sealed ranking. Missing/forged WATCH cannot leave
+            # behind a published, unsupported rank artifact.
+            from .ranked_registry import audit_ranked_watch_registry
+            with TemporaryDirectory(prefix="era-ranked-preflight-") as scratch:
+                prototype=Path(scratch)/"sealed-research.json"
+                result=freeze_ranked_snapshot(
+                    args.input,prototype,market=args.market,
+                    snapshot_at=args.snapshot_at,model_version=args.model_version,
+                    horizon_days=args.horizon_days,k=args.k)
+                linkage=audit_ranked_watch_registry(prototype,args.prospective_ledger)
+                if (linkage["blocker_count"] or
+                        linkage["ranked_ids_and_first_timestamps_matched"] !=
+                        linkage["ranked_candidate_count"]):
+                    raise ValueError("Ranked WATCH registry preflight failed: "+
+                                     ", ".join(linkage["blockers"][:10]))
+                _save_new(args.out,result)
+        else:
+            result = freeze_ranked_snapshot(args.input, args.out, market=args.market,
+                                             snapshot_at=args.snapshot_at, model_version=args.model_version,
+                                             horizon_days=args.horizon_days, k=args.k)
     else:
         result = evaluate_ranked_precision_at_k(args.freeze, args.outcomes,
                                                  evaluated_at=args.evaluated_at)

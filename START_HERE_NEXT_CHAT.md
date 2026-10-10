@@ -258,3 +258,7 @@
 ## 2026-10-10 5_3 top-K 랭킹 별도 릴리스 푸시 검증
 
 - 지난 회차가 안전검사 때문에 Git 커밋을 못 했던 랭킹 연구 3파일은 후속 회차에서 **508개 독립테스트 PASS 후 commit `8e69421f51afd88e1792e9ad1fb739e811a41c41`을 실제 GitHub main에 푸시**, local/remote SHA 동일 확인. 지난 기록의 '아직 미푸시'는 더 이상 현재 상황 아님. 코드 `src/eraleader/ranked_discovery.py` / 테스트 `tests/test_ranked_discovery.py` / 문서 `docs/58_RANKED_DISCOVERY_PRECISION_AT_K.md` (PIT 체인 문서도 58 번호이므로 파일명으로 구별). 합성 순위 봉인·상위 K개 미래 라벨 검열 성능 계산만 구현, 실제 당시 발굴 성과 인증 X. 현재 최종 Git/원격 SHA는 `PROJECT_STATE.md` 하단 실측 우선.
+
+## 2026-10-10 5_3 top-K 랭킹과 WATCH 최초 등록 원장 연결
+
+- `src/eraleader/ranked_registry.py`, CLI `audit-ranked-registry`, `docs/59_RANKED_WATCH_REGISTRY_LINK.md`: SHA256로 봉인된 top-K 순위의 종목 ID·모델·최초 등록시각이 실제 `prospective.sqlite`의 양성 WATCH 최초 신호에 해당하는지 read-only 감사. 원장 없는 후보·과거 재생·시각 조작·원본 JSON/해시 변조 차단. 기존 `ranked_discovery freeze`에 `--prospective-ledger` 옵션을 추가, 불일치 때 **최종 봉인 파일을 쓰기 전에 차단**. 합성 신규 18테스트 포함 총 **pytest 526 PASS**, 원장 등록 2명 로컬 연결 확인, 미등록 인위 후보는 봉인 거부, 파생 JSON SHA ZIP 복구 PASS. **중요: 기존 WATCH에는 숫자 점수가 없어 점수가 실제 당시 계산됐다는 증빙/진짜 주도주 예측정확도 인증 아님.** 독립 점수시각 원장은 미래 개발 과제. 외부 API 보류, D-021 실제 SSD 탈착 재부팅은 최종 단계. Git 최신 SHA는 PROJECT_STATE 마지막 실측 우선.

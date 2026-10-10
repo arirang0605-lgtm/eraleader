@@ -87,6 +87,7 @@ def audit_watch_progression(
                 basis.get("as_of")!=seen or company.get("security_id")!=sec or
                 company.get("as_of")!=seen or company.get("market")!=market or
                 company.get("research_growth_screen_hit") is not bool(hit) or
+                company.get("research_screen_evaluated", True) is not True or
                 company.get("state")!="WATCH" or company.get("full_score") is not None or
                 company.get("verified_future_leader_candidate") is not False):
             raise ValueError("Research screen payload identity or status mismatch")

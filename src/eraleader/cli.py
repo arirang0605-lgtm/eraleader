@@ -128,6 +128,7 @@ def execute_offline_features(args) -> dict:
                 "path":str(destination),"immutable_run":str(audit_path),
                 "companies":scored["company_count"],
                 "heuristic_screen_hits":scored["research_screen_count"],
+                "deferred_research_screens":scored["research_screens_deferred"],
                 "quality":scored["quality"]}
     finally:ledger.close()
 
@@ -171,6 +172,7 @@ def execute_integrated(args) -> dict:
             "new_prospective_research_signals":registration["new_records"],
             "path":str(target),"company_count":result["company_count"],
             "growth_screen_hits":result["research_growth_screen_count"],
+            "deferred_research_screens":result["research_screen_deferred_count"],
             "official_leaders":0,"pit_certified":False}
 
 def execute_validation(args) -> dict:

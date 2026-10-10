@@ -110,7 +110,7 @@ def render_integrated_dashboard(result: dict) -> str:
             item["revenue_yoy"],item["operating_income_yoy"],
             item["revenue_yoy_acceleration"],item["industry_revenue_yoy"],
             item["momentum_6m"],item["state"],
-            ",".join(item["missing_factors"])))+"</tr>")
+            ",".join(item["missing_factors"]+item.get("quality_flags",[]))))+"</tr>")
     trusted="검증 완료" if result.get("pit_certified") else "미검증 / 관찰·연구용"
     quality=esc(", ".join(result.get("quality",{}).get("provenances",[])) or "원천 미상")
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
@@ -125,6 +125,7 @@ def render_integrated_dashboard(result: dict) -> str:
 <br>데이터 출처 상태: {quality}</div>
 <div class="stats"><div class="stat">기업 수<br><strong>{result["company_count"]}</strong></div>
 <div class="stat">초기 성장 관찰 (연구)<br><strong>{result["research_growth_screen_count"]}</strong></div>
+<div class="stat">근거 부족으로 스크리닝 보류<br><strong>{result.get("research_screen_deferred_count","N/A")}</strong></div>
 <div class="stat">확정 대장주<br><strong>0 — 검증 보류</strong></div></div>
 <h2>시점별 기업 성장 관찰</h2>
 <div class="wrap"><table><thead><tr><th>ID</th><th>티커</th><th>산업</th>

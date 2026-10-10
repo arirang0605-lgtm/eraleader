@@ -4,9 +4,25 @@ Only sees records provided by OfflineLedger.snapshot(as_of); no raw history
 or future label can enter its calculations.
 """
 from __future__ import annotations
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 import math
+from zoneinfo import ZoneInfo
+
+# Research-only tolerance for annual/quarterly reporting mixes. An observation
+# older than fifteen months must not be revived as a current growth candidate.
+MAX_RESEARCH_FISCAL_AGE_DAYS = 450
+MARKET_ZONES = {"KR": ZoneInfo("Asia/Seoul"), "US": ZoneInfo("America/New_York")}
+
+
+def _period_age(value: str | None, as_of: date) -> int | None:
+    if value is None:
+        return None
+    age = (as_of-date.fromisoformat(value)).days
+    if age < 0:
+        raise ValueError("Future fiscal period leaked into research snapshot")
+    return age
+
 
 def compare_year(a: str, prior: str) -> bool:
     """Compare period ends at same fiscal date one year apart."""
@@ -65,6 +81,13 @@ def financial_snapshot(offline_snapshot: dict) -> dict:
     A full factor score requires normalized peer universe, independently
     verified PIT sources, flow and corporate actions, so none is produced.
     """
+    market=offline_snapshot["market"]
+    if market not in MARKET_ZONES:
+        raise ValueError("Unsupported market for fiscal freshness")
+    stamp=datetime.fromisoformat(offline_snapshot["as_of"].replace("Z","+00:00"))
+    if stamp.tzinfo is None or stamp.utcoffset() is None:
+        raise ValueError("Fiscal research requires timezone-aware PIT cutoff")
+    cutoff_day=stamp.astimezone(MARKET_ZONES[market]).date()
     members=offline_snapshot["members"]
     facts=offline_snapshot["fundamentals"]
     groups:dict[str,list[dict]]={}
@@ -89,17 +112,28 @@ def financial_snapshot(offline_snapshot: dict) -> dict:
                 if latest_rev and latest_profit and latest_rev["value"]>0
                 and latest_profit["unit"]==latest_rev["unit"] else None)
         industry=industries.get(row["industry_id"],[])
-        industry_yoy,_=year_on_year(industry,"revenue")
+        industry_yoy,industry_period=year_on_year(industry,"revenue")
+        ages={"revenue":_period_age(rev_period,cutoff_day),
+              "operating_income":_period_age(profit_period,cutoff_day),
+              "industry_revenue":_period_age(industry_period,cutoff_day)}
+        fresh={key:age is not None and age<=MAX_RESEARCH_FISCAL_AGE_DAYS
+               for key,age in ages.items()}
         flags=[]
+        for key,age in ages.items():
+            if age is not None and not fresh[key]:
+                flags.append(f"STALE_{key.upper()}_PERIOD")
         if rev is None:flags.append("REVENUE_YOY_MISSING")
         if profit is None:flags.append("OPERATING_YOY_MISSING")
         if ramp is None:flags.append("REVENUE_ACCELERATION_MISSING")
         if industry_yoy is None:flags.append("INDUSTRY_GROWTH_MISSING")
         if latest_rev and latest_rev["provenance"]=="synthetic_fixture":
             flags.append("SYNTHETIC_DATA")
-        candidates=(rev is not None and rev>=0.20 and
-                    profit is not None and profit>=0.30 and
-                    industry_yoy is not None and industry_yoy>0)
+        same_report_period=(rev_period is not None and rev_period==profit_period)
+        if rev_period and profit_period and not same_report_period:
+            flags.append("FUNDAMENTAL_REPORT_PERIOD_MISMATCH")
+        evaluated=(all(fresh.values()) and same_report_period and rev is not None and
+                   profit is not None and industry_yoy is not None)
+        candidates=(evaluated and rev>=0.20 and profit>=0.30 and industry_yoy>0)
         companies.append({
           "security_id":code,"ticker":row["ticker"],"market":row["market"],
           "industry_id":row["industry_id"],
@@ -108,6 +142,9 @@ def financial_snapshot(offline_snapshot: dict) -> dict:
           "revenue_yoy_acceleration":ramp,"operating_margin":margin,
           "industry_revenue_yoy":industry_yoy,
           "screen_hit_heuristic":bool(candidates),
+          "screen_evaluated":bool(evaluated),
+          "financial_period_age_days":ages,
+          "fundamental_periods_aligned":bool(same_report_period),
           "model_status":"OFFLINE_EVIDENCE_RESEARCH_ONLY",
           "leader_state":"WATCH",
           "certified_pit":False,
@@ -126,6 +163,9 @@ def financial_snapshot(offline_snapshot: dict) -> dict:
         "quality":offline_snapshot["quality"],
         "company_count":len(companies),
         "research_screen_count":sum(x["screen_hit_heuristic"] for x in companies),
+        "research_screens_evaluated":sum(x["screen_evaluated"] for x in companies),
+        "research_screens_deferred":sum(not x["screen_evaluated"] for x in companies),
+        "max_research_fiscal_age_days":MAX_RESEARCH_FISCAL_AGE_DAYS,
         "companies":companies,"industries":list(by_industry.values()),
         "warning":"Scored candidates NOT certified: industry, fundamentals, actions and full universe provenance incomplete",
     }

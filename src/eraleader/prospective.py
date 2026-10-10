@@ -106,6 +106,15 @@ class ProspectiveRegistry:
                 raise ValueError("Unverified signal must remain WATCH with no official score")
             if type(row.get("research_growth_screen_hit")) is not bool:
                 raise ValueError("Research screen hit must be explicit boolean")
+            evaluated=row.get("research_screen_evaluated", True)
+            if type(evaluated) is not bool:
+                raise ValueError("Research screen_evaluated must be boolean")
+            if not evaluated:
+                if row["research_growth_screen_hit"]:
+                    raise ValueError("Deferred screen cannot register a positive hit")
+                # No observation is better than pretending missing/stale
+                # fundamentals establish an explicit negative research screen.
+                continue
             basis = {"source_run_id": source_run, "market": market, "as_of": result["as_of"],
                      "model_version": version, "company": row,
                      "provenances": result.get("offline_provenance", [])}

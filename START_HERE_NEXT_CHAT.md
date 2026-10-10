@@ -200,3 +200,8 @@
 
 - `src/eraleader/local_schedule.py`: KR 550일에 포함되는 **모든 과거 연도별 Parquet** 및 US 주봉의 실제 바이트 SHA256을 정상 실행 체크포인트에 포함. 최신날짜 동일해도 전 기간 원본 정정은 재실행; 분석/백업 중 파일변경은 checkpoint 중단; 오래된 미국 캐시 신선도 FAIL이면 기존대로 작업 건너뜀. `tests/test_schedule_cache_vintage.py` +10, **370 pytest PASS**. 실제 T5DATA KR-2025/2026, US 3개 SHA 확인/원본 무수정, US 226일 stale `SKIPPED_STALE_CACHE`; 상세 `docs/48_SCHEDULE_CACHE_VINTAGE_SHA.md`.
 - Git 최종 커밋/푸시 상태는 `PROJECT_STATE.md` 최신 실측 및 `git status -sb`로 확인. 1~6 글로벌 완성 및 실전 주도주 후보 확정 불가, 외부 API 연기.
+
+## 2026-10-10 3_1~3_5 / 4_1 / 5_4 회계/산업 신선도 게이트
+
+- `docs/49_FISCAL_SOURCE_FRESHNESS.md` + `offline_features.py`, `research.py`, `prospective.py`, `watch_progression.py`: 재무/산업 보고기간이 판단일로부터 450일 초과하거나, 매출·영업이익 보고기간 불일치/필수 수치 누락이면 **성장 스크리닝 평가 보류**. 평가 보류는 WATCH 약화(false)로 원장에 등록하지 않음. CLI 및 로컬 웹에서 `deferred_research_screens`와 STALE 플래그 표시.
+- 합성 2024 당시 자료는 성장 hit 1(당시 실제 등록 아님/현재 재생 시 backfill), 2026 동일 자료에서는 성장 hit 0 / 기업 2건 보류 / 신규 미래 후보 0 / 잘못된 약화 0. 실제 로컬 HTTP 200. 신규 10케이스 포함 `pytest 380 PASS`; 실전 미래 성능 인증 안 됨, API는 사용자 지시로 미연결. Git 커밋/remote SHA 결과는 `PROJECT_STATE.md` 최하단 실제 검사 기준.

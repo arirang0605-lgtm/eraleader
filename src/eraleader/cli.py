@@ -32,6 +32,7 @@ from .issuer_lineage import audit_issuer_lineage
 from .evidence_gate import evaluate_local_evidence
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
+from .watch_progression import audit_watch_progression
 from .local_backup import create_backup, verify_backup, restore_backup
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -411,6 +412,17 @@ def execute_evidence_gate(args) -> dict:
             "blocker_count":report["blocker_count"],
             "official_promotion_allowed":False}
 
+def execute_watch_progression(args) -> dict:
+    result=audit_watch_progression(Path(args.ledger),market=args.market,
+                                   model_version=args.model_version,
+                                   max_registration_lag_days=args.max_lag_days)
+    dest=Path(args.out)/f"watch_progression_{args.market.lower()}_research.json"
+    write_json(dest,result)
+    return {"status":result["status"],"path":str(dest),
+            "prospective_observations":result["eligible_prospective_observations"],
+            "historical_backfills":result["excluded_retrospective_observations"],
+            "official_state_promotions":0}
+
 def execute_backup(args) -> dict:
     if args.command=="backup-local":
         return create_backup(Path(args.out),Path(args.archive))
@@ -569,6 +581,12 @@ def main(argv=None):
     eg.add_argument("--decision-at",required=True)
     eg.add_argument("--input-root",required=True,help="Existing local derived audit JSON directory")
     eg.add_argument("--out",default=str(OUT))
+    wp=sub.add_parser("audit-watch-progression",help="Explicit research WATCH hits, weakness and re-entry, never official leaders")
+    wp.add_argument("--ledger",required=True)
+    wp.add_argument("--market",choices=["KR","US"],required=True)
+    wp.add_argument("--model-version",required=True)
+    wp.add_argument("--max-lag-days",type=int,default=3)
+    wp.add_argument("--out",default=str(OUT))
     bkp=sub.add_parser("backup-local",help="Consistent SQLite + safe local output archive")
     bkp.add_argument("--out",default=str(OUT))
     bkp.add_argument("--archive",required=True)
@@ -596,6 +614,7 @@ def main(argv=None):
         elif args.command=="audit-cash-delist":result=execute_cash_delist(args)
         elif args.command=="audit-issuer-lineage":result=execute_issuer_lineage(args)
         elif args.command=="audit-evidence-gate":result=execute_evidence_gate(args)
+        elif args.command=="audit-watch-progression":result=execute_watch_progression(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

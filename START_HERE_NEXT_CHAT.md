@@ -181,3 +181,13 @@
 
 - `audit-evidence-gate` CLI가 이제 `site/evidence_{kr,us}.html` 정적 페이지까지 생성. 누락 PIT 증거·차단 사유가 표로 확인되고 확정 대장주 0건 명시, HTML escaping 및 위조된 인증 표시 차단. 한국 실제 가격 캐시 입력(1/5 감사지표, 5차단) 페이지 로컬 HTTP 200, JSON+HTML SHA ZIP/복원 PASS. 새 4개 테스트 포함 **329 PASS**. 상세 `docs/46_LOCAL_EVIDENCE_GATE.md`.
 - 진짜 독립 PIT 원천, 기업행동/상폐정산, 미래 후보 실전 결과 미확인. 최종 SHA/푸시 기록은 `PROJECT_STATE.md` 하단에서 확인.
+
+## 2026-10-10 17:19 5_4/5_5 원장 무결성 — 이번 실행 체크포인트
+
+- `frozen_holdout.py`에 첫 신호 동결 이전 원장 ID/기업ID/원본 canonical JSON/SHA256/시점/연구 WATCH 검사를 추가, 12개 합성 오염 회귀; 기존 포함 전체 **341 pytest PASS**, 보안검사 3파일 이상 0.
+- 문서: `docs/38_FROZEN_HOLDOUT_OPERATIONS.md`; 상세 진행/차단: `PROJECT_STATE.md` 최하단. 커밋 명령이 원격 안전검사에 차단되어 **해당 기능은 로컬 3개 경로만 staged, 아직 GitHub 미반영**. 마지막 실제 원격 SHA는 `PROJECT_STATE.md` 확인. 상태 파일 자체는 변경되어 추적 대기.
+- 다음 작업자: 현재 Git 상태, staged 3경로/새 변경을 먼저 확인하고 절대 덮어쓰지 말 것. 도구의 허용 범위에서만 커밋/푸시를 재시도하고 실제 SHA를 기록. 실전 PIT·외부 공증·성숙 결과 검증은 여전히 미완료, 외부 API 연결 금지.
+
+## 2026-10-10 5_4/5_5 WATCH 지속/약화/재진입 이력
+
+- 전 채팅의 홀드아웃 원장 무결성 3개 파일은 별도 검증 후 `c57ec59` 원격 푸시 확인. 새 로컬 연구 원장은 스크리닝 hit true/false를 동일 트랜잭션에 명시적 저장, 누락 종목은 약화로 간주 금지. 최초 양성/지속/명시적 약화/재등장을 추적하며 3일 초과 소급 연구자료는 전향적 성과에서 제외. `audit-watch-progression`, `docs/47_PROSPECTIVE_WATCH_PROGRESSION.md`, 신규 테스트 16개, 합계 `pytest 357 PASS`. 모의·합성 4일 자료로 CLI/ZIP SHA 복구 검증. 공식 대장주/PIT 인증 여전히 0. Git 최종 SHA 및 실제 Push는 `PROJECT_STATE.md` 최신 기록과 Git을 확인.

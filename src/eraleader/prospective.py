@@ -50,6 +50,16 @@ class ProspectiveRegistry:
         )""")
         self.db.execute("""CREATE INDEX IF NOT EXISTS prospective_by_recorded
            ON prospective_signals(market, recorded_at_utc)""")
+        self.db.execute("""CREATE TABLE IF NOT EXISTS research_screen_observations (
+            market TEXT NOT NULL, security_id TEXT NOT NULL,
+            observed_as_of TEXT NOT NULL, model_version TEXT NOT NULL,
+            recorded_at_utc TEXT NOT NULL, source_run_id TEXT NOT NULL,
+            screen_hit INTEGER NOT NULL CHECK(screen_hit IN (0,1)),
+            payload_hash TEXT NOT NULL, payload TEXT NOT NULL,
+            PRIMARY KEY(market,security_id,observed_as_of,model_version)
+        )""")
+        self.db.execute("""CREATE INDEX IF NOT EXISTS research_screen_by_recorded
+            ON research_screen_observations(market,model_version,recorded_at_utc)""")
         self.db.commit()
 
     def close(self):
@@ -81,6 +91,7 @@ class ProspectiveRegistry:
             raise ValueError("Research company_rows list required")
         record_utc = recorded.astimezone(timezone.utc).isoformat()
         items = []
+        observations = []
         seen = set()
         for row in rows:
             sec = row.get("security_id")
@@ -93,20 +104,47 @@ class ProspectiveRegistry:
                 raise ValueError("Signal market/date differs from run header")
             if row.get("state") != "WATCH" or row.get("full_score") is not None or row.get("verified_future_leader_candidate") is not False:
                 raise ValueError("Unverified signal must remain WATCH with no official score")
-            if row.get("research_growth_screen_hit") is not True:
-                continue
+            if type(row.get("research_growth_screen_hit")) is not bool:
+                raise ValueError("Research screen hit must be explicit boolean")
             basis = {"source_run_id": source_run, "market": market, "as_of": result["as_of"],
                      "model_version": version, "company": row,
                      "provenances": result.get("offline_provenance", [])}
             payload = _canonical(basis)
             digest = sha256(payload.encode("utf-8")).hexdigest()
+            observations.append((market,sec,observation.isoformat(),version,record_utc,
+                                 source_run,int(row["research_growth_screen_hit"]),digest,payload))
+            if row["research_growth_screen_hit"] is not True:
+                continue
             identity = f"{market}|{sec}|{_SIGNAL_KIND}|{observation.isoformat()}|{version}"
             signal_id = sha256(identity.encode("utf-8")).hexdigest()
             items.append((signal_id, market, sec, _SIGNAL_KIND, observation.isoformat(),
                           record_utc, source_run, version, digest, payload, _STATUS))
         inserted = 0
+        observation_inserted = 0
         self.db.execute("BEGIN IMMEDIATE")
         with self.db:
+            for obs in observations:
+                old = self.db.execute("""SELECT source_run_id,screen_hit,payload_hash
+                    FROM research_screen_observations
+                    WHERE market=? AND security_id=? AND observed_as_of=? AND model_version=?""",
+                    (obs[0],obs[1],obs[2],obs[3])).fetchone()
+                if old is not None:
+                    if old != (obs[5],obs[6],obs[7]):
+                        raise ValueError("Immutable research screen observation mutation rejected")
+                    continue
+                # Replaying a positive signal recorded by an older build must
+                # reuse that original event's registration time, not redate it.
+                anchor = self.db.execute("""SELECT recorded_at_utc
+                    FROM prospective_signals
+                    WHERE market=? AND security_id=? AND observed_as_of=?
+                        AND model_version=?""", (obs[0],obs[1],obs[2],obs[3])).fetchone()
+                registered = anchor[0] if anchor is not None and obs[6] == 1 else obs[4]
+                self.db.execute("""INSERT INTO research_screen_observations(
+                    market,security_id,observed_as_of,model_version,recorded_at_utc,
+                    source_run_id,screen_hit,payload_hash,payload)
+                    VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (obs[0],obs[1],obs[2],obs[3],registered,obs[5],obs[6],obs[7],obs[8]))
+                observation_inserted += 1
             for item in items:
                 old = self.db.execute("""SELECT payload_hash,source_run_id
                          FROM prospective_signals WHERE signal_id=?""",
@@ -122,6 +160,8 @@ class ProspectiveRegistry:
                 inserted += 1
         return {"status": _STATUS, "screen_hits": len(items),
                 "new_records": inserted, "duplicates": len(items) - inserted,
+                "research_observations": len(observations),
+                "new_research_observations": observation_inserted,
                 "recorded_at_utc": record_utc,
                 "official_leader_signals": 0, "pit_certified": False}
 

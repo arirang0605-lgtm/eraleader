@@ -9,6 +9,7 @@ from datetime import date, datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 import csv
 import json
 import math
@@ -205,9 +206,12 @@ class OfflineLedger:
         if market not in ("KR", "US"):
             raise ValueError("KR/US only")
         cutoff = iso_time(as_of)
-        # valid_from/valid_to and exchange actions use the caller's local
-        # trading date, not the UTC day obtained after timezone conversion.
-        day = datetime.fromisoformat(as_of.replace("Z","+00:00")).date().isoformat()
+        # Membership and corporate-action effective_on are exchange-local
+        # calendar dates, regardless of the offset used by the caller.
+        # Using the input's date leaks tomorrow's US listings for KST callers
+        # (and can hide KR listings for New York callers). DST is zone-aware.
+        market_zone = ZoneInfo("Asia/Seoul" if market == "KR" else "America/New_York")
+        day = datetime.fromisoformat(cutoff).astimezone(market_zone).date().isoformat()
         rows = self.db.execute("""SELECT kind,payload,provenance FROM offline_records
                  WHERE available_at<=? ORDER BY available_at,record_key""",(cutoff,)).fetchall()
         categories = {k:[] for k in KINDS}

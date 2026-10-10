@@ -29,6 +29,7 @@ from .holdout_outcome_reconcile import reconcile_holdout_outcomes
 from .outcome_source_claims import audit_outcome_source_claims
 from .pit_chain import audit_pit_to_outcome_chain
 from .ranked_registry import audit_ranked_watch_registry
+from .rank_score_ledger import register_rank_scores, audit_frozen_rank_scores
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
@@ -448,6 +449,22 @@ def execute_watch_progression(args) -> dict:
             "historical_backfills":result["excluded_retrospective_observations"],
             "official_state_promotions":0}
 
+def execute_register_rank_scores(args) -> dict:
+    return register_rank_scores(Path(args.score_ledger),Path(args.watch_ledger),
+                                Path(args.features_dir),Path(args.scores),
+                                market=args.market,model_version=args.model_version)
+
+def execute_audit_rank_scores(args) -> dict:
+    result=audit_frozen_rank_scores(Path(args.frozen_rank),
+                                    Path(args.score_ledger),Path(args.features_dir))
+    path=Path(args.out)/f"rank_score_{result['market'].lower()}_research.json"
+    write_json(path,result)
+    return {"status":result["status"],"path":str(path),
+            "matched":result["local_numeric_score_records_matched"],
+            "blocker_count":result["blocker_count"],
+            "score_computation_independently_verified":False,
+            "real_leader_prediction_certified":False}
+
 def execute_ranked_registry(args) -> dict:
     result=audit_ranked_watch_registry(
         Path(args.frozen_rank),Path(args.ledger),
@@ -631,6 +648,20 @@ def main(argv=None):
     provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")
     provenance.add_argument("--decision-at",required=True,help="Timezone-aware as-of cutoff")
     provenance.add_argument("--out",default=str(OUT))
+    rs=sub.add_parser("record-rank-scores",
+                      help="Write immutable local numeric scores with real OS recording time; never certify score calculation")
+    rs.add_argument("--market",choices=["KR","US"],required=True)
+    rs.add_argument("--model-version",required=True)
+    rs.add_argument("--scores",required=True)
+    rs.add_argument("--features-dir",required=True)
+    rs.add_argument("--watch-ledger",required=True)
+    rs.add_argument("--score-ledger",required=True)
+    ra=sub.add_parser("audit-rank-scores",
+                      help="Match pinned frozen top-K numeric scores to original local score-entry time and feature hashes")
+    ra.add_argument("--frozen-rank",required=True)
+    ra.add_argument("--score-ledger",required=True)
+    ra.add_argument("--features-dir",required=True)
+    ra.add_argument("--out",default=str(OUT))
     rr=sub.add_parser("audit-ranked-registry",
                       help="Audit frozen top-K ranks against actually registered WATCH ledger IDs and timestamps")
     rr.add_argument("--frozen-rank",required=True)
@@ -767,6 +798,8 @@ def main(argv=None):
         elif args.command=="audit-outcome-source-claims":result=execute_outcome_source_claims(args)
         elif args.command=="audit-pit-chain":result=execute_pit_chain(args)
         elif args.command=="audit-ranked-registry":result=execute_ranked_registry(args)
+        elif args.command=="record-rank-scores":result=execute_register_rank_scores(args)
+        elif args.command=="audit-rank-scores":result=execute_audit_rank_scores(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

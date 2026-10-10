@@ -273,6 +273,10 @@ def main(argv: list[str] | None = None) -> int:
     freeze.add_argument("--k", type=int, required=True)
     freeze.add_argument("--prospective-ledger",type=Path,
                         help="Optional fail-closed WATCH registration preflight before freeze file is created")
+    freeze.add_argument("--score-ledger",type=Path,
+                        help="Optional actually registered numeric score evidence; requires --prospective-ledger and --features-dir")
+    freeze.add_argument("--features-dir",type=Path,
+                        help="Read-only feature evidence directory, used only with --score-ledger")
     evaluate = sub.add_parser("evaluate")
     evaluate.add_argument("--freeze", type=Path, required=True)
     evaluate.add_argument("--outcomes", type=Path)
@@ -280,6 +284,10 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.command == "freeze":
+        if (args.score_ledger is None)!=(args.features_dir is None):
+            raise ValueError("--score-ledger and --features-dir must be supplied together")
+        if args.score_ledger is not None and args.prospective_ledger is None:
+            raise ValueError("--score-ledger also requires --prospective-ledger")
         if args.prospective_ledger is not None:
             # Preflight a disposable candidate BEFORE exclusively creating
             # the final sealed ranking. Missing/forged WATCH cannot leave
@@ -297,6 +305,14 @@ def main(argv: list[str] | None = None) -> int:
                         linkage["ranked_candidate_count"]):
                     raise ValueError("Ranked WATCH registry preflight failed: "+
                                      ", ".join(linkage["blockers"][:10]))
+                if args.score_ledger is not None:
+                    from .rank_score_ledger import audit_frozen_rank_scores
+                    score_link=audit_frozen_rank_scores(prototype,args.score_ledger,args.features_dir)
+                    if (score_link["blocker_count"] or
+                        score_link["local_numeric_score_records_matched"] !=
+                        score_link["ranked_candidate_count"]):
+                        raise ValueError("Numeric score ledger preflight failed: "+
+                                         ", ".join(score_link["blockers"][:10]))
                 _save_new(args.out,result)
         else:
             result = freeze_ranked_snapshot(args.input, args.out, market=args.market,

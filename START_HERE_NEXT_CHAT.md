@@ -262,3 +262,8 @@
 ## 2026-10-10 5_3 top-K 랭킹과 WATCH 최초 등록 원장 연결
 
 - `src/eraleader/ranked_registry.py`, CLI `audit-ranked-registry`, `docs/59_RANKED_WATCH_REGISTRY_LINK.md`: SHA256로 봉인된 top-K 순위의 종목 ID·모델·최초 등록시각이 실제 `prospective.sqlite`의 양성 WATCH 최초 신호에 해당하는지 read-only 감사. 원장 없는 후보·과거 재생·시각 조작·원본 JSON/해시 변조 차단. 기존 `ranked_discovery freeze`에 `--prospective-ledger` 옵션을 추가, 불일치 때 **최종 봉인 파일을 쓰기 전에 차단**. 합성 신규 18테스트 포함 총 **pytest 526 PASS**, 원장 등록 2명 로컬 연결 확인, 미등록 인위 후보는 봉인 거부, 파생 JSON SHA ZIP 복구 PASS. **중요: 기존 WATCH에는 숫자 점수가 없어 점수가 실제 당시 계산됐다는 증빙/진짜 주도주 예측정확도 인증 아님.** 독립 점수시각 원장은 미래 개발 과제. 외부 API 보류, D-021 실제 SSD 탈착 재부팅은 최종 단계. Git 최신 SHA는 PROJECT_STATE 마지막 실측 우선.
+
+## 2026-10-10 5_3 숫자형 랭킹 점수 최초 등록 및 입력 특성 SHA 원장
+
+- `src/eraleader/rank_score_ledger.py`: 기존 WATCH `full_score=None`은 그대로 보존, 새 `rank_scores.sqlite`에 시장/모델/영구ID별 **최초 수치 점수와 실제 OS 기록시각**, 원본 WATCH signal ID+payload SHA, feature JSON SHA 및 자기선언 공개시각 저장. 중복 재실행 시 최초시각 보존, 점수 정정/미등록 WATCH/오래된 backfill/기록 60분 이후 추가/파일변조 차단. `record-rank-scores`, `audit-rank-scores` CLI 신설. `ranked_discovery freeze` 선택적 `--prospective-ledger --score-ledger --features-dir`로 둘 모두 감사한 뒤에만 랭킹 봉인. 신규 합성 19개 포함 전체 **pytest 545 PASS**, 실제 OS clock 로컬 합성 CLI 기록→봉인→감사→파생 JSON SHA zip 복구 PASS. 점수 입력 자체는 외부 제출 연구 수치로, **점수가 진짜 그때 계산됐다는 외부 인증/실전 leader 예측 정확도는 여전히 불가**. `docs/60_RANK_SCORE_FIRST_REGISTRATION.md`; 최신 Git release SHA는 PROJECT_STATE 마지막 수록 실증 우선.
+- D-021 실제 물리 T5DATA SSD 분리·재연결/맥북 재부팅은 외부 API 연결 완료 후 최종 단계. 현재 실행에 포함하지 않음.

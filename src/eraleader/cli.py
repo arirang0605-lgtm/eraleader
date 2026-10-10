@@ -27,6 +27,7 @@ from .frozen_holdout import freeze_registered_candidates, evaluate_frozen_candid
 from .holdout_maturity import audit_holdout_maturity
 from .holdout_outcome_reconcile import reconcile_holdout_outcomes
 from .outcome_source_claims import audit_outcome_source_claims
+from .pit_chain import audit_pit_to_outcome_chain
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
@@ -446,6 +447,23 @@ def execute_watch_progression(args) -> dict:
             "historical_backfills":result["excluded_retrospective_observations"],
             "official_state_promotions":0}
 
+def execute_pit_chain(args) -> dict:
+    result=audit_pit_to_outcome_chain(
+        market=args.market,decision_at=args.decision_at,
+        evaluated_at=args.evaluated_at,report_dir=Path(args.report_dir),
+        frozen_file=Path(args.freeze_file),
+        outcome_file=Path(args.outcomes) if args.outcomes else None,
+        receipt_manifest=Path(args.receipt_manifest) if args.receipt_manifest else None)
+    path=Path(args.out)/f"pit_chain_{args.market.lower()}_research.json"
+    write_json(path,result)
+    return {"status":result["status"],"path":str(path),
+            "blocker_count":result["blocker_count"],
+            "frozen_candidate_count":result["frozen_candidate_count"],
+            "internally_evaluable_research_labels":
+                result["internally_evaluable_research_labels"],
+            "official_leader_promotions":0,
+            "leader_prediction_accuracy_certified":False}
+
 def execute_outcome_source_claims(args) -> dict:
     result=audit_outcome_source_claims(
         Path(args.freeze_file),Path(args.outcomes),Path(args.receipt_manifest),
@@ -599,6 +617,16 @@ def main(argv=None):
     provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")
     provenance.add_argument("--decision-at",required=True,help="Timezone-aware as-of cutoff")
     provenance.add_argument("--out",default=str(OUT))
+    chain=sub.add_parser("audit-pit-chain",
+                         help="Reconcile market-local PIT audits and sealed research outcome receipts; never certify leader skill")
+    chain.add_argument("--market",choices=["KR","US"],required=True)
+    chain.add_argument("--decision-at",required=True)
+    chain.add_argument("--evaluated-at",required=True)
+    chain.add_argument("--report-dir",required=True)
+    chain.add_argument("--freeze-file",required=True)
+    chain.add_argument("--outcomes",help="Optional separate outcome label JSON")
+    chain.add_argument("--receipt-manifest",help="Required together with --outcomes")
+    chain.add_argument("--out",default=str(OUT))
     source_claims=sub.add_parser("audit-outcome-source-claims",
                        help="Audit label source document SHA/chronology; never certify issuer PIT or outcome accuracy")
     source_claims.add_argument("--freeze-file",required=True)
@@ -717,6 +745,7 @@ def main(argv=None):
         elif args.command=="audit-holdout-maturity":result=execute_holdout_maturity(args)
         elif args.command=="reconcile-holdout-outcomes":result=execute_holdout_reconciliation(args)
         elif args.command=="audit-outcome-source-claims":result=execute_outcome_source_claims(args)
+        elif args.command=="audit-pit-chain":result=execute_pit_chain(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

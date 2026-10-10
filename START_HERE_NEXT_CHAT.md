@@ -245,3 +245,8 @@
 
 - 신규 `src/eraleader/outcome_source_claims.py` + CLI `audit-outcome-source-claims`, `docs/57_OUTCOME_SOURCE_CLAIM_AUDIT.md`는 동결 모델·결과 라벨 SHA와 per-security 원문 로컬 JSON SHA256/발행시각 주장/취득시각 주장을 교차 대조. 원천 누락·위조·시점 후행시 차단 사유를 저장; **정합성 모두 PASS해도 독립 공급자 PIT·실제 예측 적중률 인증은 항상 false**. 새 합성 테스트 17개, 전체 pytest 458 PASS. 실제 합성 CLI 3개 근거 파일 일치, 일부러 변경한 A 파일 `SOURCE_BYTES_SHA256_MISMATCH` 검출, 파생 JSON만 SHA ZIP 백업/복구 PASS. 실원천 라벨/실제 미래 성능 0 인증.
 - D-021: 실제 SSD 분리·재연결/맥북 재부팅은 외부 API 연결 뒤 최종 단계에서만 실행. 이번 작업/commit SHA는 `PROJECT_STATE.md` 끝부분과 `git status` 확인.
+
+## 2026-10-10 2_2/2_5/5_5 PIT 원천→동결 후보→미래 라벨 근거 체인
+
+- 신규 `src/eraleader/pit_chain.py` + CLI `audit-pit-chain`, `docs/58_PIT_TO_OUTCOME_EVIDENCE_CHAIN.md`: 한국·미국 시장별 원천 빈티지/영구기업ID/행동/거래소캘린더/가격/PIT 종목군 5가지 파생감사를 동결 후보등록 시각과 성과라벨 원문 주장에 연결. 근거 시각/시장 다르면 차단, 라벨 누락도 성공·실패로 조작 금지. 합성 기존 5/5 증거라도 미성숙 라벨 1건 → 차단 1건, 실제 로컬 캐시 감사 1/5만 투입하면 차단 8건. 독립 PIT/진짜 적중률은 무조건 미인증·확정 대장주 0. 신규 테스트 12개 포함 전체 **470 pytest PASS**, 결과 파생 JSON SHA ZIP 복구 PASS. `D-021` 물리 SSD/맥북 재부팅 시험 API 연결 후 최종 단계.
+- 다른 세션의 새 `src/eraleader/ranked_discovery.py`는 본 작업 소유 아님, 보존하고 Git 상태를 먼저 확인. 마지막 커밋·푸시 SHA는 `PROJECT_STATE.md`와 실제 Git의 최신 기록 우선.

@@ -236,3 +236,24 @@ def test_derived_cash_delisting_report_is_backed_up_not_raw_payout_document(tmp_
     restore_backup(target,recovered)
     assert json.loads((recovered/"cash_delisting_research.json").read_text())==result
     assert not (recovered/"settlement_original_private.json").exists()
+
+
+def test_issuer_lineage_derived_json_backup_never_includes_raw_identity_registry(tmp_path):
+    from eraleader.local_backup import create_backup,verify_backup,restore_backup
+    from zipfile import ZipFile
+    folder=tmp_path/"identity_report"
+    folder.mkdir()
+    derived={"status":"RESEARCH_ISSUER_IDENTITY_AUDIT_NOT_CERTIFIED",
+             "active_ticker_conflict_count":1,
+             "historic_membership_pit_certified":False}
+    (folder/"issuer_lineage_kr_research.json").write_text(json.dumps(derived))
+    (folder/"raw_identity_registry.json").write_text('{"client_secret":"NEVER_ARCHIVE"}')
+    archive=tmp_path/"identity_derived.zip"
+    assert create_backup(folder,archive)["file_count"]==1
+    assert verify_backup(archive)["status"]=="LOCAL_BACKUP_VERIFIED"
+    with ZipFile(archive) as z:
+        assert z.namelist()==["issuer_lineage_kr_research.json","MANIFEST.json"]
+    target=tmp_path/"restored"
+    restore_backup(archive,target)
+    assert json.loads((target/"issuer_lineage_kr_research.json").read_text())==derived
+    assert not (target/"raw_identity_registry.json").exists()

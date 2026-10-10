@@ -161,3 +161,8 @@
 
 - `docs/43_CASH_DELIST_SETTLEMENT_RESEARCH.md`, `delist_cash.py`, CLI `audit-cash-delist`: 신뢰할 수 있는 현금 정산액이 입력되지 않으면 손익을 0/마지막 종가로 지어내지 않고 미확정; 지급/게시시각·분할·배당 원시가격 수익률과 KRW/USD를 검사. 합성 KR +10%, US +5% 연구 결과 테스트, 실제 주식 성과 아님. 신규 pytest 24개 포함 동시 공유 전체 `270 PASS`. 연구 JSON ZIP 백업 SHA 및 복구 성공. 독립 원천 PIT 인증 false.
 - 동시 워크포워드 코드/테스트(`walkforward_replay.py` 관련)는 다른 세션 것이므로 스테이징된 상태에서 그대로 보존. Git HEAD·원격과 다음 실제 미완료는 `PROJECT_STATE.md` 마지막 기록 확인. 외부 API는 아직 연결 금지.
+
+## 2026-10-10 최근 2_2/2_5 — 기업 영구ID/티커 계보 감사
+
+- `src/eraleader/issuer_lineage.py`, CLI `audit-issuer-lineage`, 문서 `docs/44_ISSUER_LINEAGE_PIT_AUDIT.md`: 영구 기업 ID와 동일 티커 재사용, 동시 충돌, 기업행동의 미등록 대상/후계 기업, 미확인 상폐 현금, 시점 후행 취득/개정 이력을 감사. 합성 3개 시나리오 CLI 및 파생 JSON 안전 백업·복원 PASS. 신규 테스트 25개 포함 작업 폴더 전체 295 PASS(다른 세션 19개 테스트 포함). 진짜 상장 이력·법적 ID·정산금 원천 인증 아님.
+- 워크포워드 다른 세션 3개 staged 파일 `docs/42_*`, `src/eraleader/walkforward_replay.py`, `tests/test_walkforward_replay.py`은 손대지 말 것. Git SHA/Push은 `PROJECT_STATE.md` 마지막 검증 기록 우선.

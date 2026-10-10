@@ -907,3 +907,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **CLI/ZIP 직접 재현(100% 합성)**: `output/cash_payment_receipt_trial_20261011` ignored 경로에 2024년 KR 2:1 split, 주당 55 현금지급, 문서 게시/조회시각이 일치하는 별도 normalized JSON을 제출 → 연구용 `cash_exit_total_return=0.1`, official PIT false. 같은 파일 manifest 조회시각을 평가시점 이후(2024-05-02)로 바꾼 경우 `RECEIPT_UNAVAILABLE_BY_EVALUATION` / return null. 문서 상폐 지급액을 54로 바꾸고 해시를 다시 맞춘 경우 `PAYMENT_DOCUMENT_CASH_AMOUNT_MISMATCH` / return null. `local_backup.create_backup` 파생 `cash_delisting_research.json` 1개만 ZIP, `LOCAL_BACKUP_VERIFIED`·새 경로 `restore_backup` 동일 JSON PASS. 실제 정산 문서·유료 시세·키·데이터 다운로드/업로드 없음.
 - **공개 저장소 보안 및 소스 릴리스:** 정확히 5코드/테스트/MD 경로만 `git add`, `git diff --cached --check` PASS, `python3 scripts/check_git_safety.py`: `scanned=5 suspicious=0`. 정규 `git commit`→`git push origin main` 성공: `95e0d4fd2cd744a4cadd574675e6ab9cfdfd66cc`; `git rev-parse HEAD` = `git ls-remote origin refs/heads/main`. 코드 릴리스 직후 트리 clean. 현재 이 상태문서/START 갱신만 후속 문서 commit 대상.
 - **과학적 차단/다음:** 로컬 서류의 해시·두 자기선언 출처명·시점 합치기는 실제 공급자·거래소가 발행한 최초 문서, 사전 취득시각, 법적 상폐/기업행동, 역사적 상폐주 포함 유니버스·진짜 지급을 공증하지 않는다. 실전 PIT 인증/미래 대장주 적중률/30기능 최종 완료 **아니며 공식 확정 0**. 다음 2_2/2_5 원천 발행기관·법적 영구ID/상폐 정산지급·조정수익지수 독립 실증 및 5_5 실제 전향 결과라벨 확보. D-017 외부 API는 로컬 기능 완성 뒤, D-021 물리 SSD 분리·재연결 및 Mac 재부팅은 API 연동 이후 최종 검수에만.
+
+## 2026-10-11 | 4_4/4_5 및 6_2 개발 체크포인트
+
+- 코드: src/eraleader/watch_rotation.py, cli.py, delivery.py, local_backup.py; 테스트: tests/test_watch_rotation.py; 문서: docs/70_PROSPECTIVE_PEER_WATCH_ROTATION.md.
+- 명시적 전향 WATCH 양성 2회→음성 2회의 약화와 같은 산업 내 신규 WATCH 연속 양성 2회를 비교해 연구용 교체 가설 생성. 종목 누락·PIT 불명 산업 변경·소급/후행 등록·오래된 WATCH는 제외. 주도주 확정 0, 공식 교체 0.
+- 수정 전 두 오탐 실패와 HTML 렌더러 부재 3개 실패 재현 후 수정. 관련 58 PASS, 전체 827 pytest PASS/FAIL 0, handoff 30 ID PASS. 합성 로컬 CLI 1 가설, 웹 GET 200, 원장 SHA 무변경, 파생 JSON+HTML 2개 ZIP SHA/복원 성공.
+- Git 공개 안전검사 6 staged / suspicious 0, git diff --cached --check PASS. 코드 commit 36bcccc291f167f8605897041814cee4c0f89e62 정상 GitHub main push, 로컬/원격 SHA 일치, 코드 직후 worktree clean.
+- 독립 기업ID·산업/공시·상폐/기업행동 PIT, 실제 미래 성숙 라벨과 조기발굴 적중률 미인증. NEXT: 연속 점수 기록을 통한 업종별 상대 우위 검증 또는 2_2/2_5 독립 공급자 원천 검증. API D-017은 로컬 완료 뒤, 물리 SSD D-021은 API 후 최종 단계. REWRITE 금지.

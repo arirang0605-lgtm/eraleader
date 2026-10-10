@@ -386,3 +386,9 @@
 - 집중 **121 PASS**, 전체 **800 pytest PASS/exit 0(신규 28)**, handoff 30작업 PASS. synthetic KR 지급원문 일치시 연구용 +10%, 취득 후행 null, 해시 재계산한 금액 54 불일치 null. derived JSON 1개 ZIP 안전 백업/SHA 복원 PASS; 원본 정산문서·주가·키 미백업 및 Git 제외.
 - 실제 코드 5경로 Git 안전검사 `scanned=5 suspicious=0` 및 diff check PASS 후 **커밋 `95e0d4fd2cd744a4cadd574675e6ab9cfdfd66cc` 정상 GitHub Public main push**, local/remote SHA 일치, 코드 릴리스 worktree clean. 상태문서 후속 commit 여부는 현재 git 우선.
 - NEXT: 2_2/2_5 실제 독립 상폐 기업·현금 지급·배당/분할·조정총수익/PIT 근거와 5_5 실제 성숙된 미래 후보 outcome. 외부 API D-017 마지막 연결, 물리 SSD 재연결/맥북 재부팅 D-021 API 이후 최종 검수. 기존 정상 코드 REWRITE 금지.
+
+## 2026-10-11 최신 — 4_4/4_5 전향 WATCH 업종 교체 가설 + 6_2 로컬 웹
+
+- 시작 PC/T5DATA online, Git main 8e9b96c clean. 신규 watch_rotation.py / test_watch_rotation.py / docs/70, cli.py·delivery.py·local_backup.py 최소 확장. 원본 SQLite read-only, 산업별 명시적 양성2→음성2와 신규 양성2를 날짜순 연결. 동일/누락·노후·소급·임의 산업 재분류 차단, 확정 리더 0 / 미래 실전 성능 미인증.
+- 오탐 2 FAIL 및 HTML 미구현 3 FAIL을 먼저 재현. 전체 827/827 pytest PASS, handoff 30개 PASS. 합성 CLI 1개 연구 가설, 로컬 HTML HTTP 200, 원장 SHA 불변, 파생 JSON·HTML ZIP 2건 검증/복원. Public 안전검사 6파일 suspicious=0, 정상 commit/push 36bcccc291f167f8605897041814cee4c0f89e62, local/remote main SHA 일치. PROJECT_STATE 최신 기록 우선.
+- 다음 연속 실제 수치 점수의 기업/업종 상대성 검증 및 독립 2_2/2_5 PIT·5_5 전향 성과라벨. API D-017 연기, SSD 탈착/재부팅 D-021 최종 단계. 기존 정상 코드 보존.

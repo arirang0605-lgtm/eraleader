@@ -17,6 +17,7 @@ from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .offline_features import financial_snapshot
 from .peer_normalization import normalize_peer_file
+from .rank_feature_bridge import build_rank_feature_inputs
 from .research import integrated_snapshot
 from .discovery_metrics import evaluate_early_discovery
 from .walkforward import walk_forward_split
@@ -158,6 +159,12 @@ def execute_offline_features(args) -> dict:
 
 def execute_peer_normalization(args) -> dict:
     return normalize_peer_file(Path(args.input), Path(args.out), min_peers=args.min_peers)
+
+def execute_rank_feature_inputs(args) -> dict:
+    return build_rank_feature_inputs(Path(args.offline), Path(args.price),
+                                     Path(args.features_dir),
+                                     model_version=args.model_version,
+                                     min_peers=args.min_peers)
 
 def execute_integrated(args) -> dict:
     source=OfflineLedger(Path(args.out)/"offline.sqlite")
@@ -612,6 +619,13 @@ def main(argv=None):
     peer.add_argument("--input",required=True,help="Existing offline-features JSON")
     peer.add_argument("--out",required=True,help="New derived JSON; never overwrite")
     peer.add_argument("--min-peers",type=int,default=3)
+    bridge=sub.add_parser("prepare-rank-features",
+            help="Make present-written four-factor input JSON from as-of offline+price research")
+    bridge.add_argument("--offline",required=True,help="Existing offline-features JSON")
+    bridge.add_argument("--price",required=True,help="Existing same-day price run JSON")
+    bridge.add_argument("--features-dir",required=True,help="New output directory (no overwrite)")
+    bridge.add_argument("--model-version",required=True)
+    bridge.add_argument("--min-peers",type=int,default=3)
     join=sub.add_parser('offline-integrated',help='PIT-aligned research join')
     join.add_argument('--market',choices=['KR','US'],default='KR')
     join.add_argument('--as-of',required=True)
@@ -821,6 +835,7 @@ def main(argv=None):
         elif args.command=="offline-import":result=execute_offline_import(args)
         elif args.command=="offline-features":result=execute_offline_features(args)
         elif args.command=="audit-peer-normalization":result=execute_peer_normalization(args)
+        elif args.command=="prepare-rank-features":result=execute_rank_feature_inputs(args)
         elif args.command=="offline-integrated":result=execute_integrated(args)
         elif args.command=="validate-discovery":result=execute_validation(args)
         elif args.command=="walkforward":result=execute_walkforward(args)

@@ -208,3 +208,12 @@
 - **한계**: KR·US 마지막 시세 기준일이 다르며 실시간 아님; 재무·산업 신뢰된 PIT 불완전 → 실제 대장주 확정 0건. 라이브 API/알림 없음. 전체 30개 작업 완성 선언 금지.
 - **다음**: 상폐/기업행동 시점별 수익 조정, 실제 오프라인 자료 커버리지, 최종 상태/리드타임 검증, 로컬 일정·복구/운영 품질 (상세 `docs/30_WALKFORWARD_LOCAL_BATCH.md`).
 - **Git 후속 SHA/푸시**: 다음 체크포인트 기록에서 확인.
+
+## GitHub 최종 동기화 체크포인트 — 2026-10-10 (54개 테스트)
+
+- **커밋 SHA**: `3993eed440262e4d7aa0a71a6587532522df8712` (`feat: add offline walkforward and KR US reporting batch`).
+- **원격 푸시**: `git push origin main` 성공; `git ls-remote origin refs/heads/main` 결과 위와 **일치**. 로컬 `git status -sb` → `## main...origin/main` (동기화됨).
+- **테스트**: `PYTHONPATH=src python3 -m pytest tests -q` → **54 PASS**, `python3 scripts/check_handoff.py` → **PASS(필수 31개 확인/작업번호 30개)**, `PYTHONPATH=src python3 scripts/verify_local_mvp.py` → PASS(HTTP 200 3개 경로).
+- **공개 푸시 보안**: `python3 scripts/check_git_safety.py` → staged 파일 11개 검사 **의심 0건**. `.secrets/`는 로컬만, 키 미입력.
+- **실제 자료 통합 배치**: KR 자료 2026-10-02/US 자료 2026-02-23, 두 시장 보고서 6개 생성 PASS, 재실행 알림 dry-run 0개. 서로 다른 날짜이므로 최신 동일 시점 실전 보고로 취급하지 않는다.
+- **다음 개발 승인 재확인 불필요**: 사용자 지시에 따라 추가 질문 없이 코드·테스트 기준 첫 미완료 작업(2단계 상폐/기업행동 PIT 품질 → 4~5단계 미래 발굴 성능 검증 → 6단계 로컬 자동화 완성)을 계속 진행. 단 외부 API는 로컬 우선 개발 후 연결.

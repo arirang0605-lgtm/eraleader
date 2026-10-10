@@ -195,3 +195,8 @@
 ## 2026-10-10 6_2 후보 WATCH 변화 로컬 웹 화면
 
 - `audit-watch-progression`이 `site/watch_progression_{kr,us}.html` 생성, 명시적 최초/지속/약화/재진입·소급 제외 건수 확인. 안전 HTML escape, 확정 대장주 0건 및 미래 정확도 미인증 고정. 합성 후보 4일/로컬 HTTP 200/파생 JSON+HTML ZIP SHA 검증·복원 PASS. 신규 웹 테스트 3개 포함 전체 **360 pytest PASS**. `docs/47_PROSPECTIVE_WATCH_PROGRESSION.md` 하단, 실제 Git 상태는 `PROJECT_STATE.md` 마지막 기록에서 확인.
+
+## 2026-10-10 6_5 캐시 정정 빈티지 감지 (직전 작업)
+
+- `src/eraleader/local_schedule.py`: KR 550일에 포함되는 **모든 과거 연도별 Parquet** 및 US 주봉의 실제 바이트 SHA256을 정상 실행 체크포인트에 포함. 최신날짜 동일해도 전 기간 원본 정정은 재실행; 분석/백업 중 파일변경은 checkpoint 중단; 오래된 미국 캐시 신선도 FAIL이면 기존대로 작업 건너뜀. `tests/test_schedule_cache_vintage.py` +10, **370 pytest PASS**. 실제 T5DATA KR-2025/2026, US 3개 SHA 확인/원본 무수정, US 226일 stale `SKIPPED_STALE_CACHE`; 상세 `docs/48_SCHEDULE_CACHE_VINTAGE_SHA.md`.
+- Git 최종 커밋/푸시 상태는 `PROJECT_STATE.md` 최신 실측 및 `git status -sb`로 확인. 1~6 글로벌 완성 및 실전 주도주 후보 확정 불가, 외부 API 연기.

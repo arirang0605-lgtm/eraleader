@@ -6,7 +6,8 @@ a cached market date to today's date.
 from __future__ import annotations
 
 from argparse import Namespace
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
+from hashlib import sha256
 from pathlib import Path
 import fcntl
 import json
@@ -20,16 +21,45 @@ from .data import LEGACY_DEFAULT
 from .batch import execute_local_batch
 from .local_backup import create_backup, verify_backup
 
-def latest_cached_sessions(root: Path) -> dict[str, date]:
-    """Inspect actual cache timestamps, not file modification times."""
-    import pandas as pd
+def active_cache_files(root: Path, *, kr_as_of: date | None = None,
+                       lookback_days: int = 550) -> dict[str, Path]:
+    """Exact read-only cache paths, including EVERY KR year used by batch."""
     kr_dir = root / "datasets/external_validation/marcap/data"
     years = sorted(kr_dir.glob("marcap-????.parquet"))
     if not years:
         raise FileNotFoundError(f"No KR cache in {kr_dir}")
-    kr = pd.read_parquet(years[-1], columns=["Date"])["Date"]
     us_path = root / "datasets/yf_sp500_w_pq_Asia_Seoul_2026-03-01_SSOT/bars.parquet"
-    us = pd.read_parquet(us_path, columns=["ts"])["ts"]
+    if kr_as_of is None:
+        return {"KR": years[-1], "US": us_path}
+    start_year = (kr_as_of - timedelta(days=lookback_days)).year
+    result = {"US": us_path}
+    for year in range(start_year, kr_as_of.year + 1):
+        result[f"KR-{year}"] = kr_dir / f"marcap-{year}.parquet"
+    return result
+
+def latest_cache_fingerprints(root: Path, *, kr_as_of: date) -> dict[str, str]:
+    """Hash actual source bytes, not mtime, file size or most-recent session.
+
+    Detect corrected/historically restated cached files without exporting raw
+    market data. Never follow symlinks or silently accept missing/empty files.
+    """
+    answer = {}
+    for market, path in active_cache_files(root, kr_as_of=kr_as_of).items():
+        if path.is_symlink() or not path.is_file() or path.stat().st_size <= 0:
+            raise ValueError(f"Untrusted/missing {market} source cache file")
+        digest = sha256()
+        with path.open("rb") as src:
+            for chunk in iter(lambda: src.read(1024 * 1024), b""):
+                digest.update(chunk)
+        answer[market] = digest.hexdigest()
+    return answer
+
+def latest_cached_sessions(root: Path) -> dict[str, date]:
+    """Inspect actual cache timestamps, not file modification times."""
+    import pandas as pd
+    sources = active_cache_files(root)
+    kr = pd.read_parquet(sources["KR"], columns=["Date"])["Date"]
+    us = pd.read_parquet(sources["US"], columns=["ts"])["ts"]
     if kr.empty or us.empty:
         raise ValueError("Cached market session column is empty")
     return {"KR": pd.to_datetime(kr).max().date(),
@@ -38,7 +68,8 @@ def latest_cached_sessions(root: Path) -> dict[str, date]:
 def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
                   control: Path, backups: Path, today: date | None = None,
                   max_age_days: int = 10, allow_stale_research: bool = False,
-                  sessions: dict[str, date] | None = None) -> dict:
+                  sessions: dict[str, date] | None = None,
+                  input_fingerprints: dict[str, str] | None = None) -> dict:
     """Run at most once per cache vintage, retry on failure, verify backup.
 
     All paths are local. A process lock is held across analysis and backup.
@@ -53,8 +84,9 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {"status": "SKIPPED_ALREADY_RUNNING"}
+        live_files = sessions is None
         seen = sessions if sessions is not None else latest_cached_sessions(legacy)
-        if set(seen) != {"KR", "US"} or not all(isinstance(v, date) for v in seen.values()):
+        if set(seen) != {"KR", "US"} or not all(type(v) is date for v in seen.values()):
             raise ValueError("Both KR and US observed dates are required")
         dates = {k: v.isoformat() for k, v in seen.items()}
         age = {k: (now-v).days for k, v in seen.items()}
@@ -64,10 +96,26 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
             return {"status": "SKIPPED_STALE_CACHE", "observations": dates,
                     "age_days": age, "max_age_days": max_age_days,
                     "no_live_notifications": True}
+        # A date-only checkpoint is insufficient: a vendor can correct old
+        # closes, splits or bars without changing its latest session date.
+        fingerprints = (input_fingerprints if input_fingerprints is not None else
+                        latest_cache_fingerprints(legacy, kr_as_of=seen["KR"])
+                        if live_files else None)
+        if fingerprints is not None and (not fingerprints or
+                any(not isinstance(k, str) or not k or
+                    not (k == "US" or k == "KR" or k.startswith("KR-"))
+                    for k in fingerprints) or
+                not any(k.startswith("KR") for k in fingerprints) or
+                "US" not in fingerprints or
+                any(not isinstance(v, str) or len(v) != 64 or
+                    any(c not in "0123456789abcdef" for c in v)
+                    for v in fingerprints.values())):
+            raise ValueError("KR/US immutable SHA256 source fingerprints required")
         marker = control / "last_verified_batch.json"
         if marker.exists():
             previous = json.loads(marker.read_text(encoding="utf-8"))
-            if previous.get("observations") == dates:
+            if (previous.get("observations") == dates and
+                    previous.get("cache_sha256") == fingerprints):
                 prior_archive = Path(str(previous.get("archive") or ""))
                 # A successful analysis without a surviving *verified* backup
                 # is not a complete scheduled cycle. Re-run and repair.
@@ -84,13 +132,26 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
             legacy=str(legacy), out=str(out)))
         if result.get("market_count") != 2 or result.get("reports_created") != 6:
             raise RuntimeError("Incomplete KR/US batch")
+        # A file revision DURING a long analysis may mix two cache vintages.
+        # Do not create a trusted checkpoint/backup in that case.
+        if live_files and (latest_cached_sessions(legacy) != seen or
+                           latest_cache_fingerprints(legacy, kr_as_of=seen["KR"]) != fingerprints):
+            raise RuntimeError("Input cache was revised during scheduled analysis")
         backups.mkdir(parents=True, exist_ok=True)
         archive = backups / f"eraleader_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}_{uuid.uuid4().hex[:8]}.zip"
         create_backup(out, archive)
         verify_backup(archive)
+        # A correction during ZIP creation must not be marked as a stable
+        # source vintage either. The archive may remain for investigation,
+        # but the successful checkpoint is never advanced.
+        if live_files and (latest_cached_sessions(legacy) != seen or
+                           latest_cache_fingerprints(legacy, kr_as_of=seen["KR"]) != fingerprints):
+            raise RuntimeError("Input cache was revised during scheduled backup")
         record = {
             "status": "RESEARCH_ONLY_VERIFIED_BACKUP",
             "observations": dates, "age_days": age,
+            "cache_sha256": fingerprints,
+            "source_files_verified_during_run": live_files,
             "run_finished_utc": datetime.now(timezone.utc).isoformat(),
             "archive": str(archive), "dry_run_only": True,
             "used_stale_override": allow_stale_research and any(v > max_age_days for v in age.values()),

@@ -166,7 +166,10 @@ def execute_rank_feature_inputs(args) -> dict:
                                      model_version=args.model_version,
                                      min_peers=args.min_peers,
                                      offline_ledger=(Path(args.offline_ledger)
-                                                     if args.offline_ledger else None))
+                                                     if args.offline_ledger else None),
+                                     price_cache_root=(Path(args.price_cache_root)
+                                                       if args.price_cache_root else None),
+                                     price_cache_days=args.cache_days)
 
 def execute_integrated(args) -> dict:
     source=OfflineLedger(Path(args.out)/"offline.sqlite")
@@ -629,6 +632,8 @@ def main(argv=None):
     bridge.add_argument("--model-version",required=True)
     bridge.add_argument("--min-peers",type=int,default=3)
     bridge.add_argument("--offline-ledger",help="Optional original offline.sqlite read-only PIT recomputation gate")
+    bridge.add_argument("--price-cache-root",help="Optional existing read-only KR/US price cache to recheck displayed raw returns")
+    bridge.add_argument("--cache-days",type=int,default=550)
     join=sub.add_parser('offline-integrated',help='PIT-aligned research join')
     join.add_argument('--market',choices=['KR','US'],default='KR')
     join.add_argument('--as-of',required=True)

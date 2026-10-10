@@ -20,6 +20,7 @@ from .offline_pit import OfflineLedger, iso_time
 from .offline_features import financial_snapshot
 from .peer_normalization import normalize_growth_peers
 from .rank_score_pipeline import TARGETS, compute_research_score
+from .price_cache_witness import recheck_price_cache
 
 ZONES = {"KR": "Asia/Seoul", "US": "America/New_York"}
 CLOSE_READY = {"KR": time(15, 40), "US": time(16, 10)}
@@ -70,6 +71,7 @@ def build_rank_feature_inputs(
     offline_file: Path, price_file: Path, output_dir: Path, *,
     model_version: str, min_peers: int = 3, clock: datetime | None = None,
     offline_ledger: Path | None = None,
+    price_cache_root: Path | None = None, price_cache_days: int = 550,
 ) -> dict:
     """Derive conservative four-factor research inputs without scoring WATCH.
 
@@ -80,6 +82,8 @@ def build_rank_feature_inputs(
     """
     if not isinstance(model_version, str) or not model_version.strip():
         raise ValueError("Pinned nonempty model_version required")
+    if price_cache_root is None and price_cache_days != 550:
+        raise ValueError("Cache lookback days require an original price cache root")
     now = clock if clock is not None else datetime.now(timezone.utc)
     if not isinstance(now, datetime) or now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("Actual feature generation clock must have timezone")
@@ -132,6 +136,9 @@ def build_rank_feature_inputs(
         if value is not None and (not _finite(value) or value <= -1):
             raise ValueError("Invalid six-month price return")
         prices[ticker] = row
+    price_witness = (recheck_price_cache(price, legacy_root=Path(price_cache_root),
+                                         days=price_cache_days)
+                     if price_cache_root is not None else None)
 
     companies = offline["companies"]
     tickers = {}
@@ -183,6 +190,10 @@ def build_rank_feature_inputs(
         "price_source_sha256":price_sha,
         "price_source_run_id":price["run_id"],
         "price_last_observation":last.isoformat(),
+        "recomputed_from_readonly_price_cache":price_witness is not None,
+        "selected_cached_price_returns_sha256":(
+            price_witness["original_selected_price_returns_sha256"]
+            if price_witness else None),
         "min_peers":min_peers,
         "eligible_document_count":len(documents),
         "deferred_count":len(deferred),
@@ -225,6 +236,9 @@ def build_rank_feature_inputs(
         "eligible_documents":len(documents), "deferred":len(deferred),
         "source_hashes_recorded":True,
         "recomputed_from_readonly_offline_ledger":offline_ledger is not None,
+        "recomputed_from_readonly_price_cache":price_witness is not None,
+        "rechecked_price_rows":(price_witness["rechecked_selected_price_count"]
+                                if price_witness else 0),
         "real_leader_prediction_certified":False,
         "official_leader_promotions":0,
     }

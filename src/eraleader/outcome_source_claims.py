@@ -120,10 +120,14 @@ def audit_outcome_source_claims(
         else:
             matured=_stamp(label["mature_at"])
             available=_stamp(label["outcome_available_at"])
-            end=_stamp(record["recorded_at_utc"]).astimezone(zone).date()+timedelta(days=horizon)
+            # An independent receipt must never upgrade a negative outcome
+            # before the complete frozen exchange-local calendar-day horizon.
+            # Preserve the registration's clock time across New York DST.
+            end=(_stamp(record["recorded_at_utc"]).astimezone(zone)
+                 +timedelta(days=horizon)).astimezone(timezone.utc)
             if matured>cutoff or available>cutoff:
                 status="LABEL_NOT_YET_AVAILABLE"
-            elif label["is_future_leader"] is False and matured.astimezone(zone).date()<end:
+            elif label["is_future_leader"] is False and matured<end:
                 status="PREMATURE_NEGATIVE_LABEL"
             else:
                 status=eligible_status

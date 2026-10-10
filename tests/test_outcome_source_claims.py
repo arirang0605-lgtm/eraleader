@@ -206,3 +206,93 @@ def test_cli_and_derived_only_archive(tmp_path,capsys):
     restore_backup(zipped,restored)
     assert json.loads((restored/"outcome_source_claims_research.json").read_text())==report
     assert not (restored/"sensitive_raw_outcomes.json").exists()
+
+
+
+@pytest.mark.parametrize("mature,expected_evaluable", [
+    ("2026-09-29T16:59:00+09:00", False),
+    ("2026-09-29T17:00:00+09:00", True),
+    ("2026-09-29T17:01:00+09:00", True),
+])
+def test_source_claim_cannot_upgrade_negative_before_exact_frozen_clock(
+        tmp_path, mature, expected_evaluable):
+    """An apparently perfect local receipt cannot override the sealed evaluator."""
+    base=make_bundle(tmp_path)
+    labels=json.loads(base[1].read_text(encoding="utf-8"))
+    negative=next(x for x in labels if x["security_id"]=="B")
+    negative["mature_at"]=mature
+    negative["outcome_available_at"]="2026-10-03T17:00:00+09:00"
+    base[1].write_text(json.dumps(labels), encoding="utf-8")
+    receipt=json.loads(base[2].read_text(encoding="utf-8"))
+    receipt["outcomes_sha256"]=sha256(base[1].read_bytes()).hexdigest()
+    base[2].write_text(json.dumps(receipt), encoding="utf-8")
+    result=audit(base)
+    reconciliation=result["internally_evaluable_outcomes"]
+    passed=result["local_source_claims_consistent"]
+    assert reconciliation==(3 if expected_evaluable else 2)
+    assert passed==(3 if expected_evaluable else 2)
+    assert result["eligible_outcomes_missing_or_inconsistent_sources"]==0
+    row=next(row for row in result["candidate_evidence_sample"]
+             if row["security_id"]=="B")
+    assert row["maturity_status"]==(
+        "RESEARCH_LABEL_AVAILABLE_SOURCE_UNVERIFIED"
+        if expected_evaluable else "PREMATURE_NEGATIVE_LABEL")
+    assert row["local_source_bytes_checked"] is expected_evaluable
+    assert result["independently_source_authenticated"] is False
+
+
+@pytest.mark.parametrize("mature,eligible", [
+    ("2026-03-16T15:59:00-04:00", False),
+    ("2026-03-16T16:00:00-04:00", True),
+    ("2026-03-16T16:01:00-04:00", True),
+])
+def test_us_dst_source_receipt_does_not_upgrade_early_negative(
+        tmp_path, mature, eligible):
+    from eraleader.prospective import ProspectiveRegistry
+    from eraleader.frozen_holdout import freeze_registered_candidates
+    from test_frozen_holdout import run, LABEL, VERSION
+    ledger=tmp_path/"prospective.sqlite"
+    db=ProspectiveRegistry(ledger)
+    try:
+        db.record_integrated(run(["US-DST"], market="US",
+            as_of="2026-03-06T15:00:00-05:00"),
+            clock=datetime(2026,3,6,21,tzinfo=timezone.utc))
+    finally:
+        db.close()
+    frozen=tmp_path/"holdout_us.json"
+    freeze_registered_candidates(ledger, frozen,
+        market="US",model_version=VERSION,label_definition_id=LABEL,
+        horizon_days=10,clock=datetime(2026,3,7,tzinfo=timezone.utc))
+    label_path=tmp_path/"labels_us.json"
+    label_path.write_text(json.dumps([{
+        "security_id":"US-DST","label_definition_id":LABEL,
+        "is_future_leader":False,"mature_at":mature,
+        "outcome_available_at":"2026-03-17T12:00:00-04:00",
+    }]), encoding="utf-8")
+    blob=b'{"synthetic":"US-DST"}'
+    (tmp_path/"US-DST.json").write_bytes(blob)
+    claim={
+        "schema_version":SCHEMA,"market":"US",
+        "label_definition_id":LABEL,
+        "frozen_manifest_sha256":_read_frozen(frozen)["content_sha256"],
+        "outcomes_sha256":sha256(label_path.read_bytes()).hexdigest(),
+        "claims":[{
+            "security_id":"US-DST","publisher_id_claimed":"SYNTHETIC_ONLY",
+            "source_id":"FAKE_DST","file":"US-DST.json",
+            "sha256":sha256(blob).hexdigest(),
+            "published_at":"2026-03-17T10:00:00-04:00",
+            "retrieved_at":"2026-03-18T12:00:00-04:00",
+        }],
+    }
+    manifest=tmp_path/"receipt_us.json"
+    manifest.write_text(json.dumps(claim), encoding="utf-8")
+    result=audit_outcome_source_claims(frozen,label_path,manifest,
+        evaluated_at="2026-03-20T17:00:00-04:00",
+        clock=datetime(2026,4,1,tzinfo=timezone.utc))
+    assert result["internally_evaluable_outcomes"]==int(eligible)
+    assert result["local_source_claims_consistent"]==int(eligible)
+    assert result["eligible_outcomes_missing_or_inconsistent_sources"]==0
+    assert result["candidate_evidence_sample"][0]["maturity_status"]==(
+        "RESEARCH_LABEL_AVAILABLE_SOURCE_UNVERIFIED"
+        if eligible else "PREMATURE_NEGATIVE_LABEL")
+    assert result["actual_leader_prediction_certified"] is False

@@ -299,3 +299,9 @@
 - **Synthetic actual execution**: 2024-04-01 to 2024-04-03 raw 2:1 split+1 cash dividend correctly reconstructed at 0% return; synthetic reference [100,100,100] matched 0 deviations, changed reference [100,100,102] gave one 200bps mismatch. Both `historic_price_actions_pit_certified=false`, independent source certification=false. Derived audit ZIP `output/continuous/return_crosscheck_20261010.zip` one file, SHA verification PASS; original raw input not archived. No live data/API.
 - **Next**: independently sourced historical membership/corporate actions/delist proceeds+true adjusted price vendor, PIT data coverage and mature holdout precision/lead-time; existing local agent `launchd` requires mounted SSD, periodic cache still stale. No future leader selection can be certified yet.
 - **Git SHA/push**: append separate final verified status checkpoint after `git push origin main` and remote SHA equality test.
+
+## 2026-10-10 verified Git synchronization — 2_5 return comparison
+
+- **Code commit/push** `a7898bc47af6dd4826f8314a7e1cf966c49b4917` (`feat: audit split dividend returns against separate total-return index`); `git push origin main` success and independently queried `git ls-remote origin refs/heads/main` exactly matched full local SHA; branch initially clean.
+- **Validation before push**: `pytest 131 collected, 131 PASS/0 FAIL`; handoff PASS/30 IDs, staged public safety scan 8 files and **suspicious 0**. Research return match and 200bps exception both reproduced, API calls 0.
+- **Reminder:** synthetic comparison is non-certified; next 2_2/2_5 authoritative historical corp action+listing+delist proceeds and real independent adjusted feed source, then 5_5 sealed forward evaluation. Last 6_5 local scheduled agent runtime evidence remained exit code 0, caches may still be stale.

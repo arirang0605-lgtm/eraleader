@@ -95,8 +95,9 @@ def freeze_registered_candidates(
         raise FileNotFoundError(f"Missing prospective source ledger: {registry_path}")
     db = sqlite3.connect(registry_path.resolve().as_uri()+"?mode=ro", uri=True)
     try:
-        rows = db.execute("""SELECT security_id,observed_as_of,recorded_at_utc,
-                                    source_run_id,payload_hash,status,model_version
+        rows = db.execute("""SELECT signal_id,security_id,kind,observed_as_of,
+                                    recorded_at_utc,source_run_id,payload_hash,payload,
+                                    status,model_version
                              FROM prospective_signals WHERE market=? AND model_version=?
                              ORDER BY recorded_at_utc,signal_id""",
                           (market, model_version)).fetchall()
@@ -104,11 +105,35 @@ def freeze_registered_candidates(
         db.close()
     accepted = {}
     late = future = 0
-    for sec, seen, recorded, run_id, fingerprint, status, version in rows:
+    for signal_id, sec, kind, seen, recorded, run_id, fingerprint, payload, status, version in rows:
         if status != "PROSPECTIVE_RESEARCH_ONLY_PIT_NOT_CERTIFIED" or version != model_version:
             raise ValueError("Unexpected registry status or model version")
+        # The prospective registry is local and writable. Verify every frozen
+        # record against its original canonical screen payload before locking
+        # the earliest signal; a stale or rewritten SQLite cell must fail closed.
+        if (kind != "UNVERIFIED_GROWTH_SCREEN" or
+                signal_id != sha256(f"{market}|{sec}|{kind}|{seen}|{version}".encode()).hexdigest()):
+            raise ValueError("Prospective signal identity mismatch")
+        if not isinstance(payload, str) or sha256(payload.encode("utf-8")).hexdigest() != fingerprint:
+            raise ValueError("Prospective registry payload hash mismatch")
+        try:
+            basis = json.loads(payload)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Prospective registry payload invalid") from exc
+        if not isinstance(basis, dict) or _canonical(basis) != payload:
+            raise ValueError("Prospective registry payload is not canonical")
+        company = basis.get("company")
+        if (not isinstance(company, dict) or basis.get("market") != market or
+                basis.get("source_run_id") != run_id or basis.get("model_version") != version or
+                company.get("security_id") != sec or company.get("market") != market or
+                company.get("state") != "WATCH" or company.get("full_score") is not None or
+                company.get("verified_future_leader_candidate") is not False or
+                company.get("research_growth_screen_hit") is not True):
+            raise ValueError("Prospective registry payload identity or research status mismatch")
         actual_time = _stamp(recorded)
         observation_time = _stamp(seen)
+        if _stamp(basis.get("as_of")) != observation_time or _stamp(company.get("as_of")) != observation_time:
+            raise ValueError("Prospective registry observation timestamp mismatch")
         if observation_time > actual_time or actual_time > frozen_at:
             future += 1
             continue

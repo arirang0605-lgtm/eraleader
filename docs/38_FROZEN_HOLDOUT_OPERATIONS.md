@@ -35,3 +35,10 @@ python3 scripts/check_handoff.py
 - Negative labels now require `mature_at` (in market-local calendar days) **on or after** `recorded_at + horizon_days`, with `outcome_available_at <= evaluated_at`. A premature negative remains `censored_outcomes` and increments the new explicit `premature_negative_labels_censored` counter. Verified positive/late outcomes follow the existing checks. Exact-horizon day is accepted.
 - Existing synthetic fixture B negative was revised to maturity on 2026-10-02 (after its 2026-04-02 registration + 180 days), preserving the original meaningful negative-label test. New tests: an early negative observed on 2026-08-01 stays censored; a negative maturing exactly 2026-09-29 is permitted. No existing certification state is upgraded.
 - `PYTHONPATH=src python3 -m pytest tests/test_frozen_holdout.py -q` and `PYTHONPATH=src python3 -m pytest tests -q` **207 PASS/0 FAIL** (205 prior + 2 new tests). Still synthetic, not true matured real-market outcomes.
+
+## 2026-10-10 5_4/5_5 등록원장 무결성 사전검사 보강
+
+- 기존 `freeze_registered_candidates`가 SQLite에 있는 `payload_hash`를 검사하지 않고 해시 문자열만 동결 목록에 옮기는 문제를 수정했다. `prospective_signals`의 최초 등록 행별로 등록ID·시점별 기업ID·연구용 `WATCH` 상태·모델/실행ID·원본 canonical JSON 및 SHA256를 **동결 전에** 검증한다.
+- 해시만 바꾼 셀 손상, 다시 해시한 기업ID/실행ID/공개일자 바꿔치기, 이미 `CONFIRMED` 승격된 척하는 payload, 원장 PK/신호 유형 변조를 거부한다. 첫 등록 후보뿐 아니라 **동일 모델·시장 전 행** 검사를 적용한다. 원장 불일치 시 holdout manifest를 만들지 않는다.
+- 신규 합성 회귀 `tests/test_holdout_registry_integrity.py` 12개와 기존 `tests/test_frozen_holdout.py` 26개를 로컬에서 실행했다. `PYTHONPATH=src python3 -m pytest tests -q`, `python3 scripts/check_handoff.py` 재현 가능. 진짜 발굴 성과나 실제 거래소 PIT 인증이 아니라 로컬 손상 탐지 시험이다.
+- **제한:** 공격자가 SQLite의 원시 JSON, 키 필드, 로컬 시각, SHA를 함께 완전 재작성하면 단일 PC 자체검사로는 구분할 수 없다. 외부 공증 타임스탬프, 신뢰할 수 있는 원천 자료, 실제 미래 성숙 라벨이 없으므로 `historic_pit_certified=false`, 확정 대장주 0건 유지한다.

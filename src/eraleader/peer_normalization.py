@@ -68,14 +68,17 @@ def normalize_growth_peers(snapshot: dict, *, min_peers: int = 3) -> dict:
                   "reasons": sorted(set(reasons))}
         results.append(result)
         if not reasons:
-            groups.setdefault(industry, []).append((row, result))
-    for industry, peers in groups.items():
+            # Avoid comparing fiscal growth observations from different periods.
+            # A self-reported as-of sector is not a comparable reporting cohort.
+            groups.setdefault((industry, period), []).append((row, result))
+    for (industry, period), peers in groups.items():
         count = len(peers)
         for row, item in peers:
             item["peer_count"] = count
+            item["peer_reporting_period"] = period
             if count < min_peers:
                 item["status"] = "DEFERRED"
-                item["reasons"] = ["INSUFFICIENT_SAME_INDUSTRY_ASOF_PEERS"]
+                item["reasons"] = ["INSUFFICIENT_SAME_INDUSTRY_PERIOD_PEERS"]
                 continue
             scaled = {}
             for field in FACTORS:

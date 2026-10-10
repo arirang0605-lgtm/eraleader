@@ -33,7 +33,7 @@ def test_sector_only_stable_percentiles_and_minimum_peers():
     report = normalize_growth_peers(fixture())
     assert [lookup(report, sid)["mean_peer_percentile"] for sid in ("A", "B", "C")] == [0, 50, 100]
     assert lookup(report, "D")["status"] == "DEFERRED"
-    assert lookup(report, "D")["reasons"] == ["INSUFFICIENT_SAME_INDUSTRY_ASOF_PEERS"]
+    assert lookup(report, "D")["reasons"] == ["INSUFFICIENT_SAME_INDUSTRY_PERIOD_PEERS"]
     assert report["normalized_count"] == 3 and report["deferred_count"] == 1
     assert report["official_leader_promotions"] == 0
     assert report["independent_historical_pit_certified"] is False
@@ -128,3 +128,51 @@ def test_cli_research_runs_with_no_api_or_market_feed(tmp_path, capsys):
     assert output["normalized"] == 3
     assert output["future_leader_skill_certified"] is False
     assert target.exists()
+
+
+def test_different_fiscal_periods_cannot_form_one_peer_denominator():
+    x = fixture()
+    x["companies"][2]["latest_revenue_period"] = "2024-09-30"
+    x["companies"][2]["financial_period_age_days"]["revenue"] = (date(2025, 4, 1) - date(2024, 9, 30)).days
+    x["companies"][2]["financial_period_age_days"]["operating_income"] = (date(2025, 4, 1) - date(2024, 9, 30)).days
+    report = normalize_growth_peers(x)
+    assert report["normalized_count"] == 0
+    assert [lookup(report, sid)["peer_count"] for sid in "ABC"] == [2, 2, 1]
+    assert all(lookup(report, sid)["percentiles"] is None for sid in "ABC")
+    assert lookup(report, "C")["peer_reporting_period"] == "2024-09-30"
+
+
+def test_period_cohorts_are_scored_independently_even_in_same_industry():
+    x = fixture()
+    older_age = (date(2025, 4, 1) - date(2024, 9, 30)).days
+    for sid, rev, op in [("E", .9, .8), ("F", 1.0, .9), ("G", 1.1, 1.0)]:
+        row = deepcopy(x["companies"][0])
+        row.update(security_id=sid, latest_revenue_period="2024-09-30",
+                   revenue_yoy=rev, operating_income_yoy=op,
+                   financial_period_age_days=dict.fromkeys(
+                       ("revenue", "operating_income", "industry_revenue"), older_age))
+        x["companies"].append(row)
+    x["company_count"] = len(x["companies"])
+    report = normalize_growth_peers(x)
+    assert report["normalized_count"] == 6
+    assert [lookup(report, sid)["mean_peer_percentile"] for sid in "ABC"] == [0, 50, 100]
+    assert [lookup(report, sid)["mean_peer_percentile"] for sid in "EFG"] == [0, 50, 100]
+    assert {lookup(report, sid)["peer_count"] for sid in "ABCEFG"} == {3}
+    assert all(lookup(report, sid)["status"] == "RESEARCH_NORMALIZED" for sid in "ABCEFG")
+
+
+def test_deferred_peer_does_not_supply_missing_same_period_sample():
+    x = fixture()
+    x["companies"][2]["screen_evaluated"] = False
+    row = deepcopy(x["companies"][2])
+    row.update(security_id="E", screen_evaluated=True, revenue_yoy=.5, operating_income_yoy=.6)
+    row["latest_revenue_period"] = "2024-09-30"
+    older_age = (date(2025, 4, 1) - date(2024, 9, 30)).days
+    row["financial_period_age_days"] = dict.fromkeys(
+        ("revenue", "operating_income", "industry_revenue"), older_age)
+    x["companies"].append(row)
+    x["company_count"] = len(x["companies"])
+    report = normalize_growth_peers(x)
+    assert report["normalized_count"] == 0
+    assert lookup(report, "C")["peer_count"] == 0
+    assert lookup(report, "E")["peer_count"] == 1

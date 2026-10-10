@@ -216,3 +216,8 @@
 
 - 2_3 `offline_pit.py` KR/US 현지 효력일 regression **385 테스트**, 소스 commit `91715ef` 원격 푸시 확인(과거 메모의 차단은 후속 성공으로 해소). 3_5 `research.py` PIT↔가격 현지 거래일 조인 검증 7개 추가 **392 PASS**, `a73f35e` 원격 푸시. 6_1 연구 배치 `batch --integrate-pit-research`는 명시적 옵션으로만 실행, KR/US 현지 결정 시각·오프라인 원장 필수 사전검사 후 PIT 재무/산업·가격·WATCH 원장·6 Markdown 보고 및 미발송 알림 경로 연결. 신규 8개 테스트 포함 **400 PASS**, `c5f356b` 푸시, 독립 git archive 400 PASS. `docs/50_MARKET_LOCAL_PIT_DAY.md`, `docs/51_INTEGRATED_MARKET_DAY_ALIGNMENT.md`, `docs/52_EXPLICIT_OFFLINE_PIT_BATCH.md` 확인.
 - 실가격 캐시는 읽기 전용 **과거 2024년**, 재무 원장은 **합성**: 2시장, 보고 6개, KR 한 건 과거 소급 WATCH, US 한 건 보류, 실제 대장주 0/메시지 0/API 0. 기본 launchd 배치 여전히 가격 연구만, 외부 API 마지막 연결. 전체 1_1~6_5 최종 인증/실전 미래 발굴 정확도 **미확인**. 최신 Git/원격 SHA는 `PROJECT_STATE.md` 최하단과 `git status -sb` 확인.
+
+## 2026-10-10 6_1/6_5 KR/US PIT 입력 사전검증 강화
+
+- `docs/53_BATCH_BOTH_MARKETS_PREFLIGHT.md`: 명시적 `batch --integrate-pit-research`에서 KR·US 양국의 시점별 상장종목·가격·통합 연구를 **두 시장 다 확인한 뒤** 상태원장·후보·보고서 저장. US 가격/PIT 오류일 때 KR 부분 산출물 안 남음. 소스 재읽기 없이 preflight price snapshot 재사용, 기본 자동 배치/launchd는 가격연구만 유지. 합성 테스트 4건 추가 → **pytest 404 PASS**, 독립 `git archive` 실행 404 PASS. 코드 commit `8a79e63` 푸시, 원격 SHA 일치, 비밀키/원시가격 Git 업로드 없음.
+- 실가격 2024년 KR·US 캐시는 read-only, 합성 PIT 원장 분리; 2시장, 6보고, 신규 후보 중복 없음, US 보류 1, 실전 메시지 0. 입력 사전검증이지 파일시스템 오류까지 100% 원자적 커밋은 아님. 실제 공급자 PIT·전향적 미래 대장주 적중률 인증 없음. 상태/remote 최신은 `PROJECT_STATE.md` 최하단/실제 Git 기준.

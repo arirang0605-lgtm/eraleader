@@ -29,3 +29,10 @@ reports/
 build/
 dist/
 *.egg-info/
+
+# Protected user keys / credentials
+.secrets/
+.credentials/
+secrets/
+*.p8
+*.pfx

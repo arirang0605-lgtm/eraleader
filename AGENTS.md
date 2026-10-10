@@ -12,7 +12,7 @@
 - 실제 사용자 GitHub 저장소 **`arirang0605-lgtm/eraleader`**, URL `https://github.com/arirang0605-lgtm/eraleader`, 기본 브랜치 `main`, 현재 size=0. **PUBLIC**으로 확인됨.
 - SSD의 `eraleader/.git`은 2026-10-10 로컬 초기화됨. **origin 연결/첫 push 여부는 `git remote -v`로 확인**, GitHub 저장소 생성과 원격 백업 완료를 혼동하지 않는다.
 - Push 전 `docs/26_GITHUB_REPO_HANDOFF.md` 필독. API 키/대용량 데이터/원본 유료 자료/개인정보/`.env`를 `.gitignore`로 보호하고 공개/비공개 설정을 재확인한다.
-- **Public 상태에서 코드를 자동 push하지 않는다**. Private 전환 또는 공개 범위에 대한 사용자의 명시적인 결정 이후 push 검토.
+- **2026-10-10 사용자 명시 승인: EraLeader GitHub Public 저장소 유지 및 정제된 코드·문서의 push 허용**. Push 전 비밀키·원시시장자료·유료 데이터·개인정보 검사를 수행하며 `.secrets/`는 로컬에만 보관. 추가 단계별 승인 없이 로컬 1~6단계 미완료 작업을 계속 개발/테스트한다.
 - Git 초기화·연동 시 현재 SSD 파일을 보존하고 비어 있지 않은 원격 이력에 강제 push·rebase를 임의 수행하지 않는다.
 
 ## 0. 새 대화·중단 복구 최우선 지침

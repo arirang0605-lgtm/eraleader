@@ -11,7 +11,7 @@
 
 - GitHub 저장소 **`arirang0605-lgtm/eraleader`** 생성 확인: https://github.com/arirang0605-lgtm/eraleader
 - 기본 브랜치 `main`, 원격 크기 `0`, **확인 당시 PUBLIC(공개)**. SSD에서 로컬 Git `main` 초기화됨, **원격 연결·push 미진행**. 로컬 마지막 커밋은 `PROJECT_STATE.md` 최신 기록 확인.
-- 민감한 알고리즘·API 키·데이터를 공개 push하지 않도록 **Private 여부를 사용자와 확정하고** Git 초기화/보안 검사/원격 연결을 진행할 것. 사용자 승인 없는 공개 설정 변경/강제 push 금지.
+- **사용자 최신 승인(2026-10-10)**: 공개(Public) 저장소에 코드·MD·설계도 GitHub push 허용. 키·토큰·원시 시세·민감 데이터는 `.secrets/` 등 로컬 전용 영역에 저장하고 Git 제외. 강제 push 금지. 6단계까지 추가 단계 승인 질문 없이 개발하되 테스트 증거 보존.
 - 최신 구체 내용: `docs/26_GITHUB_REPO_HANDOFF.md`.
 
 ## 새 세션 시작: 5분 이내 복구

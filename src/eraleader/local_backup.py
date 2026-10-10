@@ -23,7 +23,8 @@ JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "prospective_kr_research.json","prospective_us_research.json",
             "total_return_crosscheck_research.json",
             "holdout_manifest.json","holdout_evaluation_research.json",
-            "continuity_kr_research.json","continuity_us_research.json"}
+            "continuity_kr_research.json","continuity_us_research.json",
+            "calendar_kr_research.json","calendar_us_research.json"}
 FOLDERS={"site":{".html"},"reports":{".md"},"runs":{".json"}}
 MAX_FILES=400
 MAX_FILE_BYTES=40*1024*1024

@@ -25,6 +25,7 @@ from .frozen_holdout import freeze_registered_candidates, evaluate_frozen_candid
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
+from .calendar_audit import audit_exchange_calendar
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
 from .local_backup import create_backup, verify_backup, restore_backup
@@ -336,6 +337,20 @@ def execute_continuity(args) -> dict:
             "right_boundary_last_observations":report["right_boundary_last_observations"],
             "historic_universe_pit_certified":False}
 
+def execute_calendar_audit(args) -> dict:
+    asof=date.fromisoformat(args.as_of)
+    bars, quality=read_market_bars(args.market,asof,days=args.days,
+                                  legacy_root=Path(args.legacy))
+    report=audit_exchange_calendar(Path(args.file),bars,market=args.market,
+                                   as_of=asof,sample_limit=args.sample_limit)
+    report["cached_price_quality"]=quality
+    target=Path(args.out)/f"calendar_{args.market.lower()}_research.json"
+    write_json(target,report)
+    return {"status":report["status"],"path":str(target),
+            "reference_only_missing_market_periods":report["reference_only_missing_market_periods"],
+            "feed_only_unexpected_periods":report["feed_only_unexpected_periods"],
+            "calendar_pit_certified":False}
+
 def execute_backup(args) -> dict:
     if args.command=="backup-local":
         return create_backup(Path(args.out),Path(args.archive))
@@ -461,6 +476,14 @@ def main(argv=None):
     co.add_argument("--days",type=int,default=120)
     co.add_argument("--sample-limit",type=int,default=20)
     co.add_argument("--out",default=str(OUT))
+    ca=sub.add_parser("audit-calendar",help="Compare offline claimed exchange sessions to cached price bars")
+    ca.add_argument("--file",required=True,help="Local exchange calendar JSON, not independently certified")
+    ca.add_argument("--market",choices=["KR","US"],required=True)
+    ca.add_argument("--as-of",required=True)
+    ca.add_argument("--legacy",default=str(LEGACY_DEFAULT))
+    ca.add_argument("--days",type=int,default=120)
+    ca.add_argument("--sample-limit",type=int,default=20)
+    ca.add_argument("--out",default=str(OUT))
     bkp=sub.add_parser("backup-local",help="Consistent SQLite + safe local output archive")
     bkp.add_argument("--out",default=str(OUT))
     bkp.add_argument("--archive",required=True)
@@ -483,6 +506,7 @@ def main(argv=None):
         elif args.command=="corporate-return":result=execute_corporate_research(args)
         elif args.command=="audit-universe":result=execute_universe_audit(args)
         elif args.command=="audit-continuity":result=execute_continuity(args)
+        elif args.command=="audit-calendar":result=execute_calendar_audit(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

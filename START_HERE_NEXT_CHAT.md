@@ -151,3 +151,8 @@
 ## 2026-10-10 추가 5_5 평가기 보완
 
 - `frozen_holdout.py`: 180일 평가 전의 성급한 부정결과를 오탐으로 확정하지 않음. 실제 신호 등록일부터 동결된 평가기간이 경과해야 부정 라벨 확정, 조기 부정은 미확정. 전체 **207 pytest PASS**. 상세 `docs/38_FROZEN_HOLDOUT_OPERATIONS.md` 하단 및 `PROJECT_STATE.md` 최신 기록. 여전히 실제 미래 성능 인증 아님. Git SHA 최신 기록/상태를 확인하고 계속.
+
+## 2026-10-10 2_2/2_5 전체시장 캘린더 감사 확장
+
+- `docs/41_EXCHANGE_CALENDAR_AUDIT.md` 및 `src/eraleader/calendar_audit.py`: 거래소 세션 캘린더를 **별도 로컬 JSON 계약**으로 받아 한국 일봉·미국 주봉과 비교. 관측 자료에서 시장 전체 기간이 누락되면 탐지하지만 캘린더 제공자/시점은 독립 인증 안 됨. 의도적으로 누락시킨 합성 KR/US 자료 각각 1건 탐지, 안전 JSON 백업·복원 PASS. 기준 207 테스트에서 본 기능 20개 신규 케이스; 동시 워크포워드 세션 테스트까지 포함한 전체 공유 실행은 246 PASS. 실제 PIT 완전성/대장주 발굴 성과 아님.
+- 다른 세션 `walkforward_replay.py` 등 미커밋 파일은 보존·별도 staged. 최신 Git SHA 및 테스트·동기화는 `PROJECT_STATE.md` 최하단에서 재확인.

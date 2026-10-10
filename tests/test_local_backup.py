@@ -194,3 +194,26 @@ def test_continuity_derived_outputs_are_backed_up_without_original_prices(tmp_pa
     for market in ("kr","us"):
         assert json.loads((target/f"continuity_{market}_research.json").read_text())[
             "historic_universe_pit_certified"] is False
+
+def test_calendar_derived_audit_is_backed_up_but_not_original_reference(tmp_path):
+    from eraleader.local_backup import create_backup, verify_backup, restore_backup
+    from zipfile import ZipFile
+    output=tmp_path/"calendar_derived"
+    output.mkdir()
+    expected={"status":"LOCAL_CALENDAR_COMPARISON_NOT_PIT_CERTIFIED",
+              "calendar_independently_attested":False,
+              "calendar_pit_certified":False}
+    for market in ("kr","us"):
+        (output/f"calendar_{market}_research.json").write_text(json.dumps(expected))
+    (output/"calendar_reference_raw.json").write_text('{"private_token":"DO_NOT_COPY"}')
+    archive=tmp_path/"calendar_derived.zip"
+    result=create_backup(output,archive)
+    assert result["file_count"]==2
+    assert verify_backup(archive)["status"]=="LOCAL_BACKUP_VERIFIED"
+    with ZipFile(archive) as zipped:
+        assert set(zipped.namelist())=={
+            "calendar_kr_research.json","calendar_us_research.json","MANIFEST.json"}
+    restored=tmp_path/"restored"
+    restore_backup(archive,restored)
+    assert not (restored/"calendar_reference_raw.json").exists()
+    assert json.loads((restored/"calendar_kr_research.json").read_text())==expected

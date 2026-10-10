@@ -267,3 +267,14 @@
 
 - `src/eraleader/rank_score_ledger.py`: 기존 WATCH `full_score=None`은 그대로 보존, 새 `rank_scores.sqlite`에 시장/모델/영구ID별 **최초 수치 점수와 실제 OS 기록시각**, 원본 WATCH signal ID+payload SHA, feature JSON SHA 및 자기선언 공개시각 저장. 중복 재실행 시 최초시각 보존, 점수 정정/미등록 WATCH/오래된 backfill/기록 60분 이후 추가/파일변조 차단. `record-rank-scores`, `audit-rank-scores` CLI 신설. `ranked_discovery freeze` 선택적 `--prospective-ledger --score-ledger --features-dir`로 둘 모두 감사한 뒤에만 랭킹 봉인. 신규 합성 19개 포함 전체 **pytest 545 PASS**, 실제 OS clock 로컬 합성 CLI 기록→봉인→감사→파생 JSON SHA zip 복구 PASS. 점수 입력 자체는 외부 제출 연구 수치로, **점수가 진짜 그때 계산됐다는 외부 인증/실전 leader 예측 정확도는 여전히 불가**. `docs/60_RANK_SCORE_FIRST_REGISTRATION.md`; 최신 Git release SHA는 PROJECT_STATE 마지막 수록 실증 우선.
 - D-021 실제 물리 T5DATA SSD 분리·재연결/맥북 재부팅은 외부 API 연결 완료 후 최종 단계. 현재 실행에 포함하지 않음.
+
+## 2026-10-10 21시대 3_5 / 5_3 로컬 점수 계산형 후보 연구 (직전 작업)
+- `src/eraleader/rank_score_pipeline.py`, `tests/test_rank_score_pipeline.py`, `cli.py` 선택적 `compute-rank-scores` 추가: 고정 4팩터 로컬 계산 + 기존 최초 WATCH/점수 원장 연결, 공식 미래 대장주 확정 0.
+- 합성 실제 CLI 계산/첫 점수 기록 1건, 전 전체 및 Git archive + 3파일 격리 테스트 **565 PASS**, 공개 3파일 보안검사 이상 0, 임시 점수 파일 제외/로컬 원본 변경 없음.
+- **Git commit/push는 안전검사 차단으로 미실행**. 이번 세 코드/테스트 파일만 staged. 마지막 확인된 기존 main/remote SHA `1f387b6082a9f4d4039e79ef3666ded9ac668b38` 에는 새 기능 불포함. `PROJECT_STATE.md` 맨 마지막 기록 및 `git status -sb`를 우선 확인할 것. `docs/61_LOCAL_COMPUTED_RANK_SCORING.md` 생성도 원격 안전검사 차단됨.
+- 외부 API, 독립 PIT 인증, 실전 미래 정확도, 물리 SSD 분리/재부팅 미완료. D-021에 따라 실 SSD 탈착/재부팅은 API 연결 후 최종 단계. 진행은 CONTINUE.
+
+## 2026-10-10 3_5/5_3 계산식 SHA와 첫 숫자형 점수 기록 결합
+
+- 직전 세션의 `compute-rank-scores` 코드 3개 경로는 후속 분리검증 `pytest 565 PASS` 후 **GitHub commit `d832614284eb2aaffea025c04fc860ad7d01f306` push 성공**, 이전 '미커밋' 기록을 갱신. 새 `docs/61_NATIVE_FORMULA_SCORE_PROVENANCE.md` 및 `rank_score_ledger.py` 계산 태그 확장: 첫 numeric 이벤트에 `HEURISTIC_VERSION`/4요인 targets/rule canonical SHA256 원자적 기록; 외부 수동 점수 기록은 태그 없이 보존, 나중에 native로 위장 금지. `audit-native-rank-scores --watch-ledger --score-ledger --features-dir`는 원래 WATCH 해시와 최초 점수 등록 시각, 식 버전과 원본 feature를 재계산. 랭킹 `freeze --require-native-computation`은 계산기록·WATCH 원장을 모두 검증한 뒤에만 최종 랭킹 생성. 새 합성 10개 포함 **pytest 575 PASS**, 실제 OS 시각 합성 CLI→strict 봉인→검증→파생 JSON ZIP SHA 복원 PASS. 여전히 독립 실제 PIT/예측 정확도 인증 X, API 보류, D-021 SSD 탈착/재부팅 최종 단계.
+- 정확한 최신 Git SHA는 PROJECT_STATE 하단 실제 검증 기록 및 git 상태 우선.

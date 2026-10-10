@@ -102,7 +102,8 @@ def _open_watch(path: Path):
 
 def register_rank_scores(score_db: Path, watch_db: Path, feature_dir: Path,
                          scores_file: Path, *, market: str, model_version: str,
-                         clock: datetime | None=None, max_watch_delay_minutes: int=60) -> dict:
+                         clock: datetime | None=None, max_watch_delay_minutes: int=60,
+                         computation_provenance: dict | None=None) -> dict:
     """Save once per (market, model, issuer): reject changed re-submissions.
 
     Numeric scores arrive from an external scoring computation and are NOT
@@ -112,6 +113,15 @@ def register_rank_scores(score_db: Path, watch_db: Path, feature_dir: Path,
         raise ValueError("Pinned market and model required")
     if type(max_watch_delay_minutes) is not int or not 0<=max_watch_delay_minutes<=1440:
         raise ValueError("Invalid WATCH-to-score delay")
+    if computation_provenance is not None:
+        if (not isinstance(computation_provenance,dict) or
+            set(computation_provenance)!={"kind","formula_version","formula_sha256"} or
+            computation_provenance["kind"]!="LOCAL_FIXED_FOUR_FACTOR" or
+            not isinstance(computation_provenance["formula_version"],str) or
+            not computation_provenance["formula_version"].strip() or
+            not isinstance(computation_provenance["formula_sha256"],str) or
+            not SHA.fullmatch(computation_provenance["formula_sha256"])):
+            raise ValueError("Invalid locally computed rank formula provenance")
     now=_now(clock)
     folder=Path(feature_dir)
     if folder.is_symlink() or not folder.is_dir():
@@ -180,6 +190,8 @@ def register_rank_scores(score_db: Path, watch_db: Path, feature_dir: Path,
                 "feature_available_at_utc":available.isoformat(),
                 "score_recorded_at_utc":now.isoformat(),
             }
+            if computation_provenance is not None:
+                payload["computation_provenance"]=dict(computation_provenance)
             records.append({**payload,"evidence_hash":_hash(payload)})
     finally:
         watch.close()
@@ -211,7 +223,9 @@ def register_rank_scores(score_db: Path, watch_db: Path, feature_dir: Path,
                         old_payload["feature_sha256"]!=row["feature_sha256"] or
                         old_payload["watch_signal_id"]!=row["watch_signal_id"] or
                         old_payload["watch_payload_sha256"]!=row["watch_payload_sha256"] or
-                        old_payload["feature_available_at_utc"]!=row["feature_available_at_utc"]):
+                        old_payload["feature_available_at_utc"]!=row["feature_available_at_utc"] or
+                        old_payload.get("computation_provenance")!=
+                            row.get("computation_provenance")):
                         raise ValueError("Immutable first rank score event mutation rejected")
                     continue
                 conn.execute("""INSERT INTO rank_score_events(

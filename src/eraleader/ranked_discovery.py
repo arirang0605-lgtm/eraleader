@@ -277,6 +277,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="Optional actually registered numeric score evidence; requires --prospective-ledger and --features-dir")
     freeze.add_argument("--features-dir",type=Path,
                         help="Read-only feature evidence directory, used only with --score-ledger")
+    freeze.add_argument("--require-native-computation",action="store_true",
+                        help="Reject a rank unless its score is formula-pinned and recomputable from locally recorded features")
     evaluate = sub.add_parser("evaluate")
     evaluate.add_argument("--freeze", type=Path, required=True)
     evaluate.add_argument("--outcomes", type=Path)
@@ -288,6 +290,8 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError("--score-ledger and --features-dir must be supplied together")
         if args.score_ledger is not None and args.prospective_ledger is None:
             raise ValueError("--score-ledger also requires --prospective-ledger")
+        if args.require_native_computation and args.score_ledger is None:
+            raise ValueError("--require-native-computation requires --score-ledger, --features-dir and --prospective-ledger")
         if args.prospective_ledger is not None:
             # Preflight a disposable candidate BEFORE exclusively creating
             # the final sealed ranking. Missing/forged WATCH cannot leave
@@ -299,12 +303,13 @@ def main(argv: list[str] | None = None) -> int:
                     args.input,prototype,market=args.market,
                     snapshot_at=args.snapshot_at,model_version=args.model_version,
                     horizon_days=args.horizon_days,k=args.k)
-                linkage=audit_ranked_watch_registry(prototype,args.prospective_ledger)
-                if (linkage["blocker_count"] or
-                        linkage["ranked_ids_and_first_timestamps_matched"] !=
-                        linkage["ranked_candidate_count"]):
-                    raise ValueError("Ranked WATCH registry preflight failed: "+
-                                     ", ".join(linkage["blockers"][:10]))
+                if not args.require_native_computation:
+                    linkage=audit_ranked_watch_registry(prototype,args.prospective_ledger)
+                    if (linkage["blocker_count"] or
+                            linkage["ranked_ids_and_first_timestamps_matched"] !=
+                            linkage["ranked_candidate_count"]):
+                        raise ValueError("Ranked WATCH registry preflight failed: "+
+                                         ", ".join(linkage["blockers"][:10]))
                 if args.score_ledger is not None:
                     from .rank_score_ledger import audit_frozen_rank_scores
                     score_link=audit_frozen_rank_scores(prototype,args.score_ledger,args.features_dir)
@@ -313,6 +318,14 @@ def main(argv: list[str] | None = None) -> int:
                         score_link["ranked_candidate_count"]):
                         raise ValueError("Numeric score ledger preflight failed: "+
                                          ", ".join(score_link["blockers"][:10]))
+                    if args.require_native_computation:
+                        from .rank_score_pipeline import audit_computed_rank_provenance
+                        native_link=audit_computed_rank_provenance(
+                            prototype,args.score_ledger,args.features_dir,
+                            watch_db=args.prospective_ledger)
+                        if native_link["blocker_count"] or not native_link["formula_reproduction_locally_consistent"]:
+                            raise ValueError("Native rank calculation provenance preflight failed: "+
+                                             ", ".join(native_link["blockers"][:10]))
                 _save_new(args.out,result)
         else:
             result = freeze_ranked_snapshot(args.input, args.out, market=args.market,

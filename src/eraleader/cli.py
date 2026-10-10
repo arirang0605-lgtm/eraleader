@@ -30,7 +30,7 @@ from .outcome_source_claims import audit_outcome_source_claims
 from .pit_chain import audit_pit_to_outcome_chain
 from .ranked_registry import audit_ranked_watch_registry
 from .rank_score_ledger import register_rank_scores, audit_frozen_rank_scores
-from .rank_score_pipeline import compute_and_register_rank_scores
+from .rank_score_pipeline import compute_and_register_rank_scores, audit_computed_rank_provenance
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
@@ -460,6 +460,18 @@ def execute_compute_rank_scores(args) -> dict:
         Path(args.features_dir),Path(args.watch_ledger),Path(args.score_ledger),
         market=args.market,model_version=args.model_version)
 
+def execute_audit_native_scores(args) -> dict:
+    result=audit_computed_rank_provenance(
+        Path(args.frozen_rank),Path(args.score_ledger),Path(args.features_dir),
+        watch_db=Path(args.watch_ledger))
+    output=Path(args.out)/f"native_score_{result['market'].lower()}_research.json"
+    write_json(output,result)
+    return {"status":result["status"],"path":str(output),
+            "locally_computed_score_records_matched":result["locally_computed_score_records_matched"],
+            "blocker_count":result["blocker_count"],
+            "real_future_leader_skill_certified":False,
+            "official_leader_promotions":0}
+
 def execute_audit_rank_scores(args) -> dict:
     result=audit_frozen_rank_scores(Path(args.frozen_rank),
                                     Path(args.score_ledger),Path(args.features_dir))
@@ -669,6 +681,13 @@ def main(argv=None):
     auto_rs.add_argument("--features-dir",required=True)
     auto_rs.add_argument("--watch-ledger",required=True)
     auto_rs.add_argument("--score-ledger",required=True)
+    native=sub.add_parser("audit-native-rank-scores",
+                          help="Verify sealed rank against persisted formula digest and recomputed four-factor source")
+    native.add_argument("--frozen-rank",required=True)
+    native.add_argument("--score-ledger",required=True)
+    native.add_argument("--features-dir",required=True)
+    native.add_argument("--watch-ledger",required=True)
+    native.add_argument("--out",default=str(OUT))
     ra=sub.add_parser("audit-rank-scores",
                       help="Match pinned frozen top-K numeric scores to original local score-entry time and feature hashes")
     ra.add_argument("--frozen-rank",required=True)
@@ -813,6 +832,7 @@ def main(argv=None):
         elif args.command=="audit-ranked-registry":result=execute_ranked_registry(args)
         elif args.command=="record-rank-scores":result=execute_register_rank_scores(args)
         elif args.command=="compute-rank-scores":result=execute_compute_rank_scores(args)
+        elif args.command=="audit-native-rank-scores":result=execute_audit_native_scores(args)
         elif args.command=="audit-rank-scores":result=execute_audit_rank_scores(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)

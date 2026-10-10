@@ -174,3 +174,15 @@
 - **제약:** 외부 공시 PIT/산업 역사, 기업행동/상장폐지 전체 완전성 미확인으로 종합 점수·POTENTIAL/CONFIRMED 승격 금지. 실전 데이터와 가상 입력 분리.
 - 다음: **3_4·3_5 정량 피처 결합 + 4_2~4_5 안전 상태 변경 실연결**, 이후 조기 발굴 성능 검증.
 - 상세: `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`; Git 변경 파일·테스트·커밋 SHA는 후속 체크포인트에서 갱신.
+
+## 이번 오프라인 PIT 개발 Git 체크포인트 — 2026-10-10
+
+- **개발 ID**: 2_2·2_3·3_1~3_3 오프라인/PIT 연구용 일부 기능. 공시 공급자·역사 유니버스의 전체 완전성은 별도 검증 필요.
+- **변경 파일**: `src/eraleader/offline_pit.py`, `offline_features.py`, `cli.py`, `tests/test_offline_pit.py`, `tests/fixtures/offline_synthetic.json`, `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md` 등 총 11개.
+- **테스트 명령**: `PYTHONPATH=src python3 -m pytest tests -q` → **33 PASS / 0 FAIL**; `PYTHONPATH=src python3 scripts/verify_local_mvp.py` → PASS(HTTP 200 3경로); `python3 scripts/check_handoff.py` → PASS(필수 19개/전체 30작업 ID).
+- **오프라인 예제 실행**: `offline-import` 및 `offline-features`를 2024-07-01, 2024-09-01 기준으로 실행 PASS. 자료는 `tests/fixtures/offline_synthetic.json`의 명시적 가상정보이며 `output/demo_offline/`에 별도 저장, 실제 시장 후보와 혼합 금지.
+- **로컬 코드 커밋 SHA**: `14f41f4ef6d38215f085b487d1804dec184f7e6b` (`feat: add offline PIT membership actions and earnings industry imports`).
+- **보안**: 커밋된 11개 파일에서 비밀키 패턴 4종 검사 결과 의심 파일 0개. 기존 재사용 SSD 폴더는 읽기 전용이며 수정하지 않음.
+- **GitHub**: `arirang0605-lgtm/eraleader`는 마지막 확인 시 Public. origin 연결·push **하지 않음**. 사용자 공개 범위 승인 또는 Private 전환 확인 전 push 금지.
+- **미해결 문제**: 과거 상장/상폐와 분할·배당/산업 분류 전 범위 PIT 인증 미완료, 유료 컨센서스 이력 없음, 실제 재무·산업 데이터 연결 없음, 잠재/확정 대장주 생성 불가.
+- **다음 첫 작업**: 3_4·3_5 가격 RS/산업/실적 시점 피처 결합 → 4단계 상태/이벤트 게이트 실제 데이터 연동 → 5단계 조기 발견 검증.

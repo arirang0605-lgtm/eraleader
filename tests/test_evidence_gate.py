@@ -215,13 +215,78 @@ def test_evidence_gate_derived_json_survives_safe_local_backup(tmp_path,capsys):
     (out/"raw_vendor_payload.json").write_text('{"private_api_key":"NEVER_COPY"}')
     archive=tmp_path/"safe_gate.zip"
     saved=create_backup(out,archive)
-    assert saved["file_count"]==1
+    assert saved["file_count"]==2
     assert verify_backup(archive)["status"]=="LOCAL_BACKUP_VERIFIED"
     with ZipFile(archive) as z:
-        assert z.namelist()==["evidence_gate_kr_research.json","MANIFEST.json"]
+        assert set(z.namelist())=={
+            "evidence_gate_kr_research.json","site/evidence_kr.html","MANIFEST.json"}
     restored=tmp_path/"restored_gate"
     restore_backup(archive,restored)
     saved_report=json.loads((restored/"evidence_gate_kr_research.json").read_text())
     assert saved_report["official_promotion_allowed"] is False
     assert saved_report["historical_pit_certified"] is False
     assert not (restored/"raw_vendor_payload.json").exists()
+
+
+def test_evidence_dashboard_shows_real_blockers_without_certification(tmp_path):
+    from eraleader.delivery import render_evidence_gate_dashboard
+    rows=valid_reports()
+    rows["issuer_lineage"]["active_ticker_conflict_count"]=1
+    result=audit(write_bundle(tmp_path,rows))
+    html=render_evidence_gate_dashboard(result)
+    assert "대장주 공식 확정: 차단됨" in html
+    assert "UNRESOLVED_ACTIVE_TICKER_CONFLICT_COUNT" in html
+    assert "0건 · 인증 보류" in html
+    assert "투자 추천 또는 확정 후보가 아닙니다" in html
+
+
+def test_evidence_dashboard_escapes_untrusted_text_and_refuses_promotions(tmp_path):
+    from eraleader.delivery import render_evidence_gate_dashboard
+    result=audit(write_bundle(tmp_path))
+    result["evidence"][0]["domain"]="<script>alert('bad')</script>"
+    html=render_evidence_gate_dashboard(result)
+    assert "<script>" not in html and "&lt;script&gt;" in html
+    spoof=deepcopy(result)
+    spoof["official_promotion_allowed"]=True
+    with pytest.raises(ValueError,match="cannot render"):
+        render_evidence_gate_dashboard(spoof)
+    spoof=deepcopy(result)
+    spoof["official_leader_count"]=1
+    with pytest.raises(ValueError,match="cannot render"):
+        render_evidence_gate_dashboard(spoof)
+
+
+def test_cli_outputs_dashboard_file_as_well_as_machine_report(tmp_path,capsys):
+    root=write_bundle(tmp_path)
+    out=tmp_path/"research"
+    main(["audit-evidence-gate","--market","KR","--decision-at",DECISION,
+          "--input-root",str(root),"--out",str(out)])
+    result=json.loads(capsys.readouterr().out)
+    assert result["dashboard"]==str(out/"site"/"evidence_kr.html")
+    html=(out/"site"/"evidence_kr.html").read_text()
+    assert "PIT 근거 품질 점검" in html
+    assert "공식 확정 대장주" in html
+    assert "독립 PIT 인증은 아직" in html or "독립 PIT 인증과 실제 미래" in html
+    assert result["official_promotion_allowed"] is False
+
+
+def test_dashboard_html_is_safe_local_backup_artifact(tmp_path,capsys):
+    from zipfile import ZipFile
+    from eraleader.local_backup import create_backup,verify_backup,restore_backup
+    root=write_bundle(tmp_path)
+    out=tmp_path/"out"
+    main(["audit-evidence-gate","--market","KR","--decision-at",DECISION,
+          "--input-root",str(root),"--out",str(out)])
+    capsys.readouterr()
+    (out/"original_provider_data.csv").write_text("private_api_token,NEVER_ARCHIVE")
+    backup=tmp_path/"evidence_web.zip"
+    created=create_backup(out,backup)
+    assert created["file_count"]==2
+    assert verify_backup(backup)["status"]=="LOCAL_BACKUP_VERIFIED"
+    with ZipFile(backup) as z:
+        assert set(z.namelist())=={
+            "evidence_gate_kr_research.json","site/evidence_kr.html","MANIFEST.json"}
+    restored=tmp_path/"safe_restore"
+    restore_backup(backup,restored)
+    assert "확정 대장주" in (restored/"site"/"evidence_kr.html").read_text()
+    assert not (restored/"original_provider_data.csv").exists()

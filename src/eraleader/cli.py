@@ -11,7 +11,7 @@ from . import __version__
 from .data import LEGACY_DEFAULT, read_market_bars
 from .discovery import score_price_observations, detect_watch_changes,run_id_for
 from .pit import LocalStore
-from .delivery import write_dashboard,make_report,write_integrated_dashboard,write_prospective_dashboard
+from .delivery import write_dashboard,make_report,write_integrated_dashboard,write_prospective_dashboard,write_evidence_gate_dashboard
 from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .offline_features import financial_snapshot
@@ -404,7 +404,9 @@ def execute_evidence_gate(args) -> dict:
                                    decision_at=args.decision_at)
     target=Path(args.out)/f"evidence_gate_{args.market.lower()}_research.json"
     write_json(target,report)
+    page=write_evidence_gate_dashboard(report,Path(args.out)/"site")
     return {"status":report["status"],"path":str(target),
+            "dashboard":str(page),
             "present_domains":report["present_domains"],
             "blocker_count":report["blocker_count"],
             "official_promotion_allowed":False}

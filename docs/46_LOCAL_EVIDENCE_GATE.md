@@ -46,3 +46,10 @@ python3 scripts/check_handoff.py
 ## 반드시 남겨야 할 미완료 사항
 
 실제 거래소 역사적 상장·상폐 목록/영구 기업ID/기업행동 증빙, 정산금 지급/정정 이력, 발행자 공신력 및 당시 이용가능 시각의 독립 기록, 미국 현재 구성원 편향 해소, 실제 봉인 후보의 미래 성과 확인. **이 모듈을 입력 보고서 모두 통과시키기 위한 합성 데이터 조작이나 보고서 조작은 금지**한다. 이 통합 게이트는 미래 대장주 조기 발굴의 진짜 성능검증을 위한 안전장치이지 성능의 증명이 아니다.
+
+## 2026-10-10 연속 구현 — 6_2 로컬 PIT 품질 웹 화면
+
+- `src/eraleader/delivery.py`에 `render_evidence_gate_dashboard`/`write_evidence_gate_dashboard`를 기존 웹 코드에 **추가**했다. 정상 화면과 달리 **확정 대장주 0건·인증 보류**를 가장 먼저 표시하고, 다섯 도메인별 감사 파일 존재 여부, 누락·불일치 차단 사유를 표로 표시한다. 사용자/원천 텍스트 HTML escaping, 우발적 `official_promotion_allowed=true`·인증 위조·인벤토리 숫자 불일치 시 fail-closed.
+- 기존 CLI `audit-evidence-gate` 실행시 파생 JSON과 `site/evidence_kr.html` 또는 `site/evidence_us.html`을 함께 생성하고 경로를 반환한다. 정적 파일만 생성하며 인터넷/AI API/매매 기능 호출 없음. 원본 파생 JSON은 기존 SHA 백업 허용 목록, 웹 페이지는 기존 `site/*.html` 규칙을 재사용.
+- 신규 4개 pytest + 기존 백업 파일수 변경을 반영해 **전체 329 pytest PASS**. 한 테스트는 HTML injection `<script>`가 escape되는지, 또 다른 테스트는 `official_promotion_allowed`를 위조했을 때 페이지 생성을 거부하는지 확인.
+- **실제 실행**: 로컬 한국 가격 연속성 캐시 1건만 있는 입력 폴더에서 `audit-evidence-gate` 재실행 → 보고서 1/5·차단 5건; `site/evidence_kr.html`을 `127.0.0.1` 임시 HTTP 서버로 GET하여 **HTTP 200**과 확정 차단문구·차단 원인 5건을 확인. ZIP `output/continuous/evidence_gate_web_verified_20261010.zip` (파생 JSON+HTML 2개, 총 4859 input bytes) SHA 검사/새 폴더 복원 PASS, 외부 원천/비밀키 포함 없음.

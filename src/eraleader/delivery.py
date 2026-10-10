@@ -180,3 +180,66 @@ def write_prospective_dashboard(report: dict, site_dir: Path) -> Path:
     path=site_dir/f"prospective_{report['market'].lower()}.html"
     path.write_text(content,encoding="utf-8")
     return path
+
+def render_evidence_gate_dashboard(report: dict) -> str:
+    """Read-only on-disk audit page; no data fetch, no simulated promotions."""
+    allowed_status = {
+        "LOCAL_AUDIT_DIAGNOSTICS_COMPLETE_NOT_PIT_CERTIFIED",
+        "BLOCKED_MISSING_OR_UNRESOLVED_PIT_EVIDENCE",
+    }
+    market=report.get("market")
+    if market not in ("KR","US") or report.get("status") not in allowed_status:
+        raise ValueError("Invalid evidence gate market/status")
+    if (report.get("official_promotion_allowed") is not False or
+            report.get("historical_pit_certified") is not False or
+            report.get("model_accuracy_certified") is not False or
+            report.get("official_leader_count") != 0):
+        raise ValueError("Uncertified evidence cannot render an official leader state")
+    rows=report.get("evidence")
+    if not isinstance(rows,list) or len(rows) != report.get("required_domains"):
+        raise ValueError("Evidence inventory count mismatch")
+    if (sum(1 for row in rows if row.get("present") is True)
+            != report.get("present_domains")):
+        raise ValueError("Evidence inventory present count mismatch")
+    def safe(raw):
+        return escape(str(raw),quote=True)
+    body=[]
+    for row in rows:
+        if not isinstance(row,dict) or not isinstance(row.get("issues"),list):
+            raise ValueError("Malformed quality gate evidence")
+        domain=safe(row.get("domain"))
+        present="보고서 확인" if row.get("present") is True else "보고서 없음"
+        issues=", ".join(safe(item) for item in row["issues"]) or "로컬 진단상 불일치 없음 (미인증)"
+        body.append("<tr><td>"+domain+"</td><td>"+present+"</td><td>"+
+                    issues+"</td></tr>")
+    blocker_text="".join("<li>"+safe(code)+"</li>" for code in report.get("blockers",[])[:100])
+    if not blocker_text:
+        blocker_text="<li>로컬 감사상 차단 사유 0건 — 하지만 독립 PIT 인증은 아직 없음</li>"
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EraLeader PIT 감사 현황 · {safe(market)}</title><style>{BASE_CSS}</style></head>
+<body><header><h1>EraLeader · PIT 근거 품질 점검</h1>
+<div>시장 {safe(market)} · 감사 기준 {safe(report.get("market_day"))} · 로컬 연구용</div>
+</header><main>
+<div class="note"><strong>대장주 공식 확정: 차단됨</strong>
+<p>거래소·공시 원천의 독립 PIT 인증과 실제 미래 발굴 성능이 확인되지 않았습니다.
+파일이 모두 존재하거나 로컬 진단이 통과해도 투자 추천 또는 확정 후보가 아닙니다.</p></div>
+<div class="stats">
+<div class="stat">필수 감사 보고서<br><strong>{report["present_domains"]}/{report["required_domains"]}</strong></div>
+<div class="stat">차단 사유<br><strong>{report["blocker_count"]}건</strong></div>
+<div class="stat">공식 확정 대장주<br><strong>0건 · 인증 보류</strong></div>
+</div>
+<h2>영역별 자료 점검</h2><div class="wrap"><table>
+<thead><tr><th>감사 영역</th><th>파일 상태</th><th>미확인 사항</th></tr></thead>
+<tbody>{''.join(body)}</tbody></table></div>
+<h2>미해결 증거 목록 (최대 100건)</h2><ul>{blocker_text}</ul>
+<p><small>출력 상태: {safe(report["status"])} · 모든 인증 플래그 false · 외부 API 미연결</small></p>
+</main></body></html>"""
+
+
+def write_evidence_gate_dashboard(report: dict, site_dir: Path) -> Path:
+    rendered=render_evidence_gate_dashboard(report)
+    site_dir.mkdir(parents=True, exist_ok=True)
+    target=site_dir/f"evidence_{report['market'].lower()}.html"
+    target.write_text(rendered,encoding="utf-8")
+    return target

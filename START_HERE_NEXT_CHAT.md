@@ -171,3 +171,8 @@
 
 - 기존 스테이징 3개 파일을 HEAD+3 파일 분리 재현(297 pytest PASS) 후 별도 소스 커밋 `4ee780d` GitHub 푸시, 원격 SHA 일치. 이후 CLI `replay-walkforward` 및 파생 JSON ZIP 백업 검증, 전체 공유 소스 `pytest 300 PASS`. 2폴드 합성 3개 테스트 후보/결과 라벨 비공개. 문서 `docs/45_REPEATED_WALKFORWARD_CLI.md`; 실제 역사 원천 PIT나 미래 대장주 성공률 인증은 불가.
 - 최신 Git 커밋과 원격 상태는 `PROJECT_STATE.md` 마지막 체크포인트와 `git status -sb`를 확인할 것. 다음 실제 독립 상장·상폐/기업행동 원천, 실전 홀드아웃 라벨, 6_5 하드웨어 복구 검증 우선.
+
+## 2026-10-10 최신 2_2/2_5/5_5 PIT 근거 통합 게이트
+
+- `src/eraleader/evidence_gate.py` + CLI `audit-evidence-gate` + `docs/46_LOCAL_EVIDENCE_GATE.md`: 원천 빈티지·영구ID/상폐·거래소 캘린더·가격 누락·상장종목군/가격 5가지 감사 결과를 **같은 시장/기준시각**으로 대조. 부족한 원천/미인증/불일치 자동 차단; 합성 5개 보고서를 모두 통과해도 **공식 대장주 인증은 불가**. 실제 한국 가격 캐시 감사만 입력한 테스트에서는 1/5영역, 차단사유 5개. 파생 결과 SHA 백업/복원 확인. 신규 25개 포함 **pytest 325 PASS**.
+- 남은 실전 원천 PIT/기업행동 현금 지급 증명 및 실제 미래 대장주 검증. 최신 Git/원격 SHA·푸시 결과는 `PROJECT_STATE.md` 맨 마지막 체크포인트 확인.

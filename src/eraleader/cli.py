@@ -29,6 +29,7 @@ from .continuity_audit import audit_observation_continuity
 from .calendar_audit import audit_exchange_calendar
 from .delist_cash import reconstruct_cash_delisting
 from .issuer_lineage import audit_issuer_lineage
+from .evidence_gate import evaluate_local_evidence
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
 from .local_backup import create_backup, verify_backup, restore_backup
@@ -398,6 +399,16 @@ def execute_issuer_lineage(args) -> dict:
             "observed_tickers_unmatched_count":result["observed_tickers_unmatched_count"],
             "historic_membership_pit_certified":False}
 
+def execute_evidence_gate(args) -> dict:
+    report=evaluate_local_evidence(Path(args.input_root),market=args.market,
+                                   decision_at=args.decision_at)
+    target=Path(args.out)/f"evidence_gate_{args.market.lower()}_research.json"
+    write_json(target,report)
+    return {"status":report["status"],"path":str(target),
+            "present_domains":report["present_domains"],
+            "blocker_count":report["blocker_count"],
+            "official_promotion_allowed":False}
+
 def execute_backup(args) -> dict:
     if args.command=="backup-local":
         return create_backup(Path(args.out),Path(args.archive))
@@ -551,6 +562,11 @@ def main(argv=None):
     ii.add_argument("--decision-at",required=True,help="Timezone-aware decision timestamp")
     ii.add_argument("--sample-limit",type=int,default=20)
     ii.add_argument("--out",default=str(OUT))
+    eg=sub.add_parser("audit-evidence-gate",help="Combine local PIT audit blockers without certification")
+    eg.add_argument("--market",choices=["KR","US"],required=True)
+    eg.add_argument("--decision-at",required=True)
+    eg.add_argument("--input-root",required=True,help="Existing local derived audit JSON directory")
+    eg.add_argument("--out",default=str(OUT))
     bkp=sub.add_parser("backup-local",help="Consistent SQLite + safe local output archive")
     bkp.add_argument("--out",default=str(OUT))
     bkp.add_argument("--archive",required=True)
@@ -577,6 +593,7 @@ def main(argv=None):
         elif args.command=="audit-calendar":result=execute_calendar_audit(args)
         elif args.command=="audit-cash-delist":result=execute_cash_delist(args)
         elif args.command=="audit-issuer-lineage":result=execute_issuer_lineage(args)
+        elif args.command=="audit-evidence-gate":result=execute_evidence_gate(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

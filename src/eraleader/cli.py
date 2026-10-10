@@ -21,6 +21,7 @@ from .walkforward import walk_forward_split
 from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .adjusted_crosscheck import compare_total_return_indexes
+from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
@@ -253,6 +254,15 @@ def execute_return_crosscheck(args) -> dict:
             "intervals_outside_tolerance":result["intervals_outside_tolerance"],
             "historic_price_actions_pit_certified":False}
 
+def execute_source_vintage(args) -> dict:
+    audit=audit_source_vintages(Path(args.manifest),decision_at=args.decision_at)
+    path=Path(args.out)/"source_vintage_audit_research.json"
+    write_json(path,audit)
+    return {"status":audit["status"],"path":str(path),
+            "source_count":audit["source_count"],
+            "retrospective_source_count":audit["retrospective_source_count"],
+            "historical_pit_certified":False}
+
 def execute_prospective_export(args) -> dict:
     registry_path=Path(args.out)/"prospective.sqlite"
     if not registry_path.is_file():
@@ -380,6 +390,10 @@ def main(argv=None):
     check.add_argument("--evaluated-at",required=True)
     check.add_argument("--tolerance-bps",type=float,default=5.0)
     check.add_argument("--out",default=str(OUT))
+    provenance=sub.add_parser("audit-source-vintage",help="Hash and as-of audit local source vintages without PIT certification")
+    provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")
+    provenance.add_argument("--decision-at",required=True,help="Timezone-aware as-of cutoff")
+    provenance.add_argument("--out",default=str(OUT))
     prospect=sub.add_parser("prospective-signals",help="Export first actually registered research WATCH signals")
     prospect.add_argument("--market",choices=["KR","US"],required=True)
     prospect.add_argument("--out",default=str(OUT))
@@ -414,6 +428,7 @@ def main(argv=None):
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)
+        elif args.command=="audit-source-vintage":result=execute_source_vintage(args)
         elif args.command in ("backup-local","verify-backup","restore-backup"):
             result=execute_backup(args)
         elif args.command=="batch":

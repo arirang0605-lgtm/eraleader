@@ -62,7 +62,7 @@
 
 ## 다음 실제 개발 작업 (가장 우선, 아직 미완료)
 
-**최신 NEXT_TASK = 2_2 종목/기업행동 PIT 보강 + 3_1~3_3 오프라인 재무·산업 데이터 계약**. 개발 착수 내용은 `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`를 우선 확인. 아래의 기존 목록은 초기 계획 기록.
+**최신 NEXT_TASK = 3_4·3_5 가격/산업/실적 PIT 피처 통합 + 4단계 안전 판정 연결**. 기존 2_2·2_3·3_1~3_3 오프라인 입력/증분/정정·성장률은 `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`까지 **33개 테스트 통과**. 아래 초기 계획은 역사적 기록이므로 재개발 금지.
 
 1. 이 경로가 Git 미초기화 상태임을 확인하고 독립 Python 패키지 구조·pytest 환경을 만든다. 새 GitHub **Private** 저장소 연결은 사용자 승인 후 시행.
 2. `scripts/read_cached_marcap.py`의 로컬 가격 읽기 기능을 **새 패키지의 read-only 데이터 어댑터**로 편입하되 원본 경로를 강제 의존으로 만들지 않는다.

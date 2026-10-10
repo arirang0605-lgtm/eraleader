@@ -169,3 +169,11 @@ PYTHONPATH=src python3 -m eraleader serve --port 8765
 브라우저 주소: **http://127.0.0.1:8765/** (PC 안에서만 접속). 명령 실행 없이 `output/site/index.html` 파일을 직접 열어도 된다. 보고서 생성은 `PYTHONPATH=src python3 -m eraleader report weekly --market KR`, 알림 모의 생성은 `PYTHONPATH=src python3 -m eraleader alerts-preview`.
 
 **[구체 개발 상태·증거·제약 사항](docs/27_LOCAL_FIRST_IMPLEMENTATION.md)**. 현재 웹 목록은 **가격 기반 연구용 WATCH**이며, 재무/산업 PIT가 없어 잠재·확정 대장주 순위를 보증하거나 생성하지 않는다. 외부 API/실제 메시지 발송 없음.
+
+## 13. 오프라인 PIT 종목·기업행동·재무/산업 분석 (2_2·2_3·3_1~3_3)
+
+- [상세 코드·입력·실행·검증 결과](docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md). 전체 자동 테스트 **33개 통과**(2026-10-10).
+- API 사용 없이 CSV/JSON을 `offline-import`로 입력하고, `offline-features --as-of`로 당시 공개된 산업/기업 성장값 계산.
+- **가상 예제**: `PYTHONPATH=src python3 -m eraleader offline-import --file tests/fixtures/offline_synthetic.json --out output/demo_offline`
+- **분석 예제**: `PYTHONPATH=src python3 -m eraleader offline-features --market KR --as-of '2024-09-01T17:00:00+09:00' --out output/demo_offline`
+- 연구용 합성 데이터는 `output/demo_offline/`에만 저장, 실제 한국·미국 가격 목록과 혼합 금지. 아직 종목별 역사 완전성/재무 PIT 제공자 검증 전이라 확정 대장주를 발표하지 않는다.

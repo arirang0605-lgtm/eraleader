@@ -25,6 +25,11 @@ required=[
  "results/reuse_probe/local_assets_audit.json",
  "results/reuse_probe/marcap_sample_query.json",
  "results/reuse_probe/sector_mom_baseline_one_config.csv",
+ "docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md",
+ "src/eraleader/offline_pit.py",
+ "src/eraleader/offline_features.py",
+ "tests/test_offline_pit.py",
+ "tests/fixtures/offline_synthetic.json",
 ]
 errors=[]
 for name in required:

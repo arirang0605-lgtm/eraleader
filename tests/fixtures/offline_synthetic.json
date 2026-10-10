@@ -1,0 +1,176 @@
+{
+  "schema_version": "eraleader.offline.v1",
+  "provenance": "synthetic_fixture",
+  "records": {
+    "membership": [
+      {
+        "security_id": "SYN-A",
+        "market": "KR",
+        "ticker": "111111",
+        "industry_id": "SYN-TECH",
+        "valid_from": "2023-01-01",
+        "valid_to": null,
+        "known_at": "2023-01-02T10:00:00+09:00",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-B",
+        "market": "KR",
+        "ticker": "222222",
+        "industry_id": "SYN-TECH",
+        "valid_from": "2023-01-01",
+        "valid_to": "2024-07-01",
+        "known_at": "2023-01-02T10:00:00+09:00",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-C",
+        "market": "KR",
+        "ticker": "333333",
+        "industry_id": "SYN-OTHER",
+        "valid_from": "2024-04-01",
+        "valid_to": null,
+        "known_at": "2024-09-10T10:00:00+09:00",
+        "source_id": "fixture1",
+        "revision": 1
+      }
+    ],
+    "actions": [
+      {
+        "security_id": "SYN-A",
+        "action_id": "SPLIT-1",
+        "action_type": "split",
+        "effective_on": "2024-08-30",
+        "known_at": "2024-07-20T12:00:00+09:00",
+        "ratio": 2,
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-B",
+        "action_id": "DEL-1",
+        "action_type": "delist",
+        "effective_on": "2024-06-30",
+        "known_at": "2024-06-10T12:00:00+09:00",
+        "source_id": "fixture1",
+        "revision": 1
+      }
+    ],
+    "fundamentals": [
+      {
+        "security_id": "SYN-A",
+        "metric": "revenue",
+        "period_end": "2023-03-31",
+        "available_at": "2023-05-10T00:00:00Z",
+        "value": 80,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-A",
+        "metric": "revenue",
+        "period_end": "2023-06-30",
+        "available_at": "2023-08-10T00:00:00Z",
+        "value": 100,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-A",
+        "metric": "revenue",
+        "period_end": "2024-03-31",
+        "available_at": "2024-05-10T00:00:00Z",
+        "value": 100,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-A",
+        "metric": "revenue",
+        "period_end": "2024-06-30",
+        "available_at": "2024-08-20T00:00:00Z",
+        "value": 160,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-A",
+        "metric": "operating_income",
+        "period_end": "2023-06-30",
+        "available_at": "2023-08-10T00:00:00Z",
+        "value": 10,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-A",
+        "metric": "operating_income",
+        "period_end": "2024-06-30",
+        "available_at": "2024-08-20T00:00:00Z",
+        "value": 20,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "security_id": "SYN-A",
+        "metric": "revenue",
+        "period_end": "2024-06-30",
+        "available_at": "2024-10-01T00:00:00Z",
+        "value": 166,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 2
+      }
+    ],
+    "industry": [
+      {
+        "industry_id": "SYN-TECH",
+        "metric": "revenue",
+        "period_end": "2023-06-30",
+        "available_at": "2023-08-15T00:00:00Z",
+        "value": 1000,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "industry_id": "SYN-TECH",
+        "metric": "revenue",
+        "period_end": "2024-06-30",
+        "available_at": "2024-08-22T00:00:00Z",
+        "value": 1150,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "industry_id": "SYN-TECH",
+        "metric": "capex",
+        "period_end": "2023-06-30",
+        "available_at": "2023-08-15T00:00:00Z",
+        "value": 100,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      },
+      {
+        "industry_id": "SYN-TECH",
+        "metric": "capex",
+        "period_end": "2024-06-30",
+        "available_at": "2024-08-22T00:00:00Z",
+        "value": 140,
+        "unit": "KRW_BN",
+        "source_id": "fixture1",
+        "revision": 1
+      }
+    ]
+  }
+}

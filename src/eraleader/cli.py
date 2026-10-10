@@ -13,6 +13,8 @@ from .discovery import score_price_observations, detect_watch_changes,run_id_for
 from .pit import LocalStore
 from .delivery import write_dashboard,make_report
 from .backtest import delayed_momentum_baseline
+from .offline_pit import OfflineLedger
+from .offline_features import financial_snapshot
 
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"output"
@@ -80,6 +82,36 @@ def execute_alerts(args):
         return {"status":"DRY_RUN_ONLY_NO_MESSAGE_SENT","count":len(events),"path":str(target)}
     finally:db.close()
 
+def execute_offline_import(args) -> dict:
+    ledger=OfflineLedger(Path(args.out)/"offline.sqlite")
+    try:
+        summary=ledger.import_file(Path(args.file),kind=args.kind,provenance=args.provenance)
+        return {"status":"OFFLINE_IMPORT_DONE_NOT_CERTIFIED","summary":summary,
+                "database":str(ledger.path),"disclaimer":"No evidence of complete point-in-time universe"}
+    finally:ledger.close()
+
+def execute_offline_features(args) -> dict:
+    ledger=OfflineLedger(Path(args.out)/"offline.sqlite")
+    try:
+        snap=ledger.snapshot(args.as_of,market=args.market)
+        scored=financial_snapshot(snap)
+        # Freeze every research run. Never erase older vintages of early
+        # signals; otherwise prospective detection cannot be audited.
+        import hashlib
+        encoded=json.dumps(scored,ensure_ascii=False,sort_keys=True)
+        signature=hashlib.sha256(encoded.encode()).hexdigest()[:16]
+        stamp=snap["as_of"][:16].replace("-","").replace(":","").replace("T","_")
+        audit_path=Path(args.out)/"runs"/f"offline_{args.market.lower()}_{stamp}_{signature}.json"
+        write_json(audit_path,scored)
+        destination=Path(args.out)/f"offline_{args.market.lower()}_features.json"
+        write_json(destination,scored)
+        return {"status":"RESEARCH_ONLY_PIT_SOURCE_NOT_CERTIFIED",
+                "path":str(destination),"immutable_run":str(audit_path),
+                "companies":scored["company_count"],
+                "heuristic_screen_hits":scored["research_screen_count"],
+                "quality":scored["quality"]}
+    finally:ledger.close()
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog="eraleader",description="Offline EraLeader prototype (APIs disabled)")
     parser.add_argument("--version",action="version",version=__version__)
@@ -108,12 +140,23 @@ def main(argv=None):
     srv=sub.add_parser("serve")
     srv.add_argument("--out",default=str(OUT))
     srv.add_argument("--port",type=int,default=8765)
+    importer=sub.add_parser("offline-import",help="Import locally available CSV/JSON without API calls")
+    importer.add_argument("--file",required=True)
+    importer.add_argument("--kind",choices=["membership","actions","fundamentals","industry"])
+    importer.add_argument("--provenance",choices=["synthetic_fixture","external_public_file","user_supplied"])
+    importer.add_argument("--out",default=str(OUT))
+    features=sub.add_parser("offline-features",help="Research-only PIT-aware growth diagnostics")
+    features.add_argument("--market",choices=["KR","US"],default="KR")
+    features.add_argument("--as-of",required=True,help="Timezone-aware ISO timestamp")
+    features.add_argument("--out",default=str(OUT))
     args=parser.parse_args(argv)
     try:
         if args.command=="run":result=execute_run(args)
         elif args.command=="baseline":result=execute_baseline(args)
         elif args.command=="report":result=execute_report(args)
         elif args.command=="alerts-preview":result=execute_alerts(args)
+        elif args.command=="offline-import":result=execute_offline_import(args)
+        elif args.command=="offline-features":result=execute_offline_features(args)
         else:
             site=Path(args.out)/"site"
             site.mkdir(parents=True,exist_ok=True)

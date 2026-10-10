@@ -8,11 +8,11 @@
 
 > 2026-10-10 KST. 이 절이 현재 상태의 단일 기준(SSOT)입니다. 아래 이전 기록은 작성 당시의 역사적 상태입니다.
 
-- **현재(2026-10-10 개발 착수)**: 로컬 Python 패키지·가격 캐시 어댑터·SQLite PIT fixture/이력·가격 관찰 랭킹·state-logic fixture·모멘텀 baseline·정적 웹/알림 dry-run/Markdown 보고서가 **첫 통합 실행 PASS**. 자동 pytest **17개 통과** + 로컬 HTTP/e2e 확인. 다만 **실제 기업/산업 PIT·대장주 확정/성능 검증·API/실전 알림은 미완료**. 상세: `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`.
+- **현재(2026-10-10 개발 계속)**: 1~6 로컬 통합 MVP에 이어 **2_2(종목 이력·상폐·분할/배당 공개시각 원장), 2_3(미래정보 누출 차단·정정), 3_1~3_3(오프라인 산업/기업 성장 피처)**를 추가 구현. **전체 자동 테스트 33개 통과**, 오프라인 CSV/JSON 수입과 시점별 연구 결과 생성 성공. 전체 실데이터 PIT/공급자 완전성·확정 대장주 판정·정식 성과 검증은 **미완료**. 상세: `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`, `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`.
 - **테스트 근거**: marcap 1995~2026 연도별 Parquet 32개 / 15,648,407행 메타데이터 대조 PASS. 005930 2025년 1월 18거래일 로컬 캐시 조회 PASS. 기존 미국 업종 모멘텀 계산 실행 PASS. **투자 성능·PIT 적합성 검증은 아님**.
 - **Git 상태(2026-10-10)**: SSD `/Volumes/T5DATA/eraleader`에서 **로컬 Git 저장소 `main` 초기화 완료**. GitHub `arirang0605-lgtm/eraleader`는 당시 Public·size 0. 원격 연결·push **미진행**. 로컬 커밋 SHA는 아래 최신 개발 실행 기록에서 확인. 상세: `docs/26_GITHUB_REPO_HANDOFF.md`.
 - **기존 재활용**: `/Volumes/T5DATA/CycleOS-Lab_BacktestEngine` 읽기 전용, `/Volumes/T5DATA/backtestengine`은 확인 당시 빈 폴더. 분할·배당·상폐·공시 이용시각·라이선스 추가 검증 필요.
-- **다음 작업**: `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`의 미완료 목록. 최우선은 **2_2 역사 종목/기업행동 및 3_1~3_3 오프라인 재무·산업 PIT importer** 구축→4단계 실제 근거 판정 통합→5단계 객관적 발굴 성능 검증. API 연결은 로컬 1~6기능 완성 후 별도.
+- **다음 작업**: `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`의 후속 과제. **3_4·3_5 가격 RS + 산업·재무 PIT 피처 통합 계약 → 4_2~4_5 후보 상태 변경 엔진 안전 연결 → 5_2~5_5 조기 발견 능력 검증**. 실제 원자료 누락 상태에서는 WATCH/N/A 유지. API 연결은 로컬 기능 완성 후 별도.
 - **재개 순서**: `START_HERE_NEXT_CHAT.md` → `AGENTS.md` → 상태 상단 → 관련 상세 MD 1~2개. 기존 코드 무단 재작성, 반복 전체 대화 분석 금지.
 
 ---
@@ -163,3 +163,14 @@
 - **GitHub:** `arirang0605-lgtm/eraleader` 존재, 이전 확인 당시 **Public**; origin 연결/원격 push **미실행**. 공개범위 승인 후에만 연동.
 - 다음 미완료 작업: **2_2 역사 종목군·기업행동 PIT / 3_1~3_3 오프라인 재무·산업 시점 자료 수입 및 상태 엔진 연결**. API는 로컬 1~6단계 검증 후.
 - 실제 테스트·실행 결과는 SSD의 `results/local_mvp/` 및 `output/`에 보존.
+
+## 이번 개발 실측 기록 (2026-10-10, 2_2·2_3·3_1~3_3)
+
+- 코드 추가: `src/eraleader/offline_pit.py`, `src/eraleader/offline_features.py`; CLI `offline-import`와 `offline-features` 추가.
+- 자동 테스트 추가: `tests/test_offline_pit.py`(합성 PIT fixture: `tests/fixtures/offline_synthetic.json`).
+- `PYTHONPATH=src python3 -m pytest tests -q` → **33/33 PASS**. 고유 종목/상폐/분할·배당, 출처/시간대, 정정공시 미래 유입 차단, 멱등·충돌 원자성, 산업·실적 성장 계산, 초기 징후와 WATCH 유지 등 포함.
+- 실제 명령: `offline-import --file tests/fixtures/offline_synthetic.json`와 `offline-features --market KR --as-of 2024-07-01/2024-09-01` 실행 성공. 출력은 **합성 자료만** `output/demo_offline/`에 별도 보존.
+- 예시 SYN-A 매출 YoY 7월 +25% → 9월 +60%, 영업이익 +100%, 산업 매출 +15% (전부 가상 입력; 실제 종목 아님).
+- **제약:** 외부 공시 PIT/산업 역사, 기업행동/상장폐지 전체 완전성 미확인으로 종합 점수·POTENTIAL/CONFIRMED 승격 금지. 실전 데이터와 가상 입력 분리.
+- 다음: **3_4·3_5 정량 피처 결합 + 4_2~4_5 안전 상태 변경 실연결**, 이후 조기 발굴 성능 검증.
+- 상세: `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`; Git 변경 파일·테스트·커밋 SHA는 후속 체크포인트에서 갱신.

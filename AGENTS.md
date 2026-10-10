@@ -103,5 +103,12 @@ PROJECT_STATE.md에 다음을 남긴다:
 - 사용자는 **1_1~6_5 로컬 실행형 전체 기능부터 개발한 후 외부 API 연결**을 확정함. 따라서 지금은 외부 API 인증 요청·네트워크 스크래핑·유료 공급자 계약보다, 오프라인 정형 데이터 계약·PIT 검사·신호 이력·로컬 화면/보고서부터 개발.
 - 현재 실제 코드/실행 내용: `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`. 과거 시작 문서의 '소스 없음'은 이전 시점 기록이며 현재가 아님.
 - `output/`의 로컬 가격 관찰 화면/리포트는 **PIT 미검증 연구용**. 실전 대장주 판정·성과를 주장하지 말 것. 품질 실패/결측 시 WATCH/PAUSED.
-- 다음 새 대화는 `src/eraleader/`, `tests/`를 먼저 확인하고 **2_2 및 3_1~3_3 미구현 데이터·PIT**부터 CONTINUE.
+- 다음 새 대화는 `src/eraleader/`, `tests/`를 먼저 확인하고 **3_4·3_5 산업/실적/가격 시점 결합과 4단계 안전 후보 판정**부터 CONTINUE. 2_2·2_3·3_1~3_3 오프라인 자료 입력은 `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`를 확인해 재작성 금지.
 - 로컬 Git main 존재하더라도 GitHub 원격 **Public 상태**에서 사용자 승인 없는 push 금지.
+
+## K. 오프라인 시점 데이터 계약 추가 (2026-10-10)
+
+- `src/eraleader/offline_pit.py`: 회원/기업행동/재무/산업 JSON·CSV ingestion과 당시 공개시각 as-of 필터. 동일 소스·리비전 충돌 시 자동 덮어쓰기 금지.
+- `src/eraleader/offline_features.py`: 산업/기업의 원시 성장률·마진, 성장 가속 지표 계산. 전체 점수/실제 확정 후보 판정 금지(데이터 완전성 인증 없음).
+- 합성 fixture는 `output/demo_offline` 사용, 실제 종목 관찰 스냅샷에 혼합 금지. 시점별 스냅샷 실행 hash와 출처 정보 보존.
+- 자세한 검증·재현: `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`. 다음 작업은 미래 발견용 시점 피처 결합/후보 상태 추적(3_4~4_5).

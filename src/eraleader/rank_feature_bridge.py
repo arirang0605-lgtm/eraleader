@@ -16,7 +16,8 @@ import os
 import shutil
 
 from .discovery import MODEL_VERSION, run_id_for
-from .offline_pit import iso_time
+from .offline_pit import OfflineLedger, iso_time
+from .offline_features import financial_snapshot
 from .peer_normalization import normalize_growth_peers
 from .rank_score_pipeline import TARGETS, compute_research_score
 
@@ -39,9 +40,36 @@ def _finite(value) -> bool:
     return type(value) in (int, float) and math.isfinite(value)
 
 
+def check_offline_pit_ledger(offline: dict, ledger_file: Path) -> str:
+    """Recompute the entire research snapshot from the original read-only PIT DB.
+
+    A local byte-level reconciliation does NOT independently authenticate the
+    original membership, issuer, filing release time or market data supplier.
+    """
+    if offline.get("market") not in ZONES or not isinstance(offline.get("as_of"), str):
+        raise ValueError("Offline snapshot lacks market or PIT cutoff")
+    ledger = OfflineLedger.open_readonly(Path(ledger_file))
+    try:
+        regenerated = financial_snapshot(
+            ledger.snapshot(offline["as_of"], market=offline["market"]))
+    finally:
+        ledger.close()
+    try:
+        baseline = json.dumps(regenerated, sort_keys=True, ensure_ascii=False,
+                              allow_nan=False, separators=(",", ":"))
+        supplied = json.dumps(offline, sort_keys=True, ensure_ascii=False,
+                              allow_nan=False, separators=(",", ":"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Invalid or nonfinite offline research snapshot") from exc
+    if supplied != baseline:
+        raise ValueError("Offline research snapshot differs from original as-of PIT ledger")
+    return sha256(baseline.encode("utf-8")).hexdigest()
+
+
 def build_rank_feature_inputs(
     offline_file: Path, price_file: Path, output_dir: Path, *,
     model_version: str, min_peers: int = 3, clock: datetime | None = None,
+    offline_ledger: Path | None = None,
 ) -> dict:
     """Derive conservative four-factor research inputs without scoring WATCH.
 
@@ -58,6 +86,8 @@ def build_rank_feature_inputs(
     now = now.astimezone(timezone.utc)
     offline, offline_sha = _load_bytes(Path(offline_file))
     price, price_sha = _load_bytes(Path(price_file))
+    local_ledger_snapshot_sha = (check_offline_pit_ledger(offline, offline_ledger)
+                                 if offline_ledger is not None else None)
     peer = normalize_growth_peers(offline, min_peers=min_peers)
     market = peer["market"]
     zone = ZoneInfo(ZONES[market])
@@ -148,6 +178,8 @@ def build_rank_feature_inputs(
         "market":market, "model_version":model_version,
         "as_of":stamp.isoformat(), "generated_at_utc":now.isoformat(),
         "offline_source_sha256":offline_sha,
+        "local_pit_ledger_snapshot_sha256":local_ledger_snapshot_sha,
+        "recomputed_from_readonly_offline_ledger":offline_ledger is not None,
         "price_source_sha256":price_sha,
         "price_source_run_id":price["run_id"],
         "price_last_observation":last.isoformat(),
@@ -192,6 +224,7 @@ def build_rank_feature_inputs(
         "generated_now_not_backdated":now.isoformat(),
         "eligible_documents":len(documents), "deferred":len(deferred),
         "source_hashes_recorded":True,
+        "recomputed_from_readonly_offline_ledger":offline_ledger is not None,
         "real_leader_prediction_certified":False,
         "official_leader_promotions":0,
     }

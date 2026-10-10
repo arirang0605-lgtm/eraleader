@@ -134,6 +134,18 @@ class OfflineLedger:
         self.db.execute("CREATE INDEX IF NOT EXISTS offline_pit_idx ON offline_records(kind,available_at)")
         self.db.commit()
 
+    @classmethod
+    def open_readonly(cls, path: Path) -> "OfflineLedger":
+        """Open an existing PIT source without creating tables or modifying bytes."""
+        source = Path(path)
+        if source.is_symlink() or not source.is_file():
+            raise ValueError("Existing non-symlink PIT ledger required")
+        instance = cls.__new__(cls)
+        instance.path = source
+        instance.db = sqlite3.connect(source.resolve().as_uri() + "?mode=ro", uri=True)
+        instance.db.execute("PRAGMA query_only=ON")
+        return instance
+
     def close(self):
         self.db.close()
 

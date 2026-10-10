@@ -164,7 +164,9 @@ def execute_rank_feature_inputs(args) -> dict:
     return build_rank_feature_inputs(Path(args.offline), Path(args.price),
                                      Path(args.features_dir),
                                      model_version=args.model_version,
-                                     min_peers=args.min_peers)
+                                     min_peers=args.min_peers,
+                                     offline_ledger=(Path(args.offline_ledger)
+                                                     if args.offline_ledger else None))
 
 def execute_integrated(args) -> dict:
     source=OfflineLedger(Path(args.out)/"offline.sqlite")
@@ -626,6 +628,7 @@ def main(argv=None):
     bridge.add_argument("--features-dir",required=True,help="New output directory (no overwrite)")
     bridge.add_argument("--model-version",required=True)
     bridge.add_argument("--min-peers",type=int,default=3)
+    bridge.add_argument("--offline-ledger",help="Optional original offline.sqlite read-only PIT recomputation gate")
     join=sub.add_parser('offline-integrated',help='PIT-aligned research join')
     join.add_argument('--market',choices=['KR','US'],default='KR')
     join.add_argument('--as-of',required=True)

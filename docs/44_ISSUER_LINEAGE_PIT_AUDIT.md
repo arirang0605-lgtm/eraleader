@@ -34,3 +34,9 @@ PYTHONPATH=src python3 -m eraleader audit-issuer-lineage \
 ## 남은 실제 검증
 
 공식 영구 법적 발행인 ID/티커 변경 이력과 기업행동 원본, 그 당시 실제 공개됐던 원본 버전, 합병 지급대가, 현금 상장폐지 정산 확인, 독립 거래소/데이터 공급업체의 원천 서명/보관시각은 **미확보**. 전향적 미래 대장주 성능은 실제 미래 결과가 성숙하기 전까지 인증 불가. 지표 점수·성과를 과거 유명 종목에 맞추지 말고 먼저 공급자 PIT를 증명해야 한다.
+
+## 2026-10-10 correction: announced exits vs stale open-ended membership
+
+- A confirmed-by-input `cash_delist`, `delist` or `merger` action can have a known `effective_on` prior to the decision day while the supplier's old identity interval remains open-ended. The as-of research view now explicitly **excludes its predecessor security ID** once that event's effective date is reached, rather than continuing to call it an active issuer.
+- Pre-effective announced exits do **not** remove an issuer prematurely. Event/source known-at time and supplier retrieval must still be <= decision, otherwise historical eligible count is zero. The output adds `declared_effective_exited_permanent_id_count`. All exchange membership, event provenance, payout and PIT certifications remain false.
+- Two additional synthetic regression tests cover a closed cash/delist predecessor and a merger crossing the exact local effective date. Full shared pytest **297 PASS** at last test (including 19 uncommitted other-session walkforward tests). No corporate event source data downloaded.

@@ -121,10 +121,6 @@ def audit_issuer_lineage(registry_file: Path, *, decision_at: str,
         if eligible and historical_retrieval:
             visible.append(eligible[-1][2])
     active = [row for row in visible if _in_interval(row, day)]
-    active_by_ticker = defaultdict(set)
-    for row in active:
-        active_by_ticker[row["ticker"]].add(row["security_id"])
-    collisions = sorted(t for t, secs in active_by_ticker.items() if len(secs) > 1)
     ticker_all = defaultdict(set)
     for row in visible:
         if _date(row["valid_from"]) <= day:
@@ -134,6 +130,7 @@ def audit_issuer_lineage(registry_file: Path, *, decision_at: str,
     missing_parent = set()
     missing_successor = set()
     unknown_settlement = set()
+    declared_exited_ids = set()
     asof_event_count = 0
     event_keys = set()
     for event in events:
@@ -166,6 +163,18 @@ def audit_issuer_lineage(registry_file: Path, *, decision_at: str,
                 missing_successor.add(event_id)
         if typ in ("cash_delist", "delist"):
             unknown_settlement.add(event_id)
+        if (typ in ("cash_delist", "delist", "merger")
+                and _date(event["effective_on"]) <= day and sec in permanent_ids):
+            declared_exited_ids.add(sec)
+
+    # A supplier may leave the membership interval open after publishing a
+    # then-known effective exit. Such a predecessor must not be considered
+    # an active issuer even in this strictly uncertified research view.
+    active = [row for row in active if row["security_id"] not in declared_exited_ids]
+    active_by_ticker = defaultdict(set)
+    for row in active:
+        active_by_ticker[row["ticker"]].add(row["security_id"])
+    collisions = sorted(t for t, secs in active_by_ticker.items() if len(secs) > 1)
 
     observations = bundle.get("observed_tickers", [])
     if not isinstance(observations, list) or len(observations) > 50000:
@@ -194,6 +203,7 @@ def audit_issuer_lineage(registry_file: Path, *, decision_at: str,
         "declared_historical_ticker_reuse_count": len(reuses),
         "declared_historical_reuse_sample": reuses[:sample_limit],
         "asof_known_event_count_claimed": asof_event_count,
+        "declared_effective_exited_permanent_id_count": len(declared_exited_ids),
         "corporate_events_with_unknown_parent_count": len(missing_parent),
         "corporate_events_with_missing_successor_count": len(missing_successor),
         "cash_exit_events_without_verified_proceeds_count": len(unknown_settlement),

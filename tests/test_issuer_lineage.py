@@ -219,3 +219,32 @@ def test_future_planned_ticker_reuse_not_counted_as_historical(tmp_path):
     assert out["declared_historical_ticker_reuse_count"]==0
     assert out["claimed_asof_active_identity_count"]==1
     assert out["observed_tickers_unmatched_count"]==2
+
+
+def test_known_effective_delisting_excludes_open_ended_issuer(tmp_path):
+    data=base()
+    data["events"].append({
+        "event_id":"EXPIRED-B","security_id":"PERM-B","action_type":"delist",
+        "source_id":"SYN-SUPPLIER","effective_on":"2024-05-22",
+        "known_at":"2024-05-10T12:00:00+09:00"})
+    out=audit(tmp_path,data)
+    assert out["declared_effective_exited_permanent_id_count"]==1
+    assert out["claimed_asof_active_identity_count"]==1
+    assert out["observed_tickers_unmatched_count"]==2
+    assert out["cash_exit_events_without_verified_proceeds_count"]==2
+    assert out["delisting_settlement_verified"] is False
+
+
+def test_announced_merger_not_effective_until_its_local_market_date(tmp_path):
+    data=base()
+    event=data["events"][0]
+    event["successor_security_id"]="PERM-C"
+    event["effective_on"]="2024-06-02"
+    before=audit(tmp_path,data)
+    assert before["claimed_asof_active_identity_count"]==2
+    assert before["declared_effective_exited_permanent_id_count"]==0
+    event["effective_on"]="2024-06-01"
+    after=audit(tmp_path,data)
+    assert after["declared_effective_exited_permanent_id_count"]==1
+    assert after["claimed_asof_active_identity_count"]==1
+    assert after["corporate_events_with_missing_successor_count"]==0

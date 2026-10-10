@@ -365,3 +365,10 @@
 - 앞서 `ce4fe1d` 718 테스트 릴리스 후 두 개발 세션이 원천 감사 증거를 독립 보완. `outcome_source_claims.py`는 동결 evaluator 상태와 개별 감사 분류가 일치하는지 검사, 소스 PASS가 내부 평가 가능 총수를 넘으면 오류로 처리. 별도 선택적 `--require-document-label-binding`은 증거 JSON 원본과 영구 기업ID/라벨 정의/상태/게시시각을 비교해 Hash 정합이지만 다른 결과를 포함한 문서의 부당 인정 차단. 기존 연구 CLI 기본값 유지.
 - 공유 테스트 파일이 작성 중 잠시 7 FAIL이었으나, 합성 RED 확인 후 두 수정 모두 결합된 **최신 실제 commit `395f2dd9c177cc4df9a02b25e4d30a155e07fef4` GitHub Public `main` push 성공**. 최종 **728 pytest PASS/exit 0**, handoff 30작업 PASS, Public 안전검사 4파일 suspicious=0, 원격 SHA 일치. 이전 strict 기능의 'Git commit 차단/미푸시' 설명은 **이전 순간의 기록**이며 최신 상태가 아니다. PROJECT_STATE 하단/실제 Git 우선.
 - 실전 PIT/역사적 상폐 기업행동/조정수익 독립 원천·성숙된 전향 적중률·30단계 최종 완성은 미인증. API D-017은 로컬 후, 물리 SSD 분리/재연결·재부팅 D-021은 API 후 마지막에만 수행. 정상 코드 재작성 없이 2_2/2_5 실증 근거 또는 5_5 실전 라벨 수집 조건부터 CONTINUE.
+
+## 2026-10-11 최신 2_2·2_5 — 이중 빈티지 기업ID/현금상폐 연구 감사 구현
+
+- Mac/T5DATA 원격 확인, 시작 코드 main/remote `12d075c` clean에서 CONTINUE. 기존 `delist_cash.py`/ `issuer_lineage.py` 보존하고 신규 `cash_exit_lineage.py`·`test_cash_exit_lineage.py`·`docs/68_DUAL_VINTAGE_CASH_EXIT_LINEAGE.md`, 기존 CLI `audit-cash-delist` 선택적 `--decision-lineage`와 `--evaluation-lineage` 추가. 당시 기업 영구ID/티커와 상폐 시점 후행 법적이력·cash_delist·분할/배당을 교차 확인; 불일치·후행 원천·지급미확인 시 수익률 null 보류. **실제 법적 PIT 인증은 불가**.
+- 집중 75 PASS, 전체 **754 pytest PASS / exit 0 (신규 26)**, 30 ID handoff PASS. 합성 KR 분할/현금 지급 +10% 및 누락된 상폐 이벤트를 강제로 삭제한 경우 null 판정 직접 CLI 실행; 연구 파생 보고서만 ZIP SHA/복원 PASS. US DST 합성 +5% 별도 회귀. 원본 데이터/API/물리 SSD 탈착 미실시.
+- 정확한 4경로 Git Public 안전검사 scanned=4 suspicious=0 후 **코드 commit `1c42d47df4767c3c13836329b2413bab25d09d05` GitHub main 정상 push / local=remote SHA 확인**. 이 문서와 PROJECT_STATE 후속 변경의 실제 commit 여부는 현 Git 확인 우선.
+- 다음: 독립 거래소 상장/상폐·기업 영구ID·현금정산·배당 분할·수익지수/빈티지 원천 근거를 확보해 검증하는 인터페이스 및 5_5 성숙된 실제 미래 결과 평가. 외부 API는 D-017 로컬 구현 후, SSD 재연결/재부팅은 D-021 API 후 최종 검증만. 기존 정상 코드 재작성 금지.

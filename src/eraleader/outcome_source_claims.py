@@ -21,6 +21,38 @@ STATUS = "LOCAL_OUTCOME_EVIDENCE_CLAIMS_AUDITED_NOT_CERTIFIED"
 SHA = re.compile(r"[0-9a-f]{64}\Z")
 BASENAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,100}\.json\Z")
 MAX_FILE_BYTES = 5_000_000
+SOURCE_LABEL_SCHEMA = "eraleader.outcome_label_evidence.v1"
+
+
+def _document_binding_issue(raw: bytes, label: dict) -> str | None:
+    """Check an opt-in normalized evidence record against exact supplied label.
+
+    A matching document is still self-declared local data, never an
+    independent source signature or a true future-leader certification.
+    """
+    try:
+        doc = json.loads(raw)
+    except (ValueError, UnicodeDecodeError):
+        return "SOURCE_DOCUMENT_LABEL_BINDING_REQUIRED"
+    if not isinstance(doc, dict) or doc.get("schema_version") != SOURCE_LABEL_SCHEMA:
+        return "SOURCE_DOCUMENT_LABEL_BINDING_REQUIRED"
+    if (type(doc.get("is_future_leader")) is not bool or
+            any(doc.get(k) != label.get(k) for k in
+                ("security_id", "label_definition_id", "is_future_leader"))):
+        return "SOURCE_DOCUMENT_LABEL_BINDING_MISMATCH"
+    try:
+        for key in ("mature_at", "outcome_available_at"):
+            if _stamp(doc.get(key)) != _stamp(label.get(key)):
+                return "SOURCE_DOCUMENT_LABEL_BINDING_MISMATCH"
+        if label["is_future_leader"]:
+            if _stamp(doc.get("leader_start_at")) != _stamp(label.get("leader_start_at")):
+                return "SOURCE_DOCUMENT_LABEL_BINDING_MISMATCH"
+        elif "leader_start_at" in doc:
+            return "SOURCE_DOCUMENT_LABEL_BINDING_MISMATCH"
+    except (ValueError, TypeError):
+        return "SOURCE_DOCUMENT_LABEL_BINDING_MISMATCH"
+    return None
+
 
 
 def _safe_file(path: Path, *, limit: int) -> bytes:
@@ -42,7 +74,10 @@ def audit_outcome_source_claims(
     frozen_file: Path, outcome_file: Path, receipt_manifest: Path, *,
     evaluated_at: str, clock: datetime | None = None,
     sample_limit: int = 100,
+    require_document_label_binding: bool = False,
 ) -> dict:
+    if type(require_document_label_binding) is not bool:
+        raise ValueError("Invalid strict source-binding flag")
     if type(sample_limit) is not int or not 1<=sample_limit<=1000:
         raise ValueError("Invalid evidence audit sample_limit")
     now = clock if clock is not None else datetime.now(timezone.utc)
@@ -75,6 +110,8 @@ def audit_outcome_source_claims(
     reconciliation=reconcile_holdout_outcomes(
         freeze,evaluated_at=evaluated_at,outcome_file=outcomes,
         clock=now,sample_limit=1000)
+    reconciled_status={row["security_id"]:row["status"]
+                       for row in reconciliation["candidate_evidence_sample"]}
 
     receipt_path=Path(receipt_manifest)
     raw=_safe_file(receipt_path,limit=MAX_FILE_BYTES)
@@ -112,6 +149,7 @@ def audit_outcome_source_claims(
     blockers=[]
     details=[]
     passed=0
+    bound_count=0
     for sec in sorted(frozen_ids):
         record=next(r for r in sealed["signals"] if r["security_id"]==sec)
         label=known.get(sec)
@@ -131,6 +169,15 @@ def audit_outcome_source_claims(
                 status="PREMATURE_NEGATIVE_LABEL"
             else:
                 status=eligible_status
+        authoritative_local_status=reconciled_status.get(sec)
+        if authoritative_local_status is not None:
+            if label is None:
+                matching=authoritative_local_status in {
+                    "HORIZON_PENDING_NO_LABEL", "HORIZON_ELAPSED_NO_LABEL"}
+            else:
+                matching=(authoritative_local_status==status)
+            if not matching:
+                raise ValueError("Outcome source audit and frozen evaluator disagree")
         if status!=eligible_status:
             # Not-yet-mature labels cannot be made eligible by a receipt.
             details.append({"security_id":sec,"maturity_status":status,
@@ -139,6 +186,7 @@ def audit_outcome_source_claims(
                             "issues":["OUTCOME_NOT_YET_EVALUABLE"]})
             continue
         problems=[]
+        bound=False
         claim=by_sec.get(sec)
         doc_hash=None
         if claim is None:
@@ -172,19 +220,32 @@ def audit_outcome_source_claims(
             elif document.stat().st_size==0 or document.stat().st_size>MAX_FILE_BYTES:
                 problems.append("EMPTY_OR_OVERSIZED_SOURCE_FILE")
             else:
-                doc_hash=sha256(document.read_bytes()).hexdigest()
+                document_bytes=document.read_bytes()
+                doc_hash=sha256(document_bytes).hexdigest()
                 if doc_hash!=expected:
                     problems.append("SOURCE_BYTES_SHA256_MISMATCH")
+                elif require_document_label_binding:
+                    issue=_document_binding_issue(document_bytes,known[sec])
+                    if issue:
+                        problems.append(issue)
+                    else:
+                        bound=True
         if not problems:
             passed+=1
+            if bound:
+                bound_count+=1
         for reason in problems:
             blockers.append(f"{sec}:{reason}")
         details.append({
             "security_id":sec,"maturity_status":status,
             "local_source_bytes_checked":doc_hash is not None,
+            "source_document_label_binding_checked":bound,
             "source_claim_chronology_ok":not problems,
             "issues":sorted(set(problems)),
         })
+    # Claims cannot make more results evaluable than the sealed evaluator.
+    if passed>reconciliation["internally_evaluable_outcome_count"]:
+        raise ValueError("Source claims exceed sealed internally evaluable outcomes")
     # A self-reported file hash is not a signature; even all clean entries
     # remain unauthenticated external outcome claims.
     return {
@@ -199,6 +260,8 @@ def audit_outcome_source_claims(
         "frozen_candidates":len(frozen_ids),
         "internally_evaluable_outcomes":reconciliation["internally_evaluable_outcome_count"],
         "local_source_claims_consistent":passed,
+        "local_source_labels_bound":bound_count,
+        "require_document_label_binding":require_document_label_binding,
         "eligible_outcomes_missing_or_inconsistent_sources":
             reconciliation["internally_evaluable_outcome_count"]-passed,
         "blocker_count":len(blockers),

@@ -296,3 +296,104 @@ def test_us_dst_source_receipt_does_not_upgrade_early_negative(
         "RESEARCH_LABEL_AVAILABLE_SOURCE_UNVERIFIED"
         if eligible else "PREMATURE_NEGATIVE_LABEL")
     assert result["actual_leader_prediction_certified"] is False
+
+
+def test_source_audit_fails_closed_on_reconciler_status_disagreement(
+        tmp_path, monkeypatch):
+    from eraleader import outcome_source_claims as module
+    original=module.reconcile_holdout_outcomes
+    def conflicting_status(*args, **kwargs):
+        report=original(*args, **kwargs)
+        report["candidate_evidence_sample"]=[
+            {**row,"status":"PREMATURE_NEGATIVE_LABEL"}
+            if row["security_id"]=="B" else row
+            for row in report["candidate_evidence_sample"]
+        ]
+        return report
+    monkeypatch.setattr(module,"reconcile_holdout_outcomes",conflicting_status)
+    with pytest.raises(ValueError,match="evaluator disagree"):
+        audit(make_bundle(tmp_path))
+
+
+def test_source_audit_refuses_more_claims_than_evaluable_labels(
+        tmp_path, monkeypatch):
+    from eraleader import outcome_source_claims as module
+    original=module.reconcile_holdout_outcomes
+    def conflicting_total(*args, **kwargs):
+        report=original(*args, **kwargs)
+        report["internally_evaluable_outcome_count"]-=1
+        return report
+    monkeypatch.setattr(module,"reconcile_holdout_outcomes",conflicting_total)
+    with pytest.raises(ValueError,match="exceed sealed"):
+        audit(make_bundle(tmp_path))
+
+# Strict local receipt-to-outcome binding remains research-only, never a provider signature.
+def bound_bundle(tmp_path):
+    base=make_bundle(tmp_path)
+    labels={x["security_id"]:x for x in json.loads(base[1].read_text())}
+    receipts=json.loads(base[2].read_text())
+    for claim in receipts["claims"]:
+        sec=claim["security_id"]
+        blob=json.dumps({"schema_version":"eraleader.outcome_label_evidence.v1",
+                         **labels[sec]},sort_keys=True).encode()
+        (tmp_path/claim["file"]).write_bytes(blob)
+        claim["sha256"]=sha256(blob).hexdigest()
+    base[2].write_text(json.dumps(receipts))
+    return base
+
+
+def test_strict_binding_refuses_opaque_document_even_with_valid_hash(tmp_path):
+    base=make_bundle(tmp_path)
+    result=audit(base,require_document_label_binding=True)
+    assert result["local_source_claims_consistent"]==0
+    assert result["local_source_labels_bound"]==0
+    assert result["blocker_count"]==3
+    assert "A:SOURCE_DOCUMENT_LABEL_BINDING_REQUIRED" in result["blockers"]
+
+
+def test_strict_binding_accepts_exact_canonical_outcome_fields_but_not_certified(tmp_path):
+    base=bound_bundle(tmp_path)
+    result=audit(base,require_document_label_binding=True)
+    assert result["local_source_claims_consistent"]==3
+    assert result["local_source_labels_bound"]==3
+    assert result["blocker_count"]==0
+    assert result["actual_leader_prediction_certified"] is False
+
+
+@pytest.mark.parametrize("field,value",[
+    ("security_id","B"),
+    ("is_future_leader",False),
+    ("mature_at","2026-08-02T17:00:00+09:00"),
+    ("outcome_available_at","2026-08-04T17:00:00+09:00"),
+    ("leader_start_at","2026-05-11T10:00:00+09:00"),
+])
+def test_strict_binding_detects_falsified_source_label_even_if_receipt_rehashed(
+        tmp_path,field,value):
+    base=bound_bundle(tmp_path)
+    p=tmp_path/"A.json"
+    doc=json.loads(p.read_text())
+    doc[field]=value
+    blob=json.dumps(doc,sort_keys=True).encode()
+    p.write_bytes(blob)
+    receipts=json.loads(base[2].read_text())
+    receipts["claims"][0]["sha256"]=sha256(blob).hexdigest()
+    base[2].write_text(json.dumps(receipts))
+    result=audit(base,require_document_label_binding=True)
+    assert result["local_source_claims_consistent"]==2
+    assert result["local_source_labels_bound"]==2
+    assert "A:SOURCE_DOCUMENT_LABEL_BINDING_MISMATCH" in result["blockers"]
+    assert result["actual_leader_prediction_certified"] is False
+
+def test_cli_strict_document_binding_from_synthetic_receipts(tmp_path,capsys):
+    base=bound_bundle(tmp_path/"sources")
+    out=tmp_path/"derived"
+    main(["audit-outcome-source-claims",
+          "--freeze-file",str(base[0]),"--outcomes",str(base[1]),
+          "--receipt-manifest",str(base[2]),"--evaluated-at",CUTOFF,
+          "--require-document-label-binding","--out",str(out)])
+    result=json.loads(capsys.readouterr().out)
+    assert result["local_source_claims_consistent"]==3
+    report=json.loads((out/"outcome_source_claims_research.json").read_text())
+    assert report["local_source_labels_bound"]==3
+    assert report["require_document_label_binding"] is True
+    assert report["independently_source_authenticated"] is False

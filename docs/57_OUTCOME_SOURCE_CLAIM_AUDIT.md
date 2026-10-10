@@ -37,3 +37,19 @@ python3 scripts/check_handoff.py
 기존 `audit_outcome_source_claims`는 봉인된 WATCH 최초 등록의 **현지 날짜+horizon**만 비교하여 종료 당일 **1분 전** 성숙한 음성 라벨도 `RESEARCH_LABEL_AVAILABLE_SOURCE_UNVERIFIED`로 분류했다. 이미 고친 `reconcile_holdout_outcomes`는 이 음성을 `PREMATURE_NEGATIVE_LABEL`로 보류하므로 동일 라벨의 두 모듈 결과가 불일치했고, 원천 claim PASS 수가 실제 내부 평가 가능 건수보다 커질 수 있었다.
 
 이 감사도 `recorded_at_utc`의 **KR/US 거래소 현지 시각**에 고정 `horizon_days` 달력일을 더한 뒤 UTC 절대시각으로 검사한다. 결과 라벨 공개/인용 문서 SHA 검증은 바꾸지 않는다. KR 180일 종료 16:59(보류), 17:00(가능), 17:01(가능) 및 US 2026년 3월 EST→EDT 10일 만기 15:59(보류), 16:00·16:01(가능) 등 **6개 신규 합성 회귀**. 수정 전 KR 16:59가 FAIL인 실제 결함을 재현하고 수정 후 원천 감사·기존 홀드아웃 평가기 수치 일치 확인. 이는 로컬 모의 원천의 시각 내부 일치성이지 실제 발굴 성과, 독립 공급자 공증 또는 상폐/기업행동 인증이 아니다. 외부 API/D-021 SSD 물리 시험은 마지막으로 연기.
+
+## 2026-10-11 추가 — 5_5 원천 주장과 봉인 평가기의 이중 일치 게이트
+
+동일한 만기 판정이 여러 보고 모듈에 반복되며 시간이 지나 불일치할 위험을 줄이기 위해, 원천 감사가 `reconcile_holdout_outcomes`의 후보별 봉인 상태(최대 1000개 샘플)와 직접 대조하게 했다. 라벨이 없는 상태는 아직 만기 전/후 모두 `NO_OUTCOME_LABEL`로 안전 취급하고, 라벨이 있으면 시점별 `LABEL_NOT_YET_AVAILABLE`/`PREMATURE_NEGATIVE_LABEL`/`RESEARCH_LABEL_AVAILABLE_SOURCE_UNVERIFIED`가 반드시 일치해야 한다. 불일치 때 로컬 분석 보고서를 발행하지 않고 명확히 예외 처리한다. 소스 증빙 PASS 건수가 봉인 평가기 내부 평가가능 건수를 초과할 때에도 실패로 종료한다. 두 가지 불일치 합성 장애주입 회귀를 추가했다.
+
+원천 데이터 신뢰성 인증은 여전히 거짓이다. 이는 단지 내부 판정의 교차일관성과 오분류 차단이다.
+
+## 2026-10-11 — 5_5 오프라인 결과 원천 문서의 종목·라벨 내용 결합 (추가 선택 계약)
+
+문서 파일의 SHA256가 정확하더라도 **문서 안에서 다른 종목을 주장하거나 서로 다른 positive/negative 라벨을 포함**하는 경우 기존 해시/발행시각 검사만으로 발견하지 못했다. 연구용 정규화 JSON 소스만 대상으로 선택적 엄격 검사를 추가했다. 기존 임의 공급자 원문 JSON을 해석하거나 변경하지 않도록 기본 동작은 유지한다.
+
+- `audit-outcome-source-claims ... --require-document-label-binding` 실행 시 각 문서가 `eraleader.outcome_label_evidence.v1` 정규화 JSON이어야 한다.
+- 필수 필드 `schema_version`, `security_id`, `label_definition_id`, `is_future_leader`, `mature_at`, `outcome_available_at`; 양성이면 `leader_start_at` 필수. 각 label의 영구 후보 ID/동결 정의 및 시각을 별도 라벨 JSON과 대조한다. ISO 시각은 같은 UTC 순간이면 동등하며 미국 DST 전후에도 비교한다.
+- JSON 스키마가 없거나 opaque/raw 문서이면 `SOURCE_DOCUMENT_LABEL_BINDING_REQUIRED`, SHA는 맞지만 필드가 다르면 `SOURCE_DOCUMENT_LABEL_BINDING_MISMATCH`. 해시가 다른 파일은 기존 `SOURCE_BYTES_SHA256_MISMATCH` 우선. 결측/오류는 자동으로 실패 라벨을 만들지 않고 출처 확인 보류로 계산.
+- 결과에 `require_document_label_binding`, `local_source_labels_bound`, 각 후보 `source_document_label_binding_checked`가 포함된다. 기본 모드의 legacy source claim 규칙, raw/source 파일 미업로드, 봉인된 평가 로직은 변경하지 않는다.
+- 합성 normalized JSON 한정으로 동일 문서·라벨 3개 결합, 파일 해시를 재계산해도 다른 종목/라벨/시각을 주장하는 5개 변조, opaque JSON 차단 및 CLI 재현. 해당 **정규화된 JSON이 스스로 거짓 내용을 기록한 경우는 여전히 탐지하지 못한다**. `independently_source_authenticated=false`, `actual_leader_prediction_certified=false` 불변; 공식 자료/실전 적중률 아님.

@@ -561,7 +561,8 @@ def execute_pit_chain(args) -> dict:
 def execute_outcome_source_claims(args) -> dict:
     result=audit_outcome_source_claims(
         Path(args.freeze_file),Path(args.outcomes),Path(args.receipt_manifest),
-        evaluated_at=args.evaluated_at,sample_limit=args.sample_limit)
+        evaluated_at=args.evaluated_at,sample_limit=args.sample_limit,
+        require_document_label_binding=args.require_document_label_binding)
     path=Path(args.out)/"outcome_source_claims_research.json"
     write_json(path,result)
     return {"status":result["status"],"path":str(path),
@@ -778,6 +779,8 @@ def main(argv=None):
     source_claims.add_argument("--receipt-manifest",required=True)
     source_claims.add_argument("--evaluated-at",required=True)
     source_claims.add_argument("--sample-limit",type=int,default=100)
+    source_claims.add_argument("--require-document-label-binding",action="store_true",
+        help="Require normalized local evidence JSON to match each exact supplied outcome label")
     source_claims.add_argument("--out",default=str(OUT))
     reconcile=sub.add_parser("reconcile-holdout-outcomes",
                        help="Match matured sealed cohort and separate research labels; never claim verified accuracy")

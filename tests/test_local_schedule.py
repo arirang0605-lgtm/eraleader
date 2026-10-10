@@ -85,12 +85,18 @@ def test_launchd_weekday_local_plist_generation(tmp_path):
     (project / "scripts").mkdir(parents=True)
     (project / "scripts" / "run_local_scheduled.py").touch()
     target = tmp_path / "agent.plist"
-    mod.write_launch_agent(target, python=Path("/usr/bin/python3"), project=project)
+    bootstrap = tmp_path / "offline-launcher.sh"
+    mod.write_launch_agent(target, python=Path("/usr/bin/python3"), project=project,
+                           bootstrap_path=bootstrap)
     content = plistlib.loads(target.read_bytes())
     assert content["Label"] == "org.eraleader.offline-research"
     assert [x["Weekday"] for x in content["StartCalendarInterval"]] == [2,3,4,5,6]
     assert all(x["Hour"] == 18 and x["Minute"] == 10 for x in content["StartCalendarInterval"])
-    assert content["ProgramArguments"][1] == str(project / "scripts" / "run_local_scheduled.py")
+    assert content["ProgramArguments"] == ["/bin/sh",str(bootstrap)]
+    assert content["StartInterval"] == 3600
+    assert bootstrap.read_text().startswith("#!/bin/sh")
+    assert "--project" in bootstrap.read_text()
+    assert bootstrap.stat().st_mode & 0o777 == 0o700
     assert content["RunAtLoad"] is True
     with pytest.raises(ValueError):
         mod.write_launch_agent(target, python=Path("/usr/bin/python3"),
@@ -121,3 +127,34 @@ def test_deleted_or_corrupt_backup_forces_retry(folders, monkeypatch):
     third=mod.run_scheduled(**folders,today=date(2026,10,10),sessions=sessions)
     assert called["batch"]==3 and third["status"]=="RESEARCH_ONLY_VERIFIED_BACKUP"
     assert Path(third["archive"]).read_bytes()==b"valid"
+
+def test_home_bootstrap_survives_missing_and_restored_external_cache(tmp_path,monkeypatch):
+    import subprocess,sys
+    project=tmp_path/"Removable SSD"/"era leader"
+    script=project/"scripts"/"run_local_scheduled.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("print('LOCAL_RESEARCH_ENTRYPOINT_REACHED')")
+    cache=tmp_path/"not-yet-mounted-cache"
+    monkeypatch.setattr(mod,"LEGACY_DEFAULT",cache)
+    launcher=tmp_path/"home"/"offline-launcher.sh"
+    mod.write_launch_agent(tmp_path/"agent.plist",project=project,
+                           python=Path(sys.executable),bootstrap_path=launcher)
+    missing=subprocess.run(["/bin/sh",str(launcher)],capture_output=True,text=True,check=True)
+    assert "SKIPPED_EXTERNAL_SSD_UNAVAILABLE" in missing.stdout
+    assert "ENTRYPOINT_REACHED" not in missing.stdout
+    cache.mkdir()
+    restored=subprocess.run(["/bin/sh",str(launcher)],capture_output=True,text=True,check=True)
+    assert "LOCAL_RESEARCH_ENTRYPOINT_REACHED" in restored.stdout
+
+def test_bootstrap_target_symlink_is_rejected(tmp_path):
+    project=tmp_path/"project"
+    (project/"scripts").mkdir(parents=True)
+    (project/"scripts"/"run_local_scheduled.py").touch()
+    outside=tmp_path/"outside.txt"
+    outside.write_text("do not change")
+    launcher=tmp_path/"launcher.sh"
+    launcher.symlink_to(outside)
+    with pytest.raises(ValueError,match="Symlink"):
+        mod.write_launch_agent(tmp_path/"agent.plist",project=project,
+                               python=Path("/usr/bin/python3"),bootstrap_path=launcher)
+    assert outside.read_text()=="do not change"

@@ -137,3 +137,8 @@
 ## 2026-10-10 추가 — 2_2 원천 기록 정정/기업 동일성 감사 강화
 
 - `source_vintage.py`에서 동일 기록ID의 issuer 바뀜, 개정번호 공개시간 역전, 가격의 거래일 이전 이용 가능 날짜를 차단. 상세 `docs/37_SOURCE_VINTAGE_MANIFEST_AUDIT.md`; 신규 테스트 6개 포함 **전체 185개 PASS**. 실전 원천 PIT 인증은 여전히 미완료. 최신 Git 원격 SHA는 `PROJECT_STATE.md` 맨 아래 확인.
+
+## 2026-10-10 새 LaunchAgent 복구 경로
+
+- `docs/39_LAUNCHD_SSD_RECOVERY.md`: 맥북 홈디스크 `~/Library/Application Support/EraLeader/offline-launcher.sh`에서 SSD 연결 확인 후 Python 로컬 배치 실행. 불연결 시 조용히 건너뛰고 다음 매시간 재검사, 평일 18:10/로그인시 실행 유지. 재생성된 사용자 LaunchAgent exit 0, 시세 신선도 규칙 유지, stderr 빈 로그 확인.
+- `pytest 187 PASS`; 실제 하드웨어 SSD 제거·맥북 재부팅 테스트는 **아직 안 함**. 추가 실전 PIT/API 연결 없음. 현재 Git SHA, 코드/테스트/푸시 기록은 `PROJECT_STATE.md` 마지막 체크포인트 확인.

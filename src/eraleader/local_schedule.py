@@ -12,6 +12,7 @@ import fcntl
 import json
 import os
 import plistlib
+import shlex
 import sys
 import uuid
 
@@ -104,23 +105,52 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
         return record
 
 def write_launch_agent(path: Path, *, python: Path, project: Path,
-                       hour: int = 18, minute: int = 10) -> Path:
-    """Generate a user-level launchd definition. Does not install/load it."""
+                       hour: int = 18, minute: int = 10,
+                       bootstrap_path: Path | None = None) -> Path:
+    """Generate a user-level launchd definition and SSD-safe home bootstrap.
+
+    Does not install/load the agent. The stable home bootstrap can exit 0
+    while a removable SSD is missing, then retry on next launchd interval.
+    """
     if not (0 <= hour <= 23 and 0 <= minute <= 59):
         raise ValueError("Invalid local schedule time")
     script = project / "scripts" / "run_local_scheduled.py"
     if not script.is_file():
         raise FileNotFoundError(script)
-    output = project / "output" / "scheduled"
-    # launchd starts outside an interactive shell. Keep its initial working
-    # directory and log endpoints on the home volume (removable SSD may
-    # not be mounted or allowed during login).
+    # launchd launches this small durable shell script from the home volume.
+    # A missing external volume is not a fatal agent configuration error.
+    helper = (Path(bootstrap_path) if bootstrap_path is not None else
+              Path.home() / "Library" / "Application Support" / "EraLeader" / "offline-launcher.sh")
+    if helper.is_symlink() or helper.parent.is_symlink():
+        raise ValueError("Symlink launcher paths are not allowed")
+    helper.parent.mkdir(parents=True, exist_ok=True)
+    unavailable = "SKIPPED_EXTERNAL_SSD_UNAVAILABLE"
+    quoted_script = shlex.quote(str(script))
+    quoted_project = shlex.quote(str(project))
+    quoted_python = shlex.quote(str(python))
+    quoted_cache = shlex.quote(str(LEGACY_DEFAULT))
+    bootstrap = chr(10).join([
+        "#!/bin/sh",
+        f"if [ ! -f {quoted_script} ] || [ ! -d {quoted_cache} ]; then",
+        f"  echo {unavailable}",
+        "  exit 0",
+        "fi",
+        f"exec {quoted_python} {quoted_script} --project {quoted_project}",
+        ""
+    ])
+    temp = helper.with_name(f".{helper.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temp.write_text(bootstrap, encoding="utf-8")
+        temp.chmod(0o700)
+        os.replace(temp, helper)
+    finally:
+        temp.unlink(missing_ok=True)
     logs = Path.home() / "Library" / "Logs" / "EraLeader"
     logs.mkdir(parents=True, exist_ok=True)
     document = {
         "Label": "org.eraleader.offline-research",
-        "ProgramArguments": [str(python), str(script),
-                             "--project", str(project)],
+        "ProgramArguments": ["/bin/sh", str(helper)],
+        "StartInterval": 3600,
         "StartCalendarInterval": [{"Weekday": day, "Hour": hour, "Minute": minute}
                                   for day in range(2, 7)],
         "RunAtLoad": True,

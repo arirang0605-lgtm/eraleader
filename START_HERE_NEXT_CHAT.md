@@ -205,3 +205,14 @@
 
 - `docs/49_FISCAL_SOURCE_FRESHNESS.md` + `offline_features.py`, `research.py`, `prospective.py`, `watch_progression.py`: 재무/산업 보고기간이 판단일로부터 450일 초과하거나, 매출·영업이익 보고기간 불일치/필수 수치 누락이면 **성장 스크리닝 평가 보류**. 평가 보류는 WATCH 약화(false)로 원장에 등록하지 않음. CLI 및 로컬 웹에서 `deferred_research_screens`와 STALE 플래그 표시.
 - 합성 2024 당시 자료는 성장 hit 1(당시 실제 등록 아님/현재 재생 시 backfill), 2026 동일 자료에서는 성장 hit 0 / 기업 2건 보류 / 신규 미래 후보 0 / 잘못된 약화 0. 실제 로컬 HTTP 200. 신규 10케이스 포함 `pytest 380 PASS`; 실전 미래 성능 인증 안 됨, API는 사용자 지시로 미연결. Git 커밋/remote SHA 결과는 `PROJECT_STATE.md` 최하단 실제 검사 기준.
+
+## 2026-10-10 18시대 신규 2_3 PIT 시간대 누출 회귀 (다음 세션 참고)
+
+- **로컬 실제 수정:** `src/eraleader/offline_pit.py` 상장/상폐·기업행동 유효일은 전달 시각의 UTC나 호출자 타임존 날짜가 아닌 **해당 거래소 KR/US 현지일**로 판정. US/KR 교차 시간대 + 뉴욕 DST 합성 회귀 5개: 원래 코드 4 실패를 수정 후 5 통과. `tests/test_snapshot_market_clock.py`, `docs/50_MARKET_LOCAL_PIT_DAY.md`.
+- 관련 테스트 31/31 PASS, 전체 **385 pytest PASS**, 인수인계 30개 번호 PASS, Public 안전검사 3개 파일 suspicious=0. 공급자 PIT·실전 적중률 인증은 여전히 0.
+- **GitHub 중요:** 세 코드/테스트/문서 경로만 staged 상태이며 **Git commit 자체를 원격 도구 안전 검사에서 차단**, 따라서 **이 기능 GitHub push 없음**. 다른 병렬 세션의 재무 신선도 상태 커밋 `d0289e17998692f93a5b1d4d17a8dc21438df7ee`는 HEAD/원격 일치하지만 **이 기능의 커밋이 아님**. `PROJECT_STATE.md` 맨 마지막과 `git status -sb` 읽고 안전하게 이어서 개발할 것. 도구 허용 시 세 파일 범위 commit/push부터, 안 되면 staged 보존하고 독립적인 다음 로컬 기능 진행.
+
+## 2026-10-10 검증 완료 — PIT 현지 거래일·통합 분석·옵션형 자동 배치
+
+- 2_3 `offline_pit.py` KR/US 현지 효력일 regression **385 테스트**, 소스 commit `91715ef` 원격 푸시 확인(과거 메모의 차단은 후속 성공으로 해소). 3_5 `research.py` PIT↔가격 현지 거래일 조인 검증 7개 추가 **392 PASS**, `a73f35e` 원격 푸시. 6_1 연구 배치 `batch --integrate-pit-research`는 명시적 옵션으로만 실행, KR/US 현지 결정 시각·오프라인 원장 필수 사전검사 후 PIT 재무/산업·가격·WATCH 원장·6 Markdown 보고 및 미발송 알림 경로 연결. 신규 8개 테스트 포함 **400 PASS**, `c5f356b` 푸시, 독립 git archive 400 PASS. `docs/50_MARKET_LOCAL_PIT_DAY.md`, `docs/51_INTEGRATED_MARKET_DAY_ALIGNMENT.md`, `docs/52_EXPLICIT_OFFLINE_PIT_BATCH.md` 확인.
+- 실가격 캐시는 읽기 전용 **과거 2024년**, 재무 원장은 **합성**: 2시장, 보고 6개, KR 한 건 과거 소급 WATCH, US 한 건 보류, 실제 대장주 0/메시지 0/API 0. 기본 launchd 배치 여전히 가격 연구만, 외부 API 마지막 연결. 전체 1_1~6_5 최종 인증/실전 미래 발굴 정확도 **미확인**. 최신 Git/원격 SHA는 `PROJECT_STATE.md` 최하단과 `git status -sb` 확인.

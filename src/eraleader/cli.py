@@ -16,6 +16,7 @@ from .delivery import write_dashboard,make_report,write_integrated_dashboard,wri
 from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .offline_features import financial_snapshot
+from .peer_normalization import normalize_peer_file
 from .research import integrated_snapshot
 from .discovery_metrics import evaluate_early_discovery
 from .walkforward import walk_forward_split
@@ -154,6 +155,9 @@ def execute_offline_features(args) -> dict:
                 "deferred_research_screens":scored["research_screens_deferred"],
                 "quality":scored["quality"]}
     finally:ledger.close()
+
+def execute_peer_normalization(args) -> dict:
+    return normalize_peer_file(Path(args.input), Path(args.out), min_peers=args.min_peers)
 
 def execute_integrated(args) -> dict:
     source=OfflineLedger(Path(args.out)/"offline.sqlite")
@@ -604,6 +608,10 @@ def main(argv=None):
     features.add_argument("--market",choices=["KR","US"],default="KR")
     features.add_argument("--as-of",required=True,help="Timezone-aware ISO timestamp")
     features.add_argument("--out",default=str(OUT))
+    peer=sub.add_parser("audit-peer-normalization",help="Research-only same-industry as-of percentiles")
+    peer.add_argument("--input",required=True,help="Existing offline-features JSON")
+    peer.add_argument("--out",required=True,help="New derived JSON; never overwrite")
+    peer.add_argument("--min-peers",type=int,default=3)
     join=sub.add_parser('offline-integrated',help='PIT-aligned research join')
     join.add_argument('--market',choices=['KR','US'],default='KR')
     join.add_argument('--as-of',required=True)
@@ -812,6 +820,7 @@ def main(argv=None):
         elif args.command=="alerts-preview":result=execute_alerts(args)
         elif args.command=="offline-import":result=execute_offline_import(args)
         elif args.command=="offline-features":result=execute_offline_features(args)
+        elif args.command=="audit-peer-normalization":result=execute_peer_normalization(args)
         elif args.command=="offline-integrated":result=execute_integrated(args)
         elif args.command=="validate-discovery":result=execute_validation(args)
         elif args.command=="walkforward":result=execute_walkforward(args)

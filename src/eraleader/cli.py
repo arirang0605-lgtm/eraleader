@@ -19,6 +19,8 @@ from .research import integrated_snapshot
 from .discovery_metrics import evaluate_early_discovery
 from .walkforward import walk_forward_split
 from .state_history import StateHistory
+from .corporate_returns import reconstruct_total_return
+from .universe_audit import audit_observed_universe
 
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"output"
@@ -177,6 +179,47 @@ def execute_walkforward(args) -> dict:
             "test_candidates":len(result["test_candidates"]),
             "historic_universe_certified":False}
 
+def execute_corporate_research(args) -> dict:
+    bundle=json.loads(Path(args.file).read_text(encoding="utf-8"))
+    if not isinstance(bundle,dict) or not isinstance(bundle.get("bars"),list) or not isinstance(bundle.get("actions"),list):
+        raise ValueError("Corporate-action evaluation expects JSON with bars/actions lists")
+    if bundle.get("schema_version")!="corporate_return_research_v1" or bundle.get("price_basis")!=args.price_basis:
+        raise ValueError("Corporate return input schema/price basis mismatch")
+    if bundle.get("provenance") not in ("synthetic_fixture","external_public_file","user_supplied"):
+        raise ValueError("Corporate return input provenance must be explicit")
+    for flag in ("corporate_actions_complete","price_sessions_complete"):
+        if flag in bundle and not isinstance(bundle[flag],bool):
+            raise ValueError("Quality attestations must be booleans")
+    result=reconstruct_total_return(
+        bundle["bars"],bundle["actions"],
+        decision_at=args.decision_at,evaluated_at=args.evaluated_at,
+        security_id=args.security_id,market=args.market,
+        price_basis=args.price_basis,
+        corporate_actions_complete=bool(bundle.get("corporate_actions_complete",False)),
+        price_sessions_complete=bool(bundle.get("price_sessions_complete",False)))
+    target=Path(args.out)/"corporate_returns_research.json"
+    write_json(target,result)
+    return {"status":result["status"],"path":str(target),
+            "total_return_research":result["total_return"],
+            "actions_applied":result["actions_applied"],
+            "pit_certified":False}
+
+def execute_universe_audit(args) -> dict:
+    bars,source_quality=read_market_bars("KR",date.fromisoformat(args.as_of),
+                             days=args.days,legacy_root=Path(args.legacy))
+    audit=audit_observed_universe(bars,date.fromisoformat(args.as_of))
+    audit["source"]=source_quality["source"]
+    audit["cached_price_quality"]=source_quality
+    target=Path(args.out)/"universe_observation_audit.json"
+    write_json(target,audit)
+    return {"status":audit["status"],"path":str(target),
+            "last_observation":audit["last_observation"],
+            "observed_symbols_current":audit["observed_symbols_current"],
+            "appeared_count":audit["appeared_count"],
+            "disappeared_count":audit["disappeared_count"],
+            "halted_count":audit["halted_count"],
+            "historic_membership_certified":False}
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog="eraleader",description="Offline EraLeader prototype (APIs disabled)")
     parser.add_argument("--version",action="version",version=__version__)
@@ -239,6 +282,19 @@ def main(argv=None):
     batch.add_argument("--legacy",default=str(LEGACY_DEFAULT))
     batch.add_argument("--days",type=int,default=550)
     batch.add_argument("--top",type=int,default=20)
+    cr=sub.add_parser("corporate-return",help="Offline raw split/dividend total return, research only")
+    cr.add_argument("--file",required=True,help="Raw bars and announced actions JSON")
+    cr.add_argument("--security-id",required=True)
+    cr.add_argument("--market",choices=["KR","US"],required=True)
+    cr.add_argument("--decision-at",required=True,help="Timezone-aware signal time")
+    cr.add_argument("--evaluated-at",required=True,help="Timezone-aware evaluation cutoff")
+    cr.add_argument("--price-basis",choices=["raw_unadjusted"],required=True)
+    cr.add_argument("--out",default=str(OUT))
+    ua=sub.add_parser("audit-universe",help="Historical observed listed symbols; not certified")
+    ua.add_argument("--as-of",required=True)
+    ua.add_argument("--legacy",default=str(LEGACY_DEFAULT))
+    ua.add_argument("--days",type=int,default=30)
+    ua.add_argument("--out",default=str(OUT))
     args=parser.parse_args(argv)
     try:
         if args.command=="run":result=execute_run(args)
@@ -250,6 +306,8 @@ def main(argv=None):
         elif args.command=="offline-integrated":result=execute_integrated(args)
         elif args.command=="validate-discovery":result=execute_validation(args)
         elif args.command=="walkforward":result=execute_walkforward(args)
+        elif args.command=="corporate-return":result=execute_corporate_research(args)
+        elif args.command=="audit-universe":result=execute_universe_audit(args)
         elif args.command=="batch":
             from .batch import execute_local_batch
             result=execute_local_batch(args)

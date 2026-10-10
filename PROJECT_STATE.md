@@ -8,11 +8,11 @@
 
 > 2026-10-10 KST. 이 절이 현재 상태의 단일 기준(SSOT)입니다. 아래 이전 기록은 작성 당시의 역사적 상태입니다.
 
-- **현재(2026-10-10 최신)**: 기존 1~6 로컬 기초 통합 + 2_2·2_3 오프라인 PIT/3_1~3_3 산업·실적 피처에 이어 **3_4·3_5 가격·재무·산업 시점 결합, 4_2~4_5 상태·이벤트 이력(합성 검증), 5_2 조기 발견 리드타임/오탐 계산기, 6_2 통합 연구 웹페이지** 추가. **전체 pytest 54개 PASS, 로컬 e2e 및 한국·미국 실제 캐시 배치 PASS**. 5_3 워크포워드 분리/6단계 KR+US 배치 추가; `docs/30_WALKFORWARD_LOCAL_BATCH.md` 참고. 실전용 완전한 PIT·검증된 미래 대장주 성능·전체 30개 작업 완성은 **미완료**. 상세 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`.
+- **현재(2026-10-10 최신)**: 기존 1~6 로컬 기초 통합 + 2_2·2_3 오프라인 PIT/3_1~3_3 산업·실적 피처에 이어 **3_4·3_5 가격·재무·산업 시점 결합, 4_2~4_5 상태·이벤트 이력(합성 검증), 5_2 조기 발견 리드타임/오탐 계산기, 6_2 통합 연구 웹페이지** 추가. **전체 pytest 72개 PASS, 로컬 e2e·한국/미국 캐시 배치·기업행동 수익률/관측 종목군 감사 실행 PASS**. 5_3 워크포워드 분리/6단계 KR+US 배치 추가; `docs/30_WALKFORWARD_LOCAL_BATCH.md` 참고. 실전용 완전한 PIT·검증된 미래 대장주 성능·전체 30개 작업 완성은 **미완료**. 상세 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`.
 - **테스트 근거**: marcap 1995~2026 연도별 Parquet 32개 / 15,648,407행 메타데이터 대조 PASS. 005930 2025년 1월 18거래일 로컬 캐시 조회 PASS. 기존 미국 업종 모멘텀 계산 실행 PASS. **투자 성능·PIT 적합성 검증은 아님**.
 - **Git 상태(2026-10-10 최신)**: 사용자 **Public GitHub 업로드 승인**. 로컬 origin을 `https://github.com/arirang0605-lgtm/eraleader.git`에 연결해 **최초 main push 성공**, 초기 원격 체크포인트 `eb439ba`. `.secrets/`는 owner-only이며 Git ignore. 이후 커밋·추가 push 상태는 이 파일 하단 최신 기록 참고.
 - **기존 재활용**: `/Volumes/T5DATA/CycleOS-Lab_BacktestEngine` 읽기 전용, `/Volumes/T5DATA/backtestengine`은 확인 당시 빈 폴더. 분할·배당·상폐·공시 이용시각·라이선스 추가 검증 필요.
-- **다음 작업**: `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`. **2_2/2_5 역사적 상폐·기업행동/종목군 품질 강화, 4~5 실제 자료 PIT/워크포워드, 6단계 로컬 자동운영·대시보드·보고/복구성**. 모든 미완료 항목을 1_1~6_5로 관리하고 추가 승인 요청 없이 계속 개발. 외부 API는 로컬 기능 마무리 뒤 연결.
+- **다음 작업**: `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md`의 첫 미완료 항목. 2_2·2_5 원천 PIT 커버리지/조정가격·상폐 정산 교차검증, 5단계 실제 거래가능성·비용/워크포워드 강화, 6단계 로컬 자동운영·백업/복구. **현재 분할·배당 계산 및 실측 시장 종목군 감사 프로토타입은 구현·테스트 완료(독립 PIT 인증은 아님)**. 모든 미완료 항목을 1_1~6_5로 관리하고 추가 승인 요청 없이 계속 개발. 외부 API는 로컬 기능 마무리 뒤 연결.
 - **재개 순서**: `START_HERE_NEXT_CHAT.md` → `AGENTS.md` → 상태 상단 → 관련 상세 MD 1~2개. 기존 코드 무단 재작성, 반복 전체 대화 분석 금지.
 
 ---
@@ -227,3 +227,14 @@
 - 비대화형 Codex 사용 가능성을 시험했지만 쿼터 한도로 실행되지 않아, 검증되지 않은 24시간 연속 Codex 작업기를 가동한 척하지 않음. 미검증 작업기 초안은 실행/설치하지 않고 제거. 실제 코드와 기존 데이터 변경 없음.
 - 현재 검증된 코드 기준은 **pytest 54 PASS**, 마지막 코드·상태 커밋 `509ab24` 및 원격 main 동기화(이번 운영 문서 기록 전 상태). 개발 최우선 미완료 내용은 `docs/30_WALKFORWARD_LOCAL_BATCH.md` 참고.
 - 다음 실행: PC 연결 및 Codex/ChatGPT 사용 가능 여부 확인 → 기존 코드·테스트를 이어서 개발 → 실제 검사 통과 시 Public GitHub main에 push 및 결과 기록. API 연결은 로컬 기능 검증 완료 후.
+
+## 개발 이어서 진행한 작업 — 2026-10-10 (2_2·2_5, 5_2 연구기반)
+
+- **이번에 실제 구현**: `src/eraleader/corporate_returns.py` (raw 종가 분할·배당 재구성, 장마감 전에 알 수 없는 종가 접근 차단, 상폐·합병·권리·정지 시 불확실 정산을 0원/0%로 조작하지 않고 fail-closed), `src/eraleader/universe_audit.py` (과거 두 장의 종목 존재/무거래·관측 누락 비교). 독립 실제 소스의 완전성 검증은 여전히 필요.
+- **CLI 변경**: `corporate-return` (시점/종목ID/비조정 raw 가격명시·JSON 입력), `audit-universe` (로컬 read-only 가격 캐시 사용). `output/`에 결과 저장, Git 제외.
+- **테스트**: `PYTHONPATH=src python3 -m pytest tests -q` → **73 PASS / 0 FAIL** (이전 54 + 기업행동/종목군 안전 검증 19). `python3 scripts/check_handoff.py` → PASS (검사 이전 기존 필수 31개, 이후 신규 파일 추가).
+- **실제 로컬 자료 실행**: `PYTHONPATH=src python3 -m eraleader audit-universe --as-of 2026-10-02 --days 35 --out output/research_universe_20261002` → PASS. marcap 자료 2026-10-02 기준 **관측코드 2,873, 거래정지·무거래 플래그 132, 직전 관측일 대비 등장 0/미관측 0**. 상폐·법적 상장 종목수로 단정하지 않음.
+- **합성 계산 테스트**: 2:1 분할 및 배당 효과로 '가격 반감 = 수익 -50%'라는 오류 방지, SYN-SPLIT의 3일 구간 raw close 총수익 0% (가상 예제, 실전 성과 아님).
+- **현재 제한**: 기업행동 보정 가능 원시가격 완전성, delist proceeds, 역사적 universe 전체 PIT, 공시 이용 가능 시각/최종 모델 실증 부재. 연구용 반환 결과 `pit_certified=false` 강제.
+- **다음**: 2_2/2_5 source-level PIT 커버리지 증명 및 상폐 정산/보정가격 교차검증 → 5_2/5_4/5_5 비용/워크포워드/정량 발견성능 → 6_5 독립 로컬 일정 및 복구. 외부 API 연결은 로컬 완성 후, 이번에도 별도 API 호출 0.
+- **세부 증거**: `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md`. Git 변경 파일·커밋 SHA·푸시 결과는 이 작업의 최종 체크포인트에서 추가 기록.

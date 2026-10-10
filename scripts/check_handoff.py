@@ -42,6 +42,12 @@ required=[
  "src/eraleader/batch.py",
  "tests/test_walkforward.py",
  "tests/test_batch.py",
+ "docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md",
+ "src/eraleader/corporate_returns.py",
+ "src/eraleader/universe_audit.py",
+ "tests/test_corporate_returns.py",
+ "tests/test_universe_audit.py",
+ "tests/fixtures/corporate_split_dividend_synthetic.json",
 ]
 errors=[]
 for name in required:

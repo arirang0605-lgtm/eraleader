@@ -1,0 +1,48 @@
+{
+  "schema_version": "corporate_return_research_v1",
+  "provenance": "synthetic_fixture",
+  "price_basis": "raw_unadjusted",
+  "corporate_actions_complete": false,
+  "price_sessions_complete": false,
+  "bars": [
+    {
+      "security_id": "SYN-SPLIT",
+      "session": "2024-04-01",
+      "close": 100,
+      "tradable": true,
+      "available_at": "2024-04-01T15:40:00+09:00"
+    },
+    {
+      "security_id": "SYN-SPLIT",
+      "session": "2024-04-02",
+      "close": 50,
+      "tradable": true,
+      "available_at": "2024-04-02T15:40:00+09:00"
+    },
+    {
+      "security_id": "SYN-SPLIT",
+      "session": "2024-04-03",
+      "close": 49,
+      "tradable": true,
+      "available_at": "2024-04-03T15:40:00+09:00"
+    }
+  ],
+  "actions": [
+    {
+      "security_id": "SYN-SPLIT",
+      "action_id": "SPLIT-1",
+      "action_type": "split",
+      "effective_on": "2024-04-02",
+      "known_at": "2024-03-25T09:00:00+09:00",
+      "ratio": 2
+    },
+    {
+      "security_id": "SYN-SPLIT",
+      "action_id": "DIV-1",
+      "action_type": "dividend",
+      "effective_on": "2024-04-03",
+      "known_at": "2024-03-26T09:00:00+09:00",
+      "cash_amount": 1
+    }
+  ]
+}

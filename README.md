@@ -192,3 +192,10 @@ PYTHONPATH=src python3 -m eraleader serve --port 8765
 - **연구용 batch**: `PYTHONPATH=src python3 -m eraleader batch --kr-as-of 2026-10-02 --us-as-of 2026-02-23 --out output/batch_20261010`. 실제 SSD 캐시로 2개 국가·일/주/월 보고서 6개·로컬 HTML·알림 미리보기 생성 PASS, 재실행 새 알림 0건.
 - **walkforward**: 피처/라벨 시점 분리 및 embargo, 미래 라벨 격리 (아직 완성된 실전 검증 아님). **pytest 54 PASS**.
 - 소스 가격 관측일이 양국마다 다르므로 해당 실행을 최신 실전 장마감 리포트로 오해하지 않는다. API·실제 메일·메시지 전송은 없음.
+
+## 16. 기업행동·상장종목군 품질 감사 (2026-10-10)
+
+- [2_2·2_5 기업행동 수익률과 시장 종목군 관측 감사 결과](docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md)
+- `PYTHONPATH=src python3 -m eraleader corporate-return --help`: 비조정(raw) 종가와 공시·실효일을 이용한 분할/배당 누적수익 복원(연구용). 과거 종가의 `available_at`이 신호시점 후라면 누출 차단.
+- `PYTHONPATH=src python3 -m eraleader audit-universe --as-of 2026-10-02 --days 35`: 실제 SSD 캐시 관측 종목군 비교. 직전/당일 등장·미관측·무거래/정지 플래그 검사, 실제 상장폐지 진실 등록부로 오인 금지.
+- **전체 pytest 73 PASS**, 외부 API·유료 데이터 요청 없음. 인증된 분할/배당·상폐 재무/기업행동 완전성 검증은 미완료이며 현황에 명시.

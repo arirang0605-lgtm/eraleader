@@ -10,7 +10,7 @@
 ## GitHub 저장소 상태 (2026-10-10 확인)
 
 - GitHub 저장소 **`arirang0605-lgtm/eraleader`** 생성 확인: https://github.com/arirang0605-lgtm/eraleader
-- 기본 브랜치 `main`, 원격 크기 `0`, **확인 당시 PUBLIC(공개)**. SSD에서 로컬 Git `main` 초기화됨, **원격 연결·push 미진행**. 로컬 마지막 커밋은 `PROJECT_STATE.md` 최신 기록 확인.
+- 기본 브랜치 `main`, **PUBLIC(공개)** 유지 및 사용자 명시 승인에 따라 **GitHub origin/main 연결·푸시 완료**. 최초 생성 당시 크기 0/미연결은 과거 기록이며 최신 SHA와 테스트는 `PROJECT_STATE.md` 상단·하단 및 `git status -sb`에서 확인.
 - **사용자 최신 승인(2026-10-10)**: 공개(Public) 저장소에 코드·MD·설계도 GitHub push 허용. 키·토큰·원시 시세·민감 데이터는 `.secrets/` 등 로컬 전용 영역에 저장하고 Git 제외. 강제 push 금지. 6단계까지 추가 단계 승인 질문 없이 개발하되 테스트 증거 보존.
 - 최신 구체 내용: `docs/26_GITHUB_REPO_HANDOFF.md`.
 
@@ -62,7 +62,7 @@
 
 ## 다음 실제 개발 작업 (가장 우선, 아직 미완료)
 
-**최신 NEXT_TASK = 2_2·2_5 기업행동/상폐 PIT 보강 + 4~5단계 실제 근거 검증 + 6단계 로컬 자동화**. 3_4·3_5 결합/4_2~4_5 상태 이력/5_2 계산기/6_2 연구 화면까지 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`로 개발됐고 **54개 테스트 통과**, 이어서 `docs/30_WALKFORWARD_LOCAL_BATCH.md`에 5_3 워크포워드 및 6단계 로컬 KR+US 일/주/월 배치 구현/실행 결과 반영. 이전 초기 TODO는 역사적 계획으로만 취급. 사용자 Public GitHub 푸시 승인 완료.
+**최신 NEXT_TASK = 2_2·2_5 기업행동/상폐 PIT 원천 감사·조정가격 교차검증 + 5단계 실제 검증 + 6단계 로컬 자동화**. 2026-10-10 `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md`에 분할/배당 비조정 총수익 계산·KR 종목군 관측 감사까지 구현/실행했고 **전체 pytest 72개 통과**. 3_4·3_5 결합/4_2~4_5 상태 이력/5_2 계산기/6_2 연구 화면까지 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`로 개발됐고 **54개 테스트 통과**, 이어서 `docs/30_WALKFORWARD_LOCAL_BATCH.md`에 5_3 워크포워드 및 6단계 로컬 KR+US 일/주/월 배치 구현/실행 결과 반영. 이전 초기 TODO는 역사적 계획으로만 취급. 사용자 Public GitHub 푸시 승인 완료.
 
 1. 이 경로가 Git 미초기화 상태임을 확인하고 독립 Python 패키지 구조·pytest 환경을 만든다. 새 GitHub **Private** 저장소 연결은 사용자 승인 후 시행.
 2. `scripts/read_cached_marcap.py`의 로컬 가격 읽기 기능을 **새 패키지의 read-only 데이터 어댑터**로 편입하되 원본 경로를 강제 의존으로 만들지 않는다.

@@ -12,10 +12,17 @@ from .cli import (execute_run, execute_report, execute_alerts, execute_integrate
                   read_market_bars, score_price_observations, run_id_for,
                   integrated_snapshot, write_json)
 from .offline_pit import OfflineLedger
+from .pit_publication import execute_published_pit_batch
 
 PERIODS=("daily","weekly","monthly")
 
 def execute_local_batch(args: Namespace) -> dict:
+    if getattr(args, "integrate_pit_research", False) is True:
+        return execute_published_pit_batch(args, _execute_local_batch_impl)
+    return _execute_local_batch_impl(args)
+
+
+def _execute_local_batch_impl(args: Namespace) -> dict:
     # Explicit opt-in only. Scheduled price-only reporting does NOT silently
     # convert its cache into corporate PIT/fundamental research candidates.
     integrate=getattr(args,"integrate_pit_research",False)

@@ -42,8 +42,9 @@ def test_full_optin_offline_batch_two_markets_and_idempotence(src,capsys):
     result=json.loads(capsys.readouterr().out)
     assert result["integrated_research_markets"]==2
     assert result["reports_created"]==6
-    manifest=json.loads((src/"batch_manifest.json").read_text())
+    manifest=json.loads(Path(result["manifest"]).read_text())
     assert manifest["explicit_offline_pit_research"] is True
+    assert Path(result["publication_pointer"]).is_file()
     assert manifest["official_leaders_confirmed"]==0
     assert manifest["messages_sent"]==0 and manifest["external_api_calls"]==0
     for market in manifest["markets"]:
@@ -53,7 +54,10 @@ def test_full_optin_offline_batch_two_markets_and_idempotence(src,capsys):
         assert Path(pit["research_dashboard"]).is_file()
     main(optin(src))
     capsys.readouterr()
-    latest=json.loads((src/"batch_manifest.json").read_text())
+    latest=json.loads(Path(src/"current_pit_batch.json").read_text())
+    assert latest["schema_version"]=="eraleader.pit_batch_publication.v1"
+    from eraleader.pit_publication import verify_pit_publication
+    latest=json.loads(Path(verify_pit_publication(src)["manifest"]).read_text())
     assert all(x["pit_research"]["new_watch_research_signals"]==0
                for x in latest["markets"])
 

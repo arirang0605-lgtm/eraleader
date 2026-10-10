@@ -34,6 +34,7 @@ from .evidence_gate import evaluate_local_evidence
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
 from .watch_progression import audit_watch_progression
+from .pit_publication import verify_pit_publication
 from .local_backup import create_backup, verify_backup, restore_backup
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -442,6 +443,13 @@ def execute_watch_progression(args) -> dict:
             "historical_backfills":result["excluded_retrospective_observations"],
             "official_state_promotions":0}
 
+def execute_publication_verify(args) -> dict:
+    verified=verify_pit_publication(Path(args.out))
+    if verified is None:
+        return {"status":"NO_PUBLISHED_PIT_RESEARCH_GENERATION",
+                "official_leaders":0,"pit_certified":False}
+    return verified
+
 def execute_backup(args) -> dict:
     if args.command=="backup-local":
         return create_backup(Path(args.out),Path(args.archive))
@@ -610,6 +618,9 @@ def main(argv=None):
     wp.add_argument("--model-version",required=True)
     wp.add_argument("--max-lag-days",type=int,default=3)
     wp.add_argument("--out",default=str(OUT))
+    pv=sub.add_parser("verify-pit-publication",
+                      help="Verify current immutable KR+US PIT research generation, never official leader data")
+    pv.add_argument("--out",required=True)
     bkp=sub.add_parser("backup-local",help="Consistent SQLite + safe local output archive")
     bkp.add_argument("--out",default=str(OUT))
     bkp.add_argument("--archive",required=True)
@@ -638,6 +649,7 @@ def main(argv=None):
         elif args.command=="audit-issuer-lineage":result=execute_issuer_lineage(args)
         elif args.command=="audit-evidence-gate":result=execute_evidence_gate(args)
         elif args.command=="audit-watch-progression":result=execute_watch_progression(args)
+        elif args.command=="verify-pit-publication":result=execute_publication_verify(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

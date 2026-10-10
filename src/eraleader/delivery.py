@@ -92,3 +92,50 @@ def make_report(snapshot: dict, period: str, target: Path) -> Path:
     target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text("\n".join(lines),encoding="utf-8")
     return target
+
+
+def render_integrated_dashboard(result: dict) -> str:
+    """Show PIT research with unmissable provenance and missing-value warnings."""
+    from html import escape as esc
+    if result.get("confirmed_leaders",0) or result.get("potential_leaders",0):
+        if not result.get("pit_certified",False):
+            raise ValueError("Uncertified leader classifications must not be rendered")
+    body=[]
+    for item in result["company_rows"]:
+        def val(value):
+            return "N/A" if value is None else esc(str(value))
+        body.append("<tr>"+
+          "".join(f"<td>{val(v)}</td>" for v in (
+            item["security_id"],item["ticker"],item["industry_id"],
+            item["revenue_yoy"],item["operating_income_yoy"],
+            item["revenue_yoy_acceleration"],item["industry_revenue_yoy"],
+            item["momentum_6m"],item["state"],
+            ",".join(item["missing_factors"])))+"</tr>")
+    trusted="검증 완료" if result.get("pit_certified") else "미검증 / 관찰·연구용"
+    quality=esc(", ".join(result.get("quality",{}).get("provenances",[])) or "원천 미상")
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EraLeader 시점별 통합 분석</title><style>{BASE_CSS}</style></head><body>
+<header><h1>EraLeader · 산업·실적·가격 통합 연구</h1>
+<a href="index.html" style="color:white">처음으로</a></header><main>
+<h2>기준시각: {esc(result["as_of"])} · {esc(result["market"])}</h2>
+<div class="note"><strong>연구용: {trusted}</strong><br>
+합성 자료 또는 불완전한 과거 원본이면 대장주 승격 금지.
+과거 상장종목군/기업행동/원시 공시의 PIT 완전성이 확인되지 않았습니다.
+<br>데이터 출처 상태: {quality}</div>
+<div class="stats"><div class="stat">기업 수<br><strong>{result["company_count"]}</strong></div>
+<div class="stat">초기 성장 관찰 (연구)<br><strong>{result["research_growth_screen_count"]}</strong></div>
+<div class="stat">확정 대장주<br><strong>0 — 검증 보류</strong></div></div>
+<h2>시점별 기업 성장 관찰</h2>
+<div class="wrap"><table><thead><tr><th>ID</th><th>티커</th><th>산업</th>
+<th>매출 YoY</th><th>영업이익 YoY</th><th>매출성장 가속</th>
+<th>산업 YoY</th><th>가격 6개월</th><th>상태</th><th>누락·보류</th>
+</tr></thead><tbody>{''.join(body)}</tbody></table></div>
+<p><small>완전한 과거 시점 데이터·미래 발굴 성능 인증 전 투자 추천 아님.</small></p>
+</main></body></html>"""
+
+def write_integrated_dashboard(result: dict, site_dir: Path) -> Path:
+    site_dir.mkdir(parents=True,exist_ok=True)
+    path=site_dir/f"research_{result['market'].lower()}.html"
+    path.write_text(render_integrated_dashboard(result),encoding="utf-8")
+    return path

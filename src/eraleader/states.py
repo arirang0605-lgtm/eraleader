@@ -23,7 +23,10 @@ def evaluate_leader_state(
     pit_ok=all(evidence.get(k,False) for k in (
         "financial_pit","historic_universe_pit","corporate_actions_pit"))
     if missing or not pit_ok:
-        return {"state":"WATCH","total":None,
+        # Do not silently reinterpret a previously verified leader as merely
+        # uninteresting when essential sources disappear; it is a data halt.
+        safe_state="PAUSED" if previous in ("POTENTIAL","CONFIRMED","WEAKENING") else "WATCH"
+        return {"state":safe_state,"total":None,
                 "reason":"Unverified or incomplete PIT evidence; no candidate promotion",
                 "missing":missing,"pit_verified":False}
     for k,maxval in SCORE_MAX.items():

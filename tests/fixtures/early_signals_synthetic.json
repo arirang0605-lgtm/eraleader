@@ -1,0 +1,14 @@
+[
+  {
+    "security_id": "SYN-A",
+    "first_seen": "2024-02-01"
+  },
+  {
+    "security_id": "SYN-B",
+    "first_seen": "2024-02-10"
+  },
+  {
+    "security_id": "SYN-C",
+    "first_seen": "2024-03-01"
+  }
+]

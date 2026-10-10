@@ -177,3 +177,11 @@ PYTHONPATH=src python3 -m eraleader serve --port 8765
 - **가상 예제**: `PYTHONPATH=src python3 -m eraleader offline-import --file tests/fixtures/offline_synthetic.json --out output/demo_offline`
 - **분석 예제**: `PYTHONPATH=src python3 -m eraleader offline-features --market KR --as-of '2024-09-01T17:00:00+09:00' --out output/demo_offline`
 - 연구용 합성 데이터는 `output/demo_offline/`에만 저장, 실제 한국·미국 가격 목록과 혼합 금지. 아직 종목별 역사 완전성/재무 PIT 제공자 검증 전이라 확정 대장주를 발표하지 않는다.
+
+## 14. 3~6단계 로컬 연결 및 GitHub 동기화 (2026-10-10)
+
+- **코드·테스트·실행방법:** [29_LOCAL_STAGE3_TO_6_MILESTONE.md](docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md).
+- 가격·산업·재무 시점 결합 `offline-integrated` 명령을 추가해 `output/demo_offline/site/research_kr.html` 연구 화면까지 생성.
+- 최초 발굴→정식 평가 시점의 **조기 발견 품질 계산기** `validate-discovery`, 상태·변경 이벤트 이력 `state_history.py` 구현. 연구용 synthetic fixture만 검증함.
+- **pytest 49개 PASS**, 로컬 HTTP e2e PASS. 30개 세부 작업 전체 완료는 아니며 PIT/실전 모델 검증·외부 API 연결은 보류.
+- GitHub **Public push 사용 승인됨**, `main`에 최초 push 성공. API/인증키는 `.secrets/` 로컬 전용(Git ignore)으로 보관. 후속 체크포인트는 `PROJECT_STATE.md` 최신 기록을 기준으로 한다.

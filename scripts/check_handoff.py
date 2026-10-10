@@ -30,6 +30,13 @@ required=[
  "src/eraleader/offline_features.py",
  "tests/test_offline_pit.py",
  "tests/fixtures/offline_synthetic.json",
+ "docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md",
+ "src/eraleader/research.py",
+ "src/eraleader/state_history.py",
+ "src/eraleader/discovery_metrics.py",
+ "tests/test_research.py",
+ "tests/test_state_history.py",
+ "tests/test_discovery_metrics.py",
 ]
 errors=[]
 for name in required:

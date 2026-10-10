@@ -8,11 +8,11 @@
 
 > 2026-10-10 KST. 이 절이 현재 상태의 단일 기준(SSOT)입니다. 아래 이전 기록은 작성 당시의 역사적 상태입니다.
 
-- **현재(2026-10-10 개발 계속)**: 1~6 로컬 통합 MVP에 이어 **2_2(종목 이력·상폐·분할/배당 공개시각 원장), 2_3(미래정보 누출 차단·정정), 3_1~3_3(오프라인 산업/기업 성장 피처)**를 추가 구현. **전체 자동 테스트 33개 통과**, 오프라인 CSV/JSON 수입과 시점별 연구 결과 생성 성공. 전체 실데이터 PIT/공급자 완전성·확정 대장주 판정·정식 성과 검증은 **미완료**. 상세: `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`, `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`.
+- **현재(2026-10-10 최신)**: 기존 1~6 로컬 기초 통합 + 2_2·2_3 오프라인 PIT/3_1~3_3 산업·실적 피처에 이어 **3_4·3_5 가격·재무·산업 시점 결합, 4_2~4_5 상태·이벤트 이력(합성 검증), 5_2 조기 발견 리드타임/오탐 계산기, 6_2 통합 연구 웹페이지** 추가. **전체 pytest 49개 PASS, 로컬 e2e PASS**. 실전용 완전한 PIT·검증된 미래 대장주 성능·전체 30개 작업 완성은 **미완료**. 상세 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`.
 - **테스트 근거**: marcap 1995~2026 연도별 Parquet 32개 / 15,648,407행 메타데이터 대조 PASS. 005930 2025년 1월 18거래일 로컬 캐시 조회 PASS. 기존 미국 업종 모멘텀 계산 실행 PASS. **투자 성능·PIT 적합성 검증은 아님**.
-- **Git 상태(2026-10-10)**: SSD `/Volumes/T5DATA/eraleader`에서 **로컬 Git 저장소 `main` 초기화 완료**. GitHub `arirang0605-lgtm/eraleader`는 당시 Public·size 0. 원격 연결·push **미진행**. 로컬 커밋 SHA는 아래 최신 개발 실행 기록에서 확인. 상세: `docs/26_GITHUB_REPO_HANDOFF.md`.
+- **Git 상태(2026-10-10 최신)**: 사용자 **Public GitHub 업로드 승인**. 로컬 origin을 `https://github.com/arirang0605-lgtm/eraleader.git`에 연결해 **최초 main push 성공**, 초기 원격 체크포인트 `eb439ba`. `.secrets/`는 owner-only이며 Git ignore. 이후 커밋·추가 push 상태는 이 파일 하단 최신 기록 참고.
 - **기존 재활용**: `/Volumes/T5DATA/CycleOS-Lab_BacktestEngine` 읽기 전용, `/Volumes/T5DATA/backtestengine`은 확인 당시 빈 폴더. 분할·배당·상폐·공시 이용시각·라이선스 추가 검증 필요.
-- **다음 작업**: `docs/28_OFFLINE_PIT_FEATURE_IMPLEMENTATION.md`의 후속 과제. **3_4·3_5 가격 RS + 산업·재무 PIT 피처 통합 계약 → 4_2~4_5 후보 상태 변경 엔진 안전 연결 → 5_2~5_5 조기 발견 능력 검증**. 실제 원자료 누락 상태에서는 WATCH/N/A 유지. API 연결은 로컬 기능 완성 후 별도.
+- **다음 작업**: `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`. **2_2/2_5 역사적 상폐·기업행동/종목군 품질 강화, 4~5 실제 자료 PIT/워크포워드, 6단계 로컬 자동운영·대시보드·보고/복구성**. 모든 미완료 항목을 1_1~6_5로 관리하고 추가 승인 요청 없이 계속 개발. 외부 API는 로컬 기능 마무리 뒤 연결.
 - **재개 순서**: `START_HERE_NEXT_CHAT.md` → `AGENTS.md` → 상태 상단 → 관련 상세 MD 1~2개. 기존 코드 무단 재작성, 반복 전체 대화 분석 금지.
 
 ---
@@ -186,3 +186,15 @@
 - **GitHub**: `arirang0605-lgtm/eraleader`는 마지막 확인 시 Public. origin 연결·push **하지 않음**. 사용자 공개 범위 승인 또는 Private 전환 확인 전 push 금지.
 - **미해결 문제**: 과거 상장/상폐와 분할·배당/산업 분류 전 범위 PIT 인증 미완료, 유료 컨센서스 이력 없음, 실제 재무·산업 데이터 연결 없음, 잠재/확정 대장주 생성 불가.
 - **다음 첫 작업**: 3_4·3_5 가격 RS/산업/실적 시점 피처 결합 → 4단계 상태/이벤트 게이트 실제 데이터 연동 → 5단계 조기 발견 검증.
+
+## GitHub 최초 공개 push 및 3~6단계 연구 엔진 연동 (2026-10-10)
+
+- **사용자 승인:** Public 저장소 `arirang0605-lgtm/eraleader` 코드/문서 푸시 허용, 인증키 별도 보관, 추가 단계 승인 질문 없이 **6단계까지 개발 지속**. 원시 데이터/API 연결은 로컬 완성 뒤로 연기.
+- **최초 원격 push:** `origin=https://github.com/arirang0605-lgtm/eraleader.git`, `git push -u origin main` 성공. 최초 push HEAD `eb439ba` (이전 `5513ffb`, `14f41f4` 등 포함).
+- **비밀정보:** `.secrets/` 로컬 생성 `drwx------`, 파일 없음(사용자 키 미제공), `.gitignore`에서 제외; `scripts/check_git_safety.py` staged 검사 0건 의심. 키값 로그/대화/Git에 기록하지 않음.
+- **추가 개발 ID:** 3_4·3_5 결합 연구 엔진(`src/eraleader/research.py`), 4_2~4_5 오프라인 상태 변경·불변 이력(`state_history.py`), 5_2 이후 조기 발견 품질 평가 기반(`discovery_metrics.py`), 6_2 산업/실적/가격 통합 연구 HTML(`delivery.py`). CLI `offline-integrated`, `validate-discovery` 추가.
+- **실행/테스트:** `PYTHONPATH=src python3 -m pytest tests -q` → **49 PASS**; `PYTHONPATH=src python3 scripts/verify_local_mvp.py` → PASS(HTTP 200 3개); `python3 scripts/check_handoff.py` → PASS. 합성 검증 예시는 첫 발견 1·오탐 1·검증 전 1, **실제 투자성과 아님**.
+- **실제 검증 가능한 산출물:** `output/demo_offline/runs/joined_kr_*.json`, `output/demo_offline/site/research_kr.html`, `output/demo_offline/validation_research.json`. 실전용 기업/산업 자료와 분리.
+- **미완료:** 실제 공시 PIT/산업원천·상폐·기업행동 총체 검증, 타임머신·워크포워드/홀드아웃/ablation, 라이브 자동 보고·알림, 1~6단계 전체 30개 세부 기능. 최종 목표 미래 대장주 조기 발견 성능은 아직 실증되지 않음.
+- **다음 미완료:** `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`에 따라 2_2·2_5 PIT 강화 → 4~5 실증/워크포워드 → 6 로컬 자동 운영 검증. 외부 API는 마지막.
+- **추가 push 커밋 SHA/결과:** 바로 다음 체크포인트 기록에서 확인.

@@ -11,10 +11,12 @@ from . import __version__
 from .data import LEGACY_DEFAULT, read_market_bars
 from .discovery import score_price_observations, detect_watch_changes,run_id_for
 from .pit import LocalStore
-from .delivery import write_dashboard,make_report
+from .delivery import write_dashboard,make_report,write_integrated_dashboard
 from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .offline_features import financial_snapshot
+from .research import integrated_snapshot
+from .discovery_metrics import evaluate_early_discovery
 
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"output"
@@ -112,6 +114,41 @@ def execute_offline_features(args) -> dict:
                 "quality":scored["quality"]}
     finally:ledger.close()
 
+def execute_integrated(args) -> dict:
+    source=OfflineLedger(Path(args.out)/"offline.sqlite")
+    try:
+        offline=source.snapshot(args.as_of,market=args.market)
+        price=json.loads(Path(args.price_json).read_text(encoding="utf-8")) if args.price_json else None
+        result=integrated_snapshot(offline,price,args.as_of)
+    finally:
+        source.close()
+    target=Path(args.out)/"runs"/f"joined_{args.market.lower()}_{result['run_id']}.json"
+    if target.exists():
+        existing=json.loads(target.read_text(encoding="utf-8"))
+        if existing!=result:
+            raise ValueError("Existing immutable run differs from candidate")
+    else:
+        write_json(target,result)
+    page=write_integrated_dashboard(result,Path(args.out)/'site')
+    return {"status":"OFFLINE_INTEGRATION_RESEARCH_ONLY","dashboard":str(page),
+            "path":str(target),"company_count":result["company_count"],
+            "growth_screen_hits":result["research_growth_screen_count"],
+            "official_leaders":0,"pit_certified":False}
+
+def execute_validation(args) -> dict:
+    signals=json.loads(Path(args.signals).read_text(encoding="utf-8"))
+    outcomes=json.loads(Path(args.outcomes).read_text(encoding="utf-8"))
+    if not isinstance(signals,list) or not isinstance(outcomes,list):
+        raise ValueError("Evaluation requires two JSON arrays")
+    result=evaluate_early_discovery(signals,outcomes,evaluated_at=args.evaluated_at,
+                                    horizon_days=args.horizon_days)
+    target=Path(args.out)/"validation_research.json"
+    write_json(target,result)
+    return {"status":result["status"],"path":str(target),
+            "true_early_discoveries":result["true_early_discoveries"],
+            "false_discoveries":result["false_discoveries"],
+            "censored":result["censored"],"note":"Synthetic/partial outcomes not performance certification"}
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog="eraleader",description="Offline EraLeader prototype (APIs disabled)")
     parser.add_argument("--version",action="version",version=__version__)
@@ -149,6 +186,17 @@ def main(argv=None):
     features.add_argument("--market",choices=["KR","US"],default="KR")
     features.add_argument("--as-of",required=True,help="Timezone-aware ISO timestamp")
     features.add_argument("--out",default=str(OUT))
+    join=sub.add_parser('offline-integrated',help='PIT-aligned research join')
+    join.add_argument('--market',choices=['KR','US'],default='KR')
+    join.add_argument('--as-of',required=True)
+    join.add_argument('--price-json')
+    join.add_argument('--out',default=str(OUT))
+    evaluate=sub.add_parser("validate-discovery",help="Post hoc early detection quality, research only")
+    evaluate.add_argument("--signals",required=True)
+    evaluate.add_argument("--outcomes",required=True)
+    evaluate.add_argument("--evaluated-at",required=True)
+    evaluate.add_argument("--horizon-days",type=int,default=180)
+    evaluate.add_argument("--out",default=str(OUT))
     args=parser.parse_args(argv)
     try:
         if args.command=="run":result=execute_run(args)
@@ -157,6 +205,8 @@ def main(argv=None):
         elif args.command=="alerts-preview":result=execute_alerts(args)
         elif args.command=="offline-import":result=execute_offline_import(args)
         elif args.command=="offline-features":result=execute_offline_features(args)
+        elif args.command=="offline-integrated":result=execute_integrated(args)
+        elif args.command=="validate-discovery":result=execute_validation(args)
         else:
             site=Path(args.out)/"site"
             site.mkdir(parents=True,exist_ok=True)

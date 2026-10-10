@@ -11,7 +11,7 @@ from . import __version__
 from .data import LEGACY_DEFAULT, read_market_bars
 from .discovery import score_price_observations, detect_watch_changes,run_id_for
 from .pit import LocalStore
-from .delivery import write_dashboard,make_report,write_integrated_dashboard
+from .delivery import write_dashboard,make_report,write_integrated_dashboard,write_prospective_dashboard
 from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .offline_features import financial_snapshot
@@ -22,6 +22,7 @@ from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .universe_audit import audit_observed_universe
 from .pit_coverage import reconcile_membership_to_prices
+from .prospective import ProspectiveRegistry
 from .local_backup import create_backup, verify_backup, restore_backup
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -147,8 +148,17 @@ def execute_integrated(args) -> dict:
         tracked=ledger.record(args.market,args.as_of,observations)
     finally:
         ledger.close()
+    registry=ProspectiveRegistry(Path(args.out)/"prospective.sqlite")
+    try:
+        registration=registry.record_integrated(result)
+        prospective_report=registry.first_signals(args.market)
+    finally:
+        registry.close()
+    prospective_page=write_prospective_dashboard(prospective_report,Path(args.out)/"site")
     return {"status":"OFFLINE_INTEGRATION_RESEARCH_ONLY",
+            "prospective_dashboard":str(prospective_page),
             "state_events":len(tracked["new_state_events"]),"dashboard":str(page),
+            "new_prospective_research_signals":registration["new_records"],
             "path":str(target),"company_count":result["company_count"],
             "growth_screen_hits":result["research_growth_screen_count"],
             "official_leaders":0,"pit_certified":False}
@@ -221,6 +231,22 @@ def execute_universe_audit(args) -> dict:
             "disappeared_count":audit["disappeared_count"],
             "halted_count":audit["halted_count"],
             "historic_membership_certified":False}
+
+def execute_prospective_export(args) -> dict:
+    registry_path=Path(args.out)/"prospective.sqlite"
+    if not registry_path.is_file():
+        raise FileNotFoundError(f"Missing prospective signal ledger: {registry_path}")
+    registry=ProspectiveRegistry(registry_path)
+    try:
+        report=registry.first_signals(args.market)
+    finally:
+        registry.close()
+    target=Path(args.out)/f"prospective_{args.market.lower()}_research.json"
+    write_json(target,report)
+    page=write_prospective_dashboard(report,Path(args.out)/"site")
+    return {"status":report["status"],"path":str(target),"dashboard":str(page),
+            "first_registration_signals":report["distinct_companies"],
+            "historic_pit_certified":False}
 
 def execute_coverage(args) -> dict:
     ledger_path=Path(args.ledger)
@@ -325,6 +351,9 @@ def main(argv=None):
     ua.add_argument("--legacy",default=str(LEGACY_DEFAULT))
     ua.add_argument("--days",type=int,default=30)
     ua.add_argument("--out",default=str(OUT))
+    prospect=sub.add_parser("prospective-signals",help="Export first actually registered research WATCH signals")
+    prospect.add_argument("--market",choices=["KR","US"],required=True)
+    prospect.add_argument("--out",default=str(OUT))
     cv=sub.add_parser("audit-pit-coverage",help="Compare observed prices to an offline PIT listing ledger; not certified")
     cv.add_argument("--market",choices=["KR","US"],required=True)
     cv.add_argument("--as-of",required=True,help="Timezone-aware decision timestamp")
@@ -354,6 +383,7 @@ def main(argv=None):
         elif args.command=="corporate-return":result=execute_corporate_research(args)
         elif args.command=="audit-universe":result=execute_universe_audit(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
+        elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command in ("backup-local","verify-backup","restore-backup"):
             result=execute_backup(args)
         elif args.command=="batch":

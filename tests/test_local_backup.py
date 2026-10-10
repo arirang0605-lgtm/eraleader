@@ -116,3 +116,39 @@ def test_backup_cli_create_verify_restore(tmp_path,capsys):
     recovered=json.loads(capsys.readouterr().out)
     assert recovered["status"]=="LOCAL_BACKUP_RESTORED"
     assert (target/"state.sqlite").is_file()
+
+def test_prospective_registry_survives_verified_backup_restore(tmp_path):
+    from datetime import datetime, timezone
+    from eraleader.prospective import ProspectiveRegistry
+    output=workspace(tmp_path)
+    registry=ProspectiveRegistry(output/"prospective.sqlite")
+    sample={"market":"KR","as_of":"2024-09-01T17:00:00+09:00",
+            "run_id":"test-run-v1","version":"era-offline-join-0.1",
+            "pit_certified":False,"offline_provenance":["synthetic_fixture"],
+            "company_rows":[{"security_id":"SYN-1","market":"KR",
+                 "as_of":"2024-09-01T17:00:00+09:00","state":"WATCH",
+                 "full_score":None,"verified_future_leader_candidate":False,
+                 "research_growth_screen_hit":True}]}
+    try:
+        registry.record_integrated(sample,clock=datetime(2026,10,10,tzinfo=timezone.utc))
+    finally:
+        registry.close()
+    archive=tmp_path/"prospective_backup.zip"
+    created=create_backup(output,archive)
+    assert created["file_count"]==5
+    with ZipFile(archive) as z:
+        assert "prospective.sqlite" in z.namelist()
+        assert "raw_secret.json" not in z.namelist()
+        assert ".env" not in z.namelist()
+    verify_backup(archive)
+    recovered=tmp_path/"restored_with_prospective"
+    restore_backup(archive,recovered)
+    restored_ledger=ProspectiveRegistry(recovered/"prospective.sqlite")
+    try:
+        records=restored_ledger.first_signals("KR")["first_registration_signals"]
+        assert len(records)==1
+        assert records[0]["first_seen"]=="2024-09-01"
+        assert records[0]["recorded_at"]=="2026-10-10"
+        assert records[0]["status"]=="PROSPECTIVE_RESEARCH_ONLY_PIT_NOT_CERTIFIED"
+    finally:
+        restored_ledger.close()

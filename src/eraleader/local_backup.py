@@ -16,10 +16,11 @@ import sqlite3
 import tempfile
 from zipfile import ZipFile, ZIP_DEFLATED
 
-DB_NAMES={"state.sqlite","offline.sqlite","state_history.sqlite"}
+DB_NAMES={"state.sqlite","offline.sqlite","state_history.sqlite","prospective.sqlite"}
 JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "baseline_research.json","alerts_preview.json",
-            "validation_research.json","walkforward_research.json"}
+            "validation_research.json","walkforward_research.json",
+            "prospective_kr_research.json","prospective_us_research.json"}
 FOLDERS={"site":{".html"},"reports":{".md"},"runs":{".json"}}
 MAX_FILES=400
 MAX_FILE_BYTES=40*1024*1024

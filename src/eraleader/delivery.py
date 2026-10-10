@@ -139,3 +139,44 @@ def write_integrated_dashboard(result: dict, site_dir: Path) -> Path:
     path=site_dir/f"research_{result['market'].lower()}.html"
     path.write_text(render_integrated_dashboard(result),encoding="utf-8")
     return path
+
+def render_prospective_dashboard(report: dict) -> str:
+    """Display *registration* evidence, not a historical leader ranking."""
+    if report.get("certified_performance") is not False or report.get("official_leader_signals") != 0:
+        raise ValueError("Uncertified registry must never present certified leaders")
+    market=report.get("market")
+    if market not in ("KR","US"):
+        raise ValueError("Unknown market for prospective dashboard")
+    lines=[]
+    for row in report.get("first_registration_signals",[])[:200]:
+        if row.get("pit_certified") is not False:
+            raise ValueError("Official leader certification absent")
+        values=[row.get("security_id"),row.get("first_seen"),
+                row.get("recorded_at"),"예 — 소급 입력" if row.get("historical_backfill")
+                else "아니오",row.get("signal_kind"),row.get("status")]
+        lines.append("<tr>"+"".join(f"<td>{escape(str(v))}</td>" for v in values)+"</tr>")
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EraLeader 실제 관찰 등록 시각</title><style>{BASE_CSS}</style></head><body>
+<header><h1>EraLeader · 조기 발견 시점 기록</h1>
+<nav><a href="index.html">처음으로</a><a href="research_{market.lower()}.html">통합 연구</a></nav>
+</header><main><h2>{escape(market)} 시장 · 등록 이력</h2>
+<div class="note"><strong>미검증 연구 기록 — 확정 대장주 0건</strong><br>
+관측 기준일과 실제 기록일을 별도로 표시합니다. 과거 데이터를 오늘 다시 분석한 기록은
+과거 당시 발견한 신호로 인정하지 않습니다. 시계와 원본 데이터의 독립 검증이 필요합니다.</div>
+<div class="stats"><div class="stat">기록된 기업 수<br><strong>{report["distinct_companies"]}</strong></div>
+<div class="stat">관측 이벤트 수<br><strong>{report["total_recorded_observations"]}</strong></div>
+<div class="stat">공인 조기 발굴 성과<br><strong>N/A — 검증 보류</strong></div></div>
+<h2>실제 등록된 최초 연구용 관찰 (최대 200개 표시)</h2>
+<div class="wrap"><table><thead><tr><th>종목 ID</th><th>시세·재무 관측 기준일</th>
+<th>실제 등록일</th><th>과거 데이터 재입력</th><th>신호 유형</th><th>검증 상태</th>
+</tr></thead><tbody>{''.join(lines)}</tbody></table></div>
+<p><small>로컬 시간·PIT 출처 미인증 / API 미연결 / 투자 추천 아님.</small></p>
+</main></body></html>"""
+
+def write_prospective_dashboard(report: dict, site_dir: Path) -> Path:
+    content=render_prospective_dashboard(report)
+    site_dir.mkdir(parents=True, exist_ok=True)
+    path=site_dir/f"prospective_{report['market'].lower()}.html"
+    path.write_text(content,encoding="utf-8")
+    return path

@@ -74,9 +74,14 @@ def audit_holdout_maturity(
             raise ValueError("Frozen historical backfill cannot be claimed prospective")
         first_ids.add(sec)
         registration_day = recorded.astimezone(zone).date()
-        eligibility_day = registration_day + timedelta(days=horizon)
+        # The due date alone is not proof that the complete evaluation
+        # horizon has passed. Preserve the first registration's local clock
+        # across KR/US calendar days and New York DST transitions.
+        eligibility_local = recorded.astimezone(zone) + timedelta(days=horizon)
+        eligibility_utc = eligibility_local.astimezone(timezone.utc)
+        eligibility_day = eligibility_local.date()
         days_remaining = max((eligibility_day - current_market_day).days, 0)
-        elapsed = days_remaining == 0
+        elapsed = evaluated >= eligibility_utc
         if elapsed:
             complete += 1
         else:
@@ -85,6 +90,7 @@ def audit_holdout_maturity(
             "security_id": sec,
             "registration_market_day": registration_day.isoformat(),
             "horizon_end_market_day": eligibility_day.isoformat(),
+            "horizon_end_utc": eligibility_utc.isoformat(),
             "days_until_horizon_end": days_remaining,
             "full_horizon_elapsed": elapsed,
             "outcome_source_independently_verified": False,

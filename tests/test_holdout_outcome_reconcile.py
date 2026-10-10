@@ -176,3 +176,27 @@ def test_cli_with_synthetic_labels_returns_consistent_uncertified_totals(tmp_pat
     assert out["internally_evaluable_outcome_count"]==3
     assert out["unknown_or_censored_count"]==1
     assert out["official_leader_promotions"]==0
+
+def test_reconciled_due_clock_consistent_with_sealed_evaluator(tmp_path):
+    pending = reconcile(tmp_path, at="2026-09-29T16:59:00+09:00", labels=False)
+    assert pending["horizon_pending_count"] == 4
+    assert pending["evidence_status_counts"]["HORIZON_PENDING_NO_LABEL"] == 4
+    due = reconcile_holdout_outcomes(tmp_path/"holdout_manifest.json",
+        evaluated_at="2026-09-29T17:00:00+09:00", clock=CLOCK)
+    assert due["horizon_elapsed_count"] == 4
+    assert due["evidence_status_counts"]["HORIZON_ELAPSED_NO_LABEL"] == 4
+
+
+def test_reconcile_negative_one_minute_before_full_horizon_stays_censored(tmp_path):
+    freeze(tmp_path)
+    path = outcomes_file(tmp_path)
+    rows = json.loads(path.read_text())
+    negative = next(x for x in rows if x["security_id"] == "B")
+    negative["mature_at"] = "2026-09-29T16:59:00+09:00"
+    negative["outcome_available_at"] = "2026-09-30T17:00:00+09:00"
+    path.write_text(json.dumps(rows))
+    report = reconcile_holdout_outcomes(tmp_path/"holdout_manifest.json",
+        evaluated_at=CUTOFF, outcome_file=path, clock=CLOCK)
+    assert report["evidence_status_counts"]["PREMATURE_NEGATIVE_LABEL"] == 1
+    assert report["research_result_summary"]["false_discoveries"] == 0
+    assert report["internally_evaluable_outcome_count"] == 2

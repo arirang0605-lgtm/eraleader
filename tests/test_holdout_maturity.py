@@ -51,11 +51,14 @@ def test_horizon_maturity_exact_market_local_day(tmp_path):
     early=readiness(tmp_path,"2026-09-28T17:00:00+09:00")
     assert early["horizon_pending_count"]==4
     assert all(x["days_until_horizon_end"]==1 for x in early["maturity_schedule_sample"])
-    due=audit_holdout_maturity(tmp_path/"holdout_manifest.json",
+    midnight=audit_holdout_maturity(tmp_path/"holdout_manifest.json",
          as_of="2026-09-29T00:00:00+09:00",clock=NOW)
-    assert due["horizon_elapsed_count"]==4
+    assert midnight["horizon_pending_count"]==4
     assert all(x["horizon_end_market_day"]=="2026-09-29"
-               for x in due["maturity_schedule_sample"])
+               for x in midnight["maturity_schedule_sample"])
+    due=audit_holdout_maturity(tmp_path/"holdout_manifest.json",
+         as_of="2026-09-29T17:00:00+09:00",clock=NOW)
+    assert due["horizon_elapsed_count"]==4
 
 
 def test_partial_cohort_due_counts_use_registration_not_backdated_observation(tmp_path):
@@ -101,8 +104,12 @@ def test_market_us_timezone_and_dst_market_day(tmp_path):
         clock=datetime(2026,4,20,tzinfo=timezone.utc))
     assert early["market_as_of_day"]=="2026-03-15"
     assert early["horizon_pending_count"]==1
-    matured=audit_holdout_maturity(sealed,
+    not_yet=audit_holdout_maturity(sealed,
         as_of="2026-03-16T01:00:00-04:00",
+        clock=datetime(2026,4,20,tzinfo=timezone.utc))
+    assert not_yet["horizon_pending_count"]==1
+    matured=audit_holdout_maturity(sealed,
+        as_of="2026-03-16T16:00:00-04:00",
         clock=datetime(2026,4,20,tzinfo=timezone.utc))
     assert matured["horizon_elapsed_count"]==1
     assert matured["maturity_schedule_sample"][0]["horizon_end_market_day"]=="2026-03-16"
@@ -172,3 +179,37 @@ def test_cli_and_safe_backup_only_derived_maturity_report(tmp_path,capsys):
     restore_backup(archive,restored)
     assert json.loads((restored/"holdout_maturity_research.json").read_text())==body
     assert not (restored/"private_future_labels.json").exists()
+
+def test_same_market_day_one_minute_before_horizon_remains_pending(tmp_path):
+    early = readiness(tmp_path, "2026-09-29T16:59:00+09:00")
+    assert early["horizon_elapsed_count"] == 0
+    assert early["horizon_pending_count"] == 4
+    assert all(x["full_horizon_elapsed"] is False
+               for x in early["maturity_schedule_sample"])
+    due = audit_holdout_maturity(tmp_path/"holdout_manifest.json",
+        as_of="2026-09-29T17:00:00+09:00", clock=NOW)
+    assert due["horizon_elapsed_count"] == 4
+    assert all(x["full_horizon_elapsed"] is True
+               for x in due["maturity_schedule_sample"])
+
+
+@pytest.mark.parametrize("cutoff,expected", [
+    ("2026-03-16T15:59:00-04:00", False),
+    ("2026-03-16T16:00:00-04:00", True),
+])
+def test_us_dst_maturity_needs_exact_exchange_local_clock(tmp_path, cutoff, expected):
+    reg = ProspectiveRegistry(tmp_path/"prospective.sqlite")
+    try:
+        reg.record_integrated(run(["US-X"], market="US",
+            as_of="2026-03-06T15:00:00-05:00"),
+            clock=datetime(2026, 3, 6, 21, tzinfo=timezone.utc))
+    finally:
+        reg.close()
+    target = tmp_path/"holdout.json"
+    freeze_registered_candidates(tmp_path/"prospective.sqlite", target,
+        market="US", model_version=VERSION, label_definition_id=LABEL,
+        horizon_days=10, clock=datetime(2026, 3, 7, tzinfo=timezone.utc))
+    out = audit_holdout_maturity(target, as_of=cutoff,
+        clock=datetime(2026, 4, 20, tzinfo=timezone.utc))
+    assert out["horizon_elapsed_count"] == int(expected)
+    assert out["maturity_schedule_sample"][0]["full_horizon_elapsed"] is expected

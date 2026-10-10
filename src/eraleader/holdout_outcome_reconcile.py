@@ -85,8 +85,9 @@ def reconcile_holdout_outcomes(
     ready_ids = 0
     for sec, signal in sorted(expected.items()):
         registered = _stamp(signal["recorded_at_utc"])
-        required_end = registered.astimezone(market_zone).date() + timedelta(days=horizon)
-        expired = cutoff.astimezone(market_zone).date() >= required_end
+        required_end_local = registered.astimezone(market_zone) + timedelta(days=horizon)
+        required_end = required_end_local.astimezone(timezone.utc)
+        expired = cutoff >= required_end
         label = labels.get(sec)
         if label is None:
             status = "HORIZON_ELAPSED_NO_LABEL" if expired else "HORIZON_PENDING_NO_LABEL"
@@ -96,7 +97,7 @@ def reconcile_holdout_outcomes(
             if mature > cutoff or known > cutoff:
                 status = "LABEL_NOT_YET_AVAILABLE"
             elif (label["is_future_leader"] is False and
-                    mature.astimezone(market_zone).date() < required_end):
+                    mature < required_end):
                 status = "PREMATURE_NEGATIVE_LABEL"
             else:
                 status = "RESEARCH_LABEL_AVAILABLE_SOURCE_UNVERIFIED"
@@ -106,7 +107,8 @@ def reconcile_holdout_outcomes(
             samples.append({
                 "security_id": sec,
                 "registration_market_day":registered.astimezone(market_zone).date().isoformat(),
-                "horizon_end_market_day":required_end.isoformat(),
+                "horizon_end_market_day":required_end_local.date().isoformat(),
+                "horizon_end_utc":required_end.isoformat(),
                 "status":status,
                 "horizon_elapsed":expired,
                 "declared_label_present":label is not None,

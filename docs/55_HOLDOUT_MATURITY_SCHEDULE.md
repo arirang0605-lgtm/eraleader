@@ -32,3 +32,9 @@ python3 scripts/check_handoff.py
 ## 미완료
 
 **가장 중요한 다음 작업은 독립 공급자/공시/기업행동 이력과 실제 미래 결과 자료 연결**이다. 기간 경과한 후보를 `evaluate-holdout`로 실제 평가할 때에도 outcome source authenticity, maturity/published_at, delisting consideration, market-local trading days, PIT bias 및 predeclared label definition을 독립 검증해야 한다. 실제 시대 대장주 발굴 정확도, precision/recall, 운영 인프라 최종 완성을 인증하지 않는다.
+
+## 2026-10-11 — 5_5 만기 일정 현지 시각/DST 정확성 보강
+
+기존 `audit_holdout_maturity`는 현지 **날짜**가 `recorded_at + horizon_days`에 도달한 자정부터 `full_horizon_elapsed=true`로 보고했다. 최초 WATCH가 17:00에 등록되었다면 같은 날 16:59는 아직 만기 전이다. KR/US 시장 현지 시각 기준 사전 고정 달력일을 더해 UTC 절대시각으로 비교하도록 수정. 기존 `horizon_end_market_day`/일수 표시 유지하고 감사 추적 가능한 `horizon_end_utc` 필드를 추가했다. 종료일에 `days_until_horizon_end=0`이라도 `full_horizon_elapsed=false`일 수 있다.
+
+KR 종료 1분 전/정시, 미국 2026년 3월 DST 전후(최초 16:00 EST → 10일 뒤 16:00 EDT) 신규 합성 회귀 3개와 이전 '자정부터 만기' 두 테스트의 기대값 교정. 수정 전 새 회귀 2건 실패, 수정 후 집중 재검증 성공. 결과 라벨/주도주 성공을 생성하지 않으며 독립 PIT 인증 false.

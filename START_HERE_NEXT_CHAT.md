@@ -222,6 +222,10 @@
 - `docs/53_BATCH_BOTH_MARKETS_PREFLIGHT.md`: 명시적 `batch --integrate-pit-research`에서 KR·US 양국의 시점별 상장종목·가격·통합 연구를 **두 시장 다 확인한 뒤** 상태원장·후보·보고서 저장. US 가격/PIT 오류일 때 KR 부분 산출물 안 남음. 소스 재읽기 없이 preflight price snapshot 재사용, 기본 자동 배치/launchd는 가격연구만 유지. 합성 테스트 4건 추가 → **pytest 404 PASS**, 독립 `git archive` 실행 404 PASS. 코드 commit `8a79e63` 푸시, 원격 SHA 일치, 비밀키/원시가격 Git 업로드 없음.
 - 실가격 2024년 KR·US 캐시는 read-only, 합성 PIT 원장 분리; 2시장, 6보고, 신규 후보 중복 없음, US 보류 1, 실전 메시지 0. 입력 사전검증이지 파일시스템 오류까지 100% 원자적 커밋은 아님. 실제 공급자 PIT·전향적 미래 대장주 적중률 인증 없음. 상태/remote 최신은 `PROJECT_STATE.md` 최하단/실제 Git 기준.
 
+## 2026-10-10 D-021 사용자 확정 — 실제 SSD 재연결 시험의 개발 순서
+
+- **물리적 T5DATA SSD 분리·재연결 및 맥북 재부팅 복구 시험은 외부 API 연결 후 프로젝트 최종 검증 단계로 이월**한다. 그 전에는 기존 모의 SSD 부재·복귀, 장애 주입, 상태복구/백업/해시 검증만 실행. 실제 물리적 분리·재부팅을 요청하거나 임의로 진행하지 않는다. 해당 실기 시험 미완료 상태를 기록하고 인증 완료로 표기하지 말 것. 원문 확정은 `DECISIONS.md`의 **D-021**.
+
 ## 2026-10-10 6_1/6_5 두 시장 PIT 연구 산출물 안전 게시
 
 - `src/eraleader/pit_publication.py`, `docs/54_VERSIONED_PIT_BATCH_PUBLICATION.md`: 명시적 `batch --integrate-pit-research`은 임시 세대에 양국 SQLite/HTML/6보고서를 모두 만든 뒤 파일 SHA256 영수증 검증·동일 SSD의 디렉터리 및 `current_pit_batch.json` 원자적 교체로 게시. 새 CLI `verify-pit-publication --out`으로 **현재 검증된 세대만** 조회, 이전 세대 불변, 중간 US 실패·마지막 포인터 교체 실패시 이전 정상 결과 유지, 오염된 게시 파일은 거부. 합성 오류주입 테스트 11개 신규, 전체 **pytest 415 PASS**, 실제 read-only KR/US 과거 캐시+합성 PIT 배치에서 두 세대 각각 25 산출물 검증. 기본 자동배치/launchd 및 T5DATA 원시 데이터 무수정. 실시간 발굴성능, 외부 PIT 공증/실제 전원 차단 시험 미인증.

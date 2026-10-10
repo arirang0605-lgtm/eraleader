@@ -352,3 +352,16 @@
 - 5_5 `holdout_maturity.py`와 `holdout_outcome_reconcile.py`도 처음 등록 후 180일 **현지 날짜만** 비교해 만기일 16:59를 자정부터 성숙 처리. 음성 라벨 대조가 기존 `frozen_holdout.py` 17:00 마감과 불일치하여 결과 예외 발생까지 실측. KR·US DST 경계 신규 합성 회귀 5케이스 중 **수정 전 4 FAIL** 재현, 실제 시각 마감으로 보완. 기존 2개 잘못된 자정 만기 기대 교정, `horizon_end_utc` 추적 필드 추가. 전체 **712 pytest PASS/exit 0**, handoff 30 ID PASS, staged 6 경로 Public safety 이상 0.
 - 검증 코드·테스트·문서 6개 경로 **commit `5cbc6636e33d0972c5c7222119f90cf97b169002` → GitHub Public main push 성공**, 원격·로컬 SHA 일치, 코드 릴리스 후 working tree clean. 앞서 `b5f653f` 17경로 개발 릴리스 및 `6206d12` 문서 릴리스도 반영. 최종 SHA는 실제 `git status`/PROJECT_STATE 하단 우선.
 - 다음 실제 미완료는 5_5 `outcome_source_claims.py` 남은 날짜 단위 만기 주장 검증 및 2_2/2_5 공식 원천 PIT·상폐·기업행동·조정가격 증빙, 전향적 실적. 과거 합성 테스트는 대장주 발굴 정확도 인증 아님. 외부 API D-017 후순위, SSD 물리 탈착·재부팅 D-021 최종 단계만.
+
+## 2026-10-11 KST 최신 — 5_5 선택적 결과 원천 JSON↔동결 라벨 결합 (Git commit 안전차단)
+
+- 실제 맥북/T5DATA 원격 연결·인수인계·결정·Git 확인. 먼저 다른 세션이 완료한 `ce4fe1d` 5_5 source claim exact maturity 릴리스를 반영, 기존 코드 재작성하지 않음.
+- 새로운 `audit-outcome-source-claims --require-document-label-binding`은 *정규화된 오프라인 JSON 증거*가 증거 SHA만 맞추고 **다른 issuer/라벨/성숙일/양성 시작일**을 주장하는 것을 차단. 기존 임의 raw JSON 문서는 strict를 지정하지 않으면 이전 방식 유지. `outcome_source_claims.py`, `cli.py`, `test_outcome_source_claims.py`, `docs/57_OUTCOME_SOURCE_CLAIM_AUDIT.md` 4경로만 staged.
+- 신규 7 회귀 RED 확인 후 GREEN, CLI 엄격 실행 합성 테스트와 전체 **pytest 728 PASS/exit 0**, 30작업 인수인계 PASS, Public Git safety 4경로 scanned/suspicious=4/0. source 문서도 자기선언 자료이므로 실전 인증 0, API 0, D-021 물리 SSD 탈착/재부팅 없음.
+- **Git commit/push 미완료**: 정상 명령 요청이 원격 OpenAI 안전검사 차단. 마지막 직접 확인 Git local=remote=`ce4fe1d2a3d15c7313f49c544bf4e3833098d491`; 이번 4경로 아직 포함되지 않음. `PROJECT_STATE.md` 맨 마지막 기록 확인. 재개 시 다른 세션 Git 변경과 index를 먼저 비교, 테스트·보안검사 후 정상 커밋 허용 시에만 정확한 파일만 push. 이어서 미완료 독립 PIT/상폐·기업행동·성숙 전향 결과 검증 CONTINUE. 30개 전체 완료 선언 금지.
+
+## 2026-10-11 최신 재검증 — 5_5 원천 증거 교차정합/strict 라벨 결합 GitHub 반영
+
+- 앞서 `ce4fe1d` 718 테스트 릴리스 후 두 개발 세션이 원천 감사 증거를 독립 보완. `outcome_source_claims.py`는 동결 evaluator 상태와 개별 감사 분류가 일치하는지 검사, 소스 PASS가 내부 평가 가능 총수를 넘으면 오류로 처리. 별도 선택적 `--require-document-label-binding`은 증거 JSON 원본과 영구 기업ID/라벨 정의/상태/게시시각을 비교해 Hash 정합이지만 다른 결과를 포함한 문서의 부당 인정 차단. 기존 연구 CLI 기본값 유지.
+- 공유 테스트 파일이 작성 중 잠시 7 FAIL이었으나, 합성 RED 확인 후 두 수정 모두 결합된 **최신 실제 commit `395f2dd9c177cc4df9a02b25e4d30a155e07fef4` GitHub Public `main` push 성공**. 최종 **728 pytest PASS/exit 0**, handoff 30작업 PASS, Public 안전검사 4파일 suspicious=0, 원격 SHA 일치. 이전 strict 기능의 'Git commit 차단/미푸시' 설명은 **이전 순간의 기록**이며 최신 상태가 아니다. PROJECT_STATE 하단/실제 Git 우선.
+- 실전 PIT/역사적 상폐 기업행동/조정수익 독립 원천·성숙된 전향 적중률·30단계 최종 완성은 미인증. API D-017은 로컬 후, 물리 SSD 분리/재연결·재부팅 D-021은 API 후 마지막에만 수행. 정상 코드 재작성 없이 2_2/2_5 실증 근거 또는 5_5 실전 라벨 수집 조건부터 CONTINUE.

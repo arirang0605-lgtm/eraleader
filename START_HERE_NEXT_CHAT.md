@@ -109,3 +109,6 @@
 - 6_5 맥북 `launchd` 로컬 연구 자동점검: 평일 18:10 KST 실행, 최초 경로 오류 고쳐 정상 exit code 0 확인. KR 2026-10-02, US 2026-02-26 자료이므로 **일반 자동 실행은 신선도 규칙상 안전 보류**. 명시적 연구용 override는 백업검증 포함 전체 배치 성공.
 - 현재 **pytest 90 PASS**, 외부 API 0 / 라이브 알림 0. 상세 `docs/33_LOCAL_SCHEDULER_DISCOVERY_AUDIT.md`.
 - 기존 79개, 54개, 17개 테스트 언급은 역사 기록. 실제 다음 우선 과제는 2단계 **독립 원천 PIT 인증/조정가격 검증**, 5단계 **시점별 홀드아웃 실증**. `PROJECT_STATE.md` 맨 마지막 체크포인트/Git을 다시 확인해 CONTINUE.
+
+## 2026-10-10 최신 소스 감사 이어서 개발 (이전 체크포인트 보완)
+- 2_2/2_5: `pit_coverage.py` / `audit-pit-coverage` 추가. PIT 종목군 대 기존 가격 관측 코드의 커버리지·불일치·상폐 추정 불가·거래중단을 명시. **공식 역사적 상장 원천 인증이 아님**. 7개 신규 테스트 포함 전체 **97 pytest PASS**. 상세 `docs/34_PIT_SOURCE_COVERAGE.md`; `PROJECT_STATE.md` 마지막 Git SHA 확인.

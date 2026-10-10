@@ -267,3 +267,11 @@
 - **Tests**: `PYTHONPATH=src python3 -m pytest tests -q` **90 PASS/0 FAIL** (79 prior + 7 scheduler + 4 metrics), `python3 scripts/check_handoff.py` PASS (30 IDs, 40 existing required files), `plutil -lint` PASS, installed macOS agent runtime exit 0; local backup success. Source-level real PIT claims still FALSE.
 - **Next work**, in priority: 2_2/2_5 authoritative point-in-time corporate actions, delisting settlement, historic universes and adjusted-price independent comparison → 5_4/5_5 true labeled holdout, lead-time/false discovery validation and ablation → 6_5 real refreshed caches/SSD disconnect and reboot recovery. Offline-only until user-approved API phase.
 - **Git SHA and push**: record final post-verification synchronization in the next checkpoint (never invent a commit SHA).
+
+## 2026-10-10 continued source audit checkpoint — 2_2/2_5 (after 6_5 scheduler)
+
+- **Previously verified public GitHub commit:** `40187424836d98ad5eb4a8112f8a207cd2afeabd` synchronized with origin/main, 90 passing tests, installed LaunchAgent exit code 0.
+- **New working code:** `src/eraleader/pit_coverage.py`, `src/eraleader/cli.py` `audit-pit-coverage` command, `tests/test_pit_coverage.py` (7), `docs/34_PIT_SOURCE_COVERAGE.md`. PIT ledger membership × cached price observation reconciliation, missing/mismatched/exit/suspension counts, audit-only provenance/coverage; never certifies historic listings using price feed.
+- **Tests:** `PYTHONPATH=src python3 -m pytest tests/test_pit_coverage.py -q` **7 PASS**, entire `PYTHONPATH=src python3 -m pytest tests -q` **97 PASS**, no test failures. Synthetic isolated data and existing SQLite fixture used; no external API or paid raw inputs.
+- **Still blocked:** authoritative historical issuer registry, exact identity merges, delisting settlements, split/dividend vendor adjusted-price crosscheck and independent PIT financial source. Without these, future-leader discovery quality and full 1~6 completion remain unverified. Next source priority = official PIT universe/action coverage sources when permitted, offline reproducible audit; 5_4/5_5 holdout after trustworthy outcomes.
+- **Git commit and remote status**: follow final checkpoint after staged safety scan, commit and remote SHA equality verification.

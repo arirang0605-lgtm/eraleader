@@ -21,6 +21,7 @@ from .walkforward import walk_forward_split
 from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .universe_audit import audit_observed_universe
+from .pit_coverage import reconcile_membership_to_prices
 from .local_backup import create_backup, verify_backup, restore_backup
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -221,6 +222,27 @@ def execute_universe_audit(args) -> dict:
             "halted_count":audit["halted_count"],
             "historic_membership_certified":False}
 
+def execute_coverage(args) -> dict:
+    ledger_path=Path(args.ledger)
+    if not ledger_path.is_file():
+        raise FileNotFoundError(f"Missing offline PIT ledger: {ledger_path}")
+    ledger=OfflineLedger(ledger_path)
+    try:
+        snap=ledger.snapshot(args.as_of,market=args.market)
+    finally:
+        ledger.close()
+    bars, quality=read_market_bars(args.market,date.fromisoformat(snap["trading_day"]),
+                                  days=args.days,legacy_root=Path(args.legacy))
+    audit=reconcile_membership_to_prices(snap,bars,as_of=date.fromisoformat(snap["trading_day"]))
+    audit["price_feed_source"]=quality["source"]
+    path=Path(args.out)/f"pit_coverage_{args.market.lower()}.json"
+    write_json(path,audit)
+    return {"status":audit["status"],"path":str(path),
+            "pit_member_count":audit["pit_member_count"],
+            "observed_price_security_count":audit["observed_price_security_count"],
+            "matching_count":audit["matching_count"],
+            "historic_membership_pit_certified":False}
+
 def execute_backup(args) -> dict:
     if args.command=="backup-local":
         return create_backup(Path(args.out),Path(args.archive))
@@ -303,6 +325,13 @@ def main(argv=None):
     ua.add_argument("--legacy",default=str(LEGACY_DEFAULT))
     ua.add_argument("--days",type=int,default=30)
     ua.add_argument("--out",default=str(OUT))
+    cv=sub.add_parser("audit-pit-coverage",help="Compare observed prices to an offline PIT listing ledger; not certified")
+    cv.add_argument("--market",choices=["KR","US"],required=True)
+    cv.add_argument("--as-of",required=True,help="Timezone-aware decision timestamp")
+    cv.add_argument("--ledger",required=True,help="Existing imported offline PIT SQLite")
+    cv.add_argument("--legacy",default=str(LEGACY_DEFAULT))
+    cv.add_argument("--days",type=int,default=35)
+    cv.add_argument("--out",default=str(OUT))
     bkp=sub.add_parser("backup-local",help="Consistent SQLite + safe local output archive")
     bkp.add_argument("--out",default=str(OUT))
     bkp.add_argument("--archive",required=True)
@@ -324,6 +353,7 @@ def main(argv=None):
         elif args.command=="walkforward":result=execute_walkforward(args)
         elif args.command=="corporate-return":result=execute_corporate_research(args)
         elif args.command=="audit-universe":result=execute_universe_audit(args)
+        elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command in ("backup-local","verify-backup","restore-backup"):
             result=execute_backup(args)
         elif args.command=="batch":

@@ -217,3 +217,22 @@ def test_calendar_derived_audit_is_backed_up_but_not_original_reference(tmp_path
     restore_backup(archive,restored)
     assert not (restored/"calendar_reference_raw.json").exists()
     assert json.loads((restored/"calendar_kr_research.json").read_text())==expected
+
+def test_derived_cash_delisting_report_is_backed_up_not_raw_payout_document(tmp_path):
+    from eraleader.local_backup import create_backup,verify_backup,restore_backup
+    from zipfile import ZipFile
+    root=tmp_path/"cash_research"
+    root.mkdir()
+    result={"status":"LOCAL_CASH_DELISTING_RESEARCH_ONLY",
+            "cash_exit_total_return":0.10,"pit_certified":False}
+    (root/"cash_delisting_research.json").write_text(json.dumps(result))
+    (root/"settlement_original_private.json").write_text('{"api_key":"NO_UPLOAD"}')
+    target=tmp_path/"cash_backup.zip"
+    assert create_backup(root,target)["file_count"]==1
+    assert verify_backup(target)["status"]=="LOCAL_BACKUP_VERIFIED"
+    with ZipFile(target) as reader:
+        assert reader.namelist()==["cash_delisting_research.json","MANIFEST.json"]
+    recovered=tmp_path/"new_recovery"
+    restore_backup(target,recovered)
+    assert json.loads((recovered/"cash_delisting_research.json").read_text())==result
+    assert not (recovered/"settlement_original_private.json").exists()

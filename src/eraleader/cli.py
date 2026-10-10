@@ -26,6 +26,7 @@ from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
 from .calendar_audit import audit_exchange_calendar
+from .delist_cash import reconstruct_cash_delisting
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
 from .local_backup import create_backup, verify_backup, restore_backup
@@ -351,6 +352,23 @@ def execute_calendar_audit(args) -> dict:
             "feed_only_unexpected_periods":report["feed_only_unexpected_periods"],
             "calendar_pit_certified":False}
 
+def execute_cash_delist(args) -> dict:
+    bundle=json.loads(Path(args.file).read_text(encoding="utf-8"))
+    if not isinstance(bundle,dict) or bundle.get("schema_version")!="cash_delist_research_v1":
+        raise ValueError("Unsupported cash-delisting research schema")
+    if bundle.get("price_basis")!="raw_unadjusted":
+        raise ValueError("Raw unadjusted price basis required")
+    result=reconstruct_cash_delisting(
+        bundle["bars"],bundle["actions"],bundle.get("settlement"),
+        security_id=args.security_id,market=args.market,
+        decision_at=args.decision_at,evaluated_at=args.evaluated_at,
+        price_basis=bundle["price_basis"])
+    target=Path(args.out)/"cash_delisting_research.json"
+    write_json(target,result)
+    return {"status":result["status"],"path":str(target),
+            "cash_exit_total_return":result["cash_exit_total_return"],
+            "pit_certified":False}
+
 def execute_backup(args) -> dict:
     if args.command=="backup-local":
         return create_backup(Path(args.out),Path(args.archive))
@@ -484,6 +502,13 @@ def main(argv=None):
     ca.add_argument("--days",type=int,default=120)
     ca.add_argument("--sample-limit",type=int,default=20)
     ca.add_argument("--out",default=str(OUT))
+    cd=sub.add_parser("audit-cash-delist",help="Explicit cash delist payout without invented proceeds")
+    cd.add_argument("--file",required=True,help="Local cash_delist_research_v1 JSON")
+    cd.add_argument("--security-id",required=True)
+    cd.add_argument("--market",choices=["KR","US"],required=True)
+    cd.add_argument("--decision-at",required=True)
+    cd.add_argument("--evaluated-at",required=True)
+    cd.add_argument("--out",default=str(OUT))
     bkp=sub.add_parser("backup-local",help="Consistent SQLite + safe local output archive")
     bkp.add_argument("--out",default=str(OUT))
     bkp.add_argument("--archive",required=True)
@@ -507,6 +532,7 @@ def main(argv=None):
         elif args.command=="audit-universe":result=execute_universe_audit(args)
         elif args.command=="audit-continuity":result=execute_continuity(args)
         elif args.command=="audit-calendar":result=execute_calendar_audit(args)
+        elif args.command=="audit-cash-delist":result=execute_cash_delist(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

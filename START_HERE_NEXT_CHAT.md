@@ -156,3 +156,8 @@
 
 - `docs/41_EXCHANGE_CALENDAR_AUDIT.md` 및 `src/eraleader/calendar_audit.py`: 거래소 세션 캘린더를 **별도 로컬 JSON 계약**으로 받아 한국 일봉·미국 주봉과 비교. 관측 자료에서 시장 전체 기간이 누락되면 탐지하지만 캘린더 제공자/시점은 독립 인증 안 됨. 의도적으로 누락시킨 합성 KR/US 자료 각각 1건 탐지, 안전 JSON 백업·복원 PASS. 기준 207 테스트에서 본 기능 20개 신규 케이스; 동시 워크포워드 세션 테스트까지 포함한 전체 공유 실행은 246 PASS. 실제 PIT 완전성/대장주 발굴 성과 아님.
 - 다른 세션 `walkforward_replay.py` 등 미커밋 파일은 보존·별도 staged. 최신 Git SHA 및 테스트·동기화는 `PROJECT_STATE.md` 최하단에서 재확인.
+
+## 2026-10-10 최신 2_2/2_5 현금형 상폐 정산 연구 개발
+
+- `docs/43_CASH_DELIST_SETTLEMENT_RESEARCH.md`, `delist_cash.py`, CLI `audit-cash-delist`: 신뢰할 수 있는 현금 정산액이 입력되지 않으면 손익을 0/마지막 종가로 지어내지 않고 미확정; 지급/게시시각·분할·배당 원시가격 수익률과 KRW/USD를 검사. 합성 KR +10%, US +5% 연구 결과 테스트, 실제 주식 성과 아님. 신규 pytest 24개 포함 동시 공유 전체 `270 PASS`. 연구 JSON ZIP 백업 SHA 및 복구 성공. 독립 원천 PIT 인증 false.
+- 동시 워크포워드 코드/테스트(`walkforward_replay.py` 관련)는 다른 세션 것이므로 스테이징된 상태에서 그대로 보존. Git HEAD·원격과 다음 실제 미완료는 `PROJECT_STATE.md` 마지막 기록 확인. 외부 API는 아직 연결 금지.

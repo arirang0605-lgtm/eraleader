@@ -379,3 +379,10 @@
 - 정상 코드 보존한 채 `cash_exit_lineage.py` 이벤트ID/분할·배당·상폐현금 금액/통화/선택적 지급시각 충돌을 검사; 옵션 `--require-lineage-amount-claims`를 단독 모듈과 기존 `audit-cash-delist` CLI에 추가해 금액 원천 누락도 엄격 모드에서 차단. 기본 과거 오프라인 연구 호환 유지. 변경 4경로 `src/eraleader/cash_exit_lineage.py`, `src/eraleader/cli.py`, `tests/test_cash_exit_amount_claims.py`, `docs/68_DUAL_VINTAGE_CASH_EXIT_LINEAGE.md`.
 - 집중 **93 PASS**, 전체 **772/772 pytest PASS/exit 0**, handoff 30작업 PASS, Public Git 안전검사 4 경로 scanned=4/suspicious=0. 실제 로컬 합성 CLI: strict 미제출 null, KR 동일 금액 +10% 연구 수익, 분할비율 상충 null, 파생 보고서 1개 SHA ZIP 백업·복원 PASS. 독립 공급자·실시장 수익률·미래 후보 정확도 인증 아님.
 - 코드 정상 commit/push `0dfb4418b03e6b323f744c0a11d55521c4fee787`, local/remote main SHA 일치; 이 인수인계 문서는 별도 갱신. 다음 독립 법적 상장/상폐·기업행동/현금 지급·수익률원천 PIT 증빙과 전향 라벨. API D-017 및 물리 SSD D-021 마지막 단계. REWRITE 금지.
+
+## 2026-10-11 최신 2_2·2_5 — 현금상폐 정산 원문 지급 증빙 해시·시점 연구 감사
+
+- 연결된 T5DATA의 `main` 기준 `29e3bbf` clean에서 CONTINUE. 이전 이중 issuer 빈티지/현금상폐 연구 코드를 보존하고 `cash_payment_receipts.py`, `test_cash_payment_receipts.py`, `docs/69_DECLARED_CASH_PAYMENT_RECEIPT_AUDIT.md` 신규, `cash_exit_lineage.py` 및 `cli.py` 선택적 `--settlement-receipt` / `--require-settlement-receipt` 추가. 정규화된 오프라인 지급 문서 바이트 SHA256와 자기선언 기관 ID·현금액·통화·영구기업ID·상폐 이벤트·지급시각·공개/취득시각을 대조, 미제출/후행 취득/재해시 지급액 변조 시 연구 수익률 null 차단. 외부 API 0, 실제 공급자·독립 PIT 인증 0, D-017/D-021 순서 유지.
+- 집중 **121 PASS**, 전체 **800 pytest PASS/exit 0(신규 28)**, handoff 30작업 PASS. synthetic KR 지급원문 일치시 연구용 +10%, 취득 후행 null, 해시 재계산한 금액 54 불일치 null. derived JSON 1개 ZIP 안전 백업/SHA 복원 PASS; 원본 정산문서·주가·키 미백업 및 Git 제외.
+- 실제 코드 5경로 Git 안전검사 `scanned=5 suspicious=0` 및 diff check PASS 후 **커밋 `95e0d4fd2cd744a4cadd574675e6ab9cfdfd66cc` 정상 GitHub Public main push**, local/remote SHA 일치, 코드 릴리스 worktree clean. 상태문서 후속 commit 여부는 현재 git 우선.
+- NEXT: 2_2/2_5 실제 독립 상폐 기업·현금 지급·배당/분할·조정총수익/PIT 근거와 5_5 실제 성숙된 미래 후보 outcome. 외부 API D-017 마지막 연결, 물리 SSD 재연결/맥북 재부팅 D-021 API 이후 최종 검수. 기존 정상 코드 REWRITE 금지.

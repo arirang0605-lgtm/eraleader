@@ -170,3 +170,27 @@ def test_total_return_audit_json_is_allowlisted_without_raw_payload(tmp_path):
     restore_backup(archive,restored)
     assert json.loads((restored/"total_return_crosscheck_research.json").read_text())==report
     assert not (restored/"raw_source_dump.json").exists()
+
+def test_continuity_derived_outputs_are_backed_up_without_original_prices(tmp_path):
+    from eraleader.local_backup import create_backup, verify_backup, restore_backup
+    from zipfile import ZipFile
+    output=tmp_path/"research"
+    output.mkdir()
+    for market in ("kr","us"):
+        (output/f"continuity_{market}_research.json").write_text(
+            json.dumps({"status":"LOCAL_OBSERVATION_CONTINUITY_NOT_PIT_CERTIFIED",
+                        "market":market.upper(),"historic_universe_pit_certified":False}))
+    (output/"raw_price_dump.json").write_text('{"private_key":"NEVER_BACKUP"}')
+    archive=tmp_path/"continuity.zip"
+    result=create_backup(output,archive)
+    assert result["file_count"]==2
+    assert verify_backup(archive)["status"]=="LOCAL_BACKUP_VERIFIED"
+    with ZipFile(archive) as z:
+        assert set(z.namelist())=={
+            "continuity_kr_research.json","continuity_us_research.json","MANIFEST.json"}
+    target=tmp_path/"restored"
+    restore_backup(archive,target)
+    assert not (target/"raw_price_dump.json").exists()
+    for market in ("kr","us"):
+        assert json.loads((target/f"continuity_{market}_research.json").read_text())[
+            "historic_universe_pit_certified"] is False

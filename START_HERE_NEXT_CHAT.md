@@ -142,3 +142,8 @@
 
 - `docs/39_LAUNCHD_SSD_RECOVERY.md`: 맥북 홈디스크 `~/Library/Application Support/EraLeader/offline-launcher.sh`에서 SSD 연결 확인 후 Python 로컬 배치 실행. 불연결 시 조용히 건너뛰고 다음 매시간 재검사, 평일 18:10/로그인시 실행 유지. 재생성된 사용자 LaunchAgent exit 0, 시세 신선도 규칙 유지, stderr 빈 로그 확인.
 - `pytest 187 PASS`; 실제 하드웨어 SSD 제거·맥북 재부팅 테스트는 **아직 안 함**. 추가 실전 PIT/API 연결 없음. 현재 Git SHA, 코드/테스트/푸시 기록은 `PROJECT_STATE.md` 마지막 체크포인트 확인.
+
+## 2026-10-10 최신 개발 (2_2/2_5) — KR 일봉 / US 주봉 관측 연속성 실측
+
+- `src/eraleader/continuity_audit.py` + CLI `audit-continuity` + 문서 `docs/40_LONGITUDINAL_CACHE_CONTINUITY.md`: 한국 일별/미국 주별 관측 누락·재등장·관측 중단·거래정지를 구분하는 연구 감사 기능 및 안전 ZIP 백업. US 주봉의 서로 다른 요일로 인한 거짓 누락 27,942건을 일간 집계 문제로 확인하고 주봉 기준으로 수정해 재검증.
+- 실제 T5DATA read-only 캐시: KR 83거래일/2,909코드/관측행 238,462/중간 누락 0/마지막 경계 이전 종료 36. 미국 58주/499코드/관측행 28,441/중간 주봉 누락 0/마지막 경계 이전 종료 1. **원천 상폐/PIT/기업행동 인증 아님**. 새 테스트 18개 추가해 **205 pytest PASS**. 내역 및 다음 차단점은 `PROJECT_STATE.md` 마지막 기록 확인; 외부 API는 연기.

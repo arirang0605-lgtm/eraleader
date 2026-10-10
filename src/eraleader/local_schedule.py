@@ -67,8 +67,17 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
         if marker.exists():
             previous = json.loads(marker.read_text(encoding="utf-8"))
             if previous.get("observations") == dates:
-                return {"status": "SKIPPED_UNCHANGED_CACHE", "observations": dates,
-                        "last_archive": previous.get("archive")}
+                prior_archive = Path(str(previous.get("archive") or ""))
+                # A successful analysis without a surviving *verified* backup
+                # is not a complete scheduled cycle. Re-run and repair.
+                if prior_archive.is_file():
+                    try:
+                        verify_backup(prior_archive)
+                    except (OSError, ValueError):
+                        pass
+                    else:
+                        return {"status": "SKIPPED_UNCHANGED_CACHE", "observations": dates,
+                                "last_archive": str(prior_archive)}
         result = execute_local_batch(Namespace(
             kr_as_of=dates["KR"], us_as_of=dates["US"], days=550, top=20,
             legacy=str(legacy), out=str(out)))

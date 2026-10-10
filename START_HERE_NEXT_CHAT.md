@@ -121,3 +121,15 @@
 ## 2026-10-10 추가 개발 — 2_5 원시 주가/기업행동 대 독립 총수익지수 비교 계약
 - `src/eraleader/adjusted_crosscheck.py`, CLI `audit-total-return`, 문서 `docs/36_TOTAL_RETURN_CROSSCHECK.md`. 합성 split/dividend 수익률(0%) vs 참조지수 일치/200bp 불일치 탐지, 자료 게시시각 검사. 현물 시장의 **실제 독립 공급자 검증은 미완료**, 시세/기업행동 PIT 인증 불가. 전체 `pytest 131개 PASS`, 외부 API 호출 0.
 - `PROJECT_STATE.md` 맨 아래 SHA+푸시 기록 및 실제 Git 상태부터 확인. 정상 코드 보존, 다음은 역사적 실제 데이터 원본 증빙 + 5단계 홀드아웃 품질.
+
+## 2026-10-10 이후 최신 로컬 개발 — 2_2 / 2_5 원천 빈티지 감사 (Git push 대기)
+
+- `src/eraleader/source_vintage.py`, `tests/test_source_vintage.py`, `docs/37_SOURCE_VINTAGE_MANIFEST_AUDIT.md`, `cli.py` `audit-source-vintage` 개발/합성 실제 실행. **완전 분리된 HEAD+이번 네 파일 시험 154 pytest PASS**; 로컬 시험 source 2개 모두 과거 시점 이후 수집으로 탐지, `historical_pit_certified=false`. 원본 자료 인증·실전 조기발굴 성과 아님.
+- 개발 당시 다른 세션의 `frozen_holdout.py` 등 미커밋 변경이 동시에 관측됨. **서로의 변경 보존**: 이번 변경 네 경로만 index에 선별 staged, 안전 검사 suspicious=0. `git commit`을 원격 도구 안전검사가 거부했으므로 이번 작업 GitHub push **안 됨**. `PROJECT_STATE.md` 최하단 기록과 `git status -sb`, `git diff --cached`를 반드시 다시 확인하여 다른 세션이 변경한 파일을 무단 commit하지 않을 것.
+- 다음은 차단 해제 시 테스트된 네 경로만 commit/push + SHA 원격 비교 → 독립 PIT 원천 인증·상폐정산·5_4/5_5 봉인 홀드아웃 증거 보강. 외부 API 연결은 1~6단계 로컬 검증 후.
+
+## 2026-10-10 다음 세션 인수인계 — 5_4/5_5 봉인 홀드아웃 및 6_5 복구 보강
+
+- 개발·실측: `frozen_holdout.py` + `cli.py`의 동결/평가, `local_schedule.py` 보관 ZIP 손상 시 재작업, `local_backup.py` 홀드아웃 manifest/평가 산출물. 사전 `label_definition_id`와 `horizon_days`를 freeze 시 반드시 잠금. 이후 기간/라벨 변경·동결 전에 성숙한 라벨·자료 유출 차단.
+- 전 자동 테스트 **179개 PASS**. 합성 후보 1개 실시간 원장 기록→봉인→평가(미성숙 1건, 실제 성능 0건)→백업 3개 파일 SHA 검증·복원 테스트 PASS. 상세 `docs/38_FROZEN_HOLDOUT_OPERATIONS.md`; 실전 PIT 및 미래 발견 정확도 미인증.
+- 이제 우선 작업: 2_2/2_5 실제 독립 원천·상폐·기업행동 PIT, 5_5 전향적 평가 실제 라벨, 6_5 SSD 연결/재부팅 복구. 최신 Git SHA와 push 상태는 `PROJECT_STATE.md` 하단 및 git에서 확인.

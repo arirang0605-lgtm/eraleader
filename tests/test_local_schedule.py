@@ -26,6 +26,7 @@ def test_verified_backup_checkpoint_and_unchanged_skip(folders, monkeypatch):
     def backup(out, archive):
         counts["create"] += 1
         assert archive.parent == folders["backups"]
+        archive.write_bytes(b"test-archive")
         return {"status": "OK"}
     def verify(archive):
         counts["verify"] += 1
@@ -39,7 +40,7 @@ def test_verified_backup_checkpoint_and_unchanged_skip(folders, monkeypatch):
     assert first["messages_sent"] == 0 and first["external_api_calls"] == 0
     second = mod.run_scheduled(**folders, today=date(2026, 10, 10), sessions=sessions)
     assert second["status"] == "SKIPPED_UNCHANGED_CACHE"
-    assert counts == {"batch": 1, "create": 1, "verify": 1}
+    assert counts == {"batch": 1, "create": 1, "verify": 2}
     saved = json.loads((folders["control"] / "last_verified_batch.json").read_text())
     assert saved["observations"] == {"KR": "2026-10-09", "US": "2026-10-09"}
 
@@ -94,3 +95,29 @@ def test_launchd_weekday_local_plist_generation(tmp_path):
     with pytest.raises(ValueError):
         mod.write_launch_agent(target, python=Path("/usr/bin/python3"),
                                project=project, hour=25)
+
+def test_deleted_or_corrupt_backup_forces_retry(folders, monkeypatch):
+    sessions = {"KR": date(2026,10,9), "US": date(2026,10,9)}
+    called = {"batch":0}
+    def batch(_):
+        called["batch"] += 1
+        return {"market_count":2,"reports_created":6}
+    def make_backup(_,archive):
+        archive.write_bytes(b"valid")
+    def verify(archive):
+        if archive.read_bytes() != b"valid":
+            raise ValueError("archive corrupted")
+    monkeypatch.setattr(mod,"execute_local_batch",batch)
+    monkeypatch.setattr(mod,"create_backup",make_backup)
+    monkeypatch.setattr(mod,"verify_backup",verify)
+    first=mod.run_scheduled(**folders,today=date(2026,10,10),sessions=sessions)
+    assert called["batch"]==1
+    assert mod.run_scheduled(**folders,today=date(2026,10,10),sessions=sessions)["status"]=="SKIPPED_UNCHANGED_CACHE"
+    assert called["batch"]==1
+    Path(first["archive"]).unlink()
+    second=mod.run_scheduled(**folders,today=date(2026,10,10),sessions=sessions)
+    assert called["batch"]==2 and second["status"]=="RESEARCH_ONLY_VERIFIED_BACKUP"
+    Path(second["archive"]).write_bytes(b"corrupted")
+    third=mod.run_scheduled(**folders,today=date(2026,10,10),sessions=sessions)
+    assert called["batch"]==3 and third["status"]=="RESEARCH_ONLY_VERIFIED_BACKUP"
+    assert Path(third["archive"]).read_bytes()==b"valid"

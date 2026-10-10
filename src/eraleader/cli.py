@@ -21,6 +21,7 @@ from .walkforward import walk_forward_split
 from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .adjusted_crosscheck import compare_total_return_indexes
+from .frozen_holdout import freeze_registered_candidates, evaluate_frozen_candidates
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .pit_coverage import reconcile_membership_to_prices
@@ -263,6 +264,25 @@ def execute_source_vintage(args) -> dict:
             "retrospective_source_count":audit["retrospective_source_count"],
             "historical_pit_certified":False}
 
+def execute_freeze_holdout(args) -> dict:
+    return freeze_registered_candidates(Path(args.ledger), Path(args.freeze_file),
+                                        market=args.market, model_version=args.model_version,
+                                        label_definition_id=args.label_definition_id,
+                                        horizon_days=args.horizon_days,
+                                        max_observation_lag_days=args.max_lag_days)
+
+def execute_evaluate_holdout(args) -> dict:
+    result=evaluate_frozen_candidates(Path(args.freeze_file),Path(args.outcomes),
+                                      evaluated_at=args.evaluated_at,
+                                      horizon_days=args.horizon_days)
+    target=Path(args.out)/"holdout_evaluation_research.json"
+    write_json(target,result)
+    return {"status":result["status"],"path":str(target),
+            "known_outcomes":result["known_outcomes"],
+            "censored_outcomes":result["censored_outcomes"],
+            "true_early_discoveries":result["true_early_discoveries"],
+            "historic_pit_certified":False}
+
 def execute_prospective_export(args) -> dict:
     registry_path=Path(args.out)/"prospective.sqlite"
     if not registry_path.is_file():
@@ -394,6 +414,20 @@ def main(argv=None):
     provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")
     provenance.add_argument("--decision-at",required=True,help="Timezone-aware as-of cutoff")
     provenance.add_argument("--out",default=str(OUT))
+    hf=sub.add_parser("freeze-holdout",help="Seal an actual-registration research holdout before future labels")
+    hf.add_argument("--ledger",required=True,help="Existing prospective.sqlite")
+    hf.add_argument("--market",choices=["KR","US"],required=True)
+    hf.add_argument("--model-version",required=True)
+    hf.add_argument("--label-definition-id",required=True,help="Predeclared label rule version; no post-hoc changes")
+    hf.add_argument("--horizon-days",type=int,default=180)
+    hf.add_argument("--max-lag-days",type=int,default=3)
+    hf.add_argument("--freeze-file",required=True,help="New output JSON path; existing path never overwritten")
+    he=sub.add_parser("evaluate-holdout",help="Post-freeze mature-outcome evaluation (research only)")
+    he.add_argument("--freeze-file",required=True)
+    he.add_argument("--outcomes",required=True,help="Separate published/mature outcomes JSON")
+    he.add_argument("--evaluated-at",required=True)
+    he.add_argument("--horizon-days",type=int,help="Optional consistency check against frozen horizon; cannot override")
+    he.add_argument("--out",default=str(OUT))
     prospect=sub.add_parser("prospective-signals",help="Export first actually registered research WATCH signals")
     prospect.add_argument("--market",choices=["KR","US"],required=True)
     prospect.add_argument("--out",default=str(OUT))
@@ -428,6 +462,8 @@ def main(argv=None):
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)
+        elif args.command=="freeze-holdout":result=execute_freeze_holdout(args)
+        elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
         elif args.command=="audit-source-vintage":result=execute_source_vintage(args)
         elif args.command in ("backup-local","verify-backup","restore-backup"):
             result=execute_backup(args)

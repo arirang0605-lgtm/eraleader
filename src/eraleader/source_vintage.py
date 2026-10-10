@@ -9,6 +9,7 @@ from datetime import date, datetime, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import re
 
 KINDS = {
@@ -21,6 +22,7 @@ KINDS = {
 }
 SHA_RE = re.compile(r"[0-9a-f]{64}\Z")
 FILE_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*\.jsonl\Z")
+MARKET_TZ = {"KR": ZoneInfo("Asia/Seoul"), "US": ZoneInfo("America/New_York")}
 
 
 def _timestamp(value: object) -> datetime:
@@ -81,6 +83,8 @@ def audit_source_vintages(manifest_file: Path, *, decision_at: str) -> dict:
         digest = sha256()
         count = known = future = 0
         row_ids = set()
+        record_owner = {}
+        revision_timelines = {}
         visible_latest_revisions = {}
         timestamp_field, day_field = KINDS[kind]
         with path.open("rb") as fp:
@@ -99,7 +103,10 @@ def audit_source_vintages(manifest_file: Path, *, decision_at: str) -> dict:
                     raise ValueError("Source row ID differs from manifest")
                 record_id = _nonempty(row, "record_id")
                 identity_field = "industry_id" if kind == "industry" else "security_id"
-                _nonempty(row, identity_field)
+                owner_id = _nonempty(row, identity_field)
+                if record_id in record_owner and record_owner[record_id] != owner_id:
+                    raise ValueError("Source record ID reused by a different issuer")
+                record_owner[record_id] = owner_id
                 revision = row.get("revision")
                 if type(revision) is not int or revision < 1:
                     raise ValueError("Source record revision must be positive integer")
@@ -108,10 +115,13 @@ def audit_source_vintages(manifest_file: Path, *, decision_at: str) -> dict:
                     raise ValueError("Repeated source record revision")
                 row_ids.add(key)
                 try:
-                    date.fromisoformat(_nonempty(row, day_field))
+                    observation_day = date.fromisoformat(_nonempty(row, day_field))
                 except ValueError as exc:
                     raise ValueError("Invalid source observation date") from exc
                 available = _timestamp(row.get(timestamp_field))
+                if kind in ("raw_prices", "total_return_index") and available.astimezone(MARKET_TZ[market]).date() < observation_day:
+                    raise ValueError("Final price index publication predates trading session")
+                revision_timelines.setdefault(record_id, []).append((revision, available))
                 if available > retrieved:
                     raise ValueError("Source row availability postdates claimed retrieval")
                 if available <= cutoff:
@@ -122,6 +132,10 @@ def audit_source_vintages(manifest_file: Path, *, decision_at: str) -> dict:
                     future += 1
         if not count:
             raise ValueError("Empty source file cannot establish vintage coverage")
+        for record_id, entries in revision_timelines.items():
+            ordered = sorted(entries)
+            if any(after < before for (_, before), (_, after) in zip(ordered, ordered[1:])):
+                raise ValueError("Revision timestamp order contradicts revision number")
         if digest.hexdigest() != expected:
             raise ValueError("Source SHA256 does not match manifest")
         # Multiple known revisions of the same logical record do not

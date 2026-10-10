@@ -146,3 +146,55 @@ def test_multiple_known_revisions_count_one_current_record(tmp_path):
     assert out["sources"][0]["rows_available_by_decision_claimed"]==2
     assert out["sources"][0]["superseded_revisions_excluded"]==1
     assert out["rows_potentially_usable_asof"]==1
+
+def test_source_record_id_cannot_switch_permanent_issuer(tmp_path):
+    rows=[
+      {"source_id":"SYN-RAW","security_id":"SYN-A","record_id":"B1",
+       "revision":1,"session":"2024-04-01",
+       "available_at":"2024-04-01T16:00:00+09:00"},
+      {"source_id":"SYN-RAW","security_id":"SYN-B","record_id":"B1",
+       "revision":2,"session":"2024-04-01",
+       "available_at":"2024-04-02T16:00:00+09:00"}
+    ]
+    with pytest.raises(ValueError,match="different issuer"):
+        audit(build(tmp_path,rows,retrieved_at="2024-04-03T12:00:00+09:00"))
+
+def test_revision_timestamp_must_not_run_backward(tmp_path):
+    rows=[
+      {"source_id":"SYN-RAW","security_id":"SYN-A","record_id":"B1",
+       "revision":1,"session":"2024-04-01",
+       "available_at":"2024-04-03T16:00:00+09:00"},
+      {"source_id":"SYN-RAW","security_id":"SYN-A","record_id":"B1",
+       "revision":2,"session":"2024-04-01",
+       "available_at":"2024-04-02T16:00:00+09:00"}
+    ]
+    with pytest.raises(ValueError,match="Revision timestamp order"):
+        audit(build(tmp_path,rows,retrieved_at="2024-04-04T12:00:00+09:00"))
+
+def test_revision_rows_can_be_unsorted_if_timestamps_are_consistent(tmp_path):
+    rows=[
+      {"source_id":"SYN-RAW","security_id":"SYN-A","record_id":"B1",
+       "revision":2,"session":"2024-04-01",
+       "available_at":"2024-04-02T16:00:00+09:00"},
+      {"source_id":"SYN-RAW","security_id":"SYN-A","record_id":"B1",
+       "revision":1,"session":"2024-04-01",
+       "available_at":"2024-04-01T16:00:00+09:00"}
+    ]
+    result=audit(build(tmp_path,rows,retrieved_at="2024-04-03T12:00:00+09:00"))
+    assert result["rows_potentially_usable_asof"]==1
+
+@pytest.mark.parametrize("kind",["raw_prices","total_return_index"])
+def test_final_price_cannot_be_known_before_trading_session(tmp_path,kind):
+    rows=[{"source_id":"SYN-RAW","security_id":"SYN-A","record_id":"B1",
+           "revision":1,"session":"2024-04-02",
+           "available_at":"2024-04-01T16:00:00+09:00"}]
+    with pytest.raises(ValueError,match="publication predates trading session"):
+        audit(build(tmp_path,rows,kind=kind,retrieved_at="2024-04-03T12:00:00+09:00"))
+
+def test_cross_midnight_price_release_uses_market_timezone(tmp_path):
+    # 2024-03-31 23:30 UTC is 2024-04-01 08:30 in Seoul:
+    # the local date is not earlier than April 1 (intraday availability is not certified).
+    rows=[{"source_id":"SYN-RAW","security_id":"SYN-A","record_id":"B1",
+           "revision":1,"session":"2024-04-01",
+           "available_at":"2024-03-31T23:30:00+00:00"}]
+    assert audit(build(tmp_path,rows))["rows_potentially_usable_asof"]==1

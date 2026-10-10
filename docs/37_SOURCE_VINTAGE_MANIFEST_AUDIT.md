@@ -28,3 +28,11 @@ Output `source_vintage_audit_research.json` records only declared provenance, co
 ## Remaining first priority
 
 Obtain an **independently timestamped** archival source and historic listing/delist and corporate-action data before certifying source PIT. Prove publisher identity, original retrieval logs and licensed feed revision chains; measure missing-issuer/omitted-event coverage and delist settlements, then compare *actual* independent adjusted-return series. Afterward run a frozen prospective 5_4/5_5 holdout on mature actual outcomes; still no outside API or live alarms in this local-only sprint.
+
+## 2026-10-10 continuation — source row identity and revision chronology hardening
+
+- A logical `record_id` cannot change its permanent `security_id` or `industry_id` across revisions within one JSONL vintage: reject issuer-switch aliasing instead of collapsing a different company's history.
+- Higher `revision` numbers must have nondecreasing `available_at/known_at`. Checks sort by revision so source file row order itself can remain arbitrary; publication histories running backward fail closed.
+- Raw price/total-return-index dates cannot be announced on a local calendar date **before** their stated trading session. Exchange-local date uses Asia/Seoul for KR and America/New_York for US. This is only a minimum date guard: exact session closing timestamp, calendar, supplier announcement and final-price availability still need independent proof.
+- Tests: `tests/test_source_vintage.py` gained 6 new cases (record ID reuse, reversed revision time, valid unsorted rows, two pre-session publication kinds, market time conversion). Full suite **185 collected / 185 PASS**.
+- Original fixture and read-only raw market folder were unchanged. Data and accuracy certification remain false.

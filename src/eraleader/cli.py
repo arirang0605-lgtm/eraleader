@@ -18,6 +18,7 @@ from .offline_features import financial_snapshot
 from .research import integrated_snapshot
 from .discovery_metrics import evaluate_early_discovery
 from .walkforward import walk_forward_split
+from .walkforward_replay import replay_walk_forward_folds
 from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .adjusted_crosscheck import compare_total_return_indexes
@@ -197,6 +198,23 @@ def execute_walkforward(args) -> dict:
             "train_samples":len(result["training"]),
             "test_candidates":len(result["test_candidates"]),
             "historic_universe_certified":False}
+
+def execute_repeated_walkforward(args) -> dict:
+    snapshots=json.loads(Path(args.snapshots).read_text(encoding="utf-8"))
+    outcomes=json.loads(Path(args.outcomes).read_text(encoding="utf-8"))
+    windows=json.loads(Path(args.windows).read_text(encoding="utf-8"))
+    result=replay_walk_forward_folds(
+        snapshots,outcomes,windows=windows,
+        model_version=args.model_version,
+        label_definition_id=args.label_definition_id,
+        embargo_days=args.embargo_days)
+    target=Path(args.out)/"repeated_walkforward_research.json"
+    write_json(target,result)
+    return {"status":result["status"],"path":str(target),
+            "fold_count":result["fold_count"],
+            "unique_test_candidate_count":result["unique_test_candidate_count"],
+            "test_outcome_labels_revealed":False,
+            "historic_universe_pit_certified":False}
 
 def execute_corporate_research(args) -> dict:
     bundle=json.loads(Path(args.file).read_text(encoding="utf-8"))
@@ -442,6 +460,14 @@ def main(argv=None):
     wf.add_argument("--test-ends-at",required=True)
     wf.add_argument("--embargo-days",type=int,default=7)
     wf.add_argument("--out",default=str(OUT))
+    rw=sub.add_parser("replay-walkforward",help="Repeated embargoed folds with pinned model/label; offline research only")
+    rw.add_argument("--snapshots",required=True)
+    rw.add_argument("--outcomes",required=True)
+    rw.add_argument("--windows",required=True,help="Local JSON list of fixed fold time windows")
+    rw.add_argument("--model-version",required=True)
+    rw.add_argument("--label-definition-id",required=True)
+    rw.add_argument("--embargo-days",type=int,default=7)
+    rw.add_argument("--out",default=str(OUT))
     batch=sub.add_parser("batch",help="Explicit-date offline KR+US reporting batch")
     batch.add_argument("--kr-as-of",required=True)
     batch.add_argument("--us-as-of",required=True)
@@ -544,6 +570,7 @@ def main(argv=None):
         elif args.command=="offline-integrated":result=execute_integrated(args)
         elif args.command=="validate-discovery":result=execute_validation(args)
         elif args.command=="walkforward":result=execute_walkforward(args)
+        elif args.command=="replay-walkforward":result=execute_repeated_walkforward(args)
         elif args.command=="corporate-return":result=execute_corporate_research(args)
         elif args.command=="audit-universe":result=execute_universe_audit(args)
         elif args.command=="audit-continuity":result=execute_continuity(args)

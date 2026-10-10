@@ -166,3 +166,8 @@
 
 - `src/eraleader/issuer_lineage.py`, CLI `audit-issuer-lineage`, 문서 `docs/44_ISSUER_LINEAGE_PIT_AUDIT.md`: 영구 기업 ID와 동일 티커 재사용, 동시 충돌, 기업행동의 미등록 대상/후계 기업, 미확인 상폐 현금, 시점 후행 취득/개정 이력을 감사. 합성 3개 시나리오 CLI 및 파생 JSON 안전 백업·복원 PASS. 신규 테스트 25개 포함 작업 폴더 전체 295 PASS(다른 세션 19개 테스트 포함). 진짜 상장 이력·법적 ID·정산금 원천 인증 아님.
 - 워크포워드 다른 세션 3개 staged 파일 `docs/42_*`, `src/eraleader/walkforward_replay.py`, `tests/test_walkforward_replay.py`은 손대지 말 것. Git SHA/Push은 `PROJECT_STATE.md` 마지막 검증 기록 우선.
+
+## 2026-10-10 최신 5_5 반복 워크포워드
+
+- 기존 스테이징 3개 파일을 HEAD+3 파일 분리 재현(297 pytest PASS) 후 별도 소스 커밋 `4ee780d` GitHub 푸시, 원격 SHA 일치. 이후 CLI `replay-walkforward` 및 파생 JSON ZIP 백업 검증, 전체 공유 소스 `pytest 300 PASS`. 2폴드 합성 3개 테스트 후보/결과 라벨 비공개. 문서 `docs/45_REPEATED_WALKFORWARD_CLI.md`; 실제 역사 원천 PIT나 미래 대장주 성공률 인증은 불가.
+- 최신 Git 커밋과 원격 상태는 `PROJECT_STATE.md` 마지막 체크포인트와 `git status -sb`를 확인할 것. 다음 실제 독립 상장·상폐/기업행동 원천, 실전 홀드아웃 라벨, 6_5 하드웨어 복구 검증 우선.

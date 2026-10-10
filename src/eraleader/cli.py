@@ -30,6 +30,7 @@ from .outcome_source_claims import audit_outcome_source_claims
 from .pit_chain import audit_pit_to_outcome_chain
 from .ranked_registry import audit_ranked_watch_registry
 from .rank_score_ledger import register_rank_scores, audit_frozen_rank_scores
+from .rank_score_pipeline import compute_and_register_rank_scores
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
@@ -454,6 +455,11 @@ def execute_register_rank_scores(args) -> dict:
                                 Path(args.features_dir),Path(args.scores),
                                 market=args.market,model_version=args.model_version)
 
+def execute_compute_rank_scores(args) -> dict:
+    return compute_and_register_rank_scores(
+        Path(args.features_dir),Path(args.watch_ledger),Path(args.score_ledger),
+        market=args.market,model_version=args.model_version)
+
 def execute_audit_rank_scores(args) -> dict:
     result=audit_frozen_rank_scores(Path(args.frozen_rank),
                                     Path(args.score_ledger),Path(args.features_dir))
@@ -656,6 +662,13 @@ def main(argv=None):
     rs.add_argument("--features-dir",required=True)
     rs.add_argument("--watch-ledger",required=True)
     rs.add_argument("--score-ledger",required=True)
+    auto_rs=sub.add_parser("compute-rank-scores",
+                           help="Compute fixed four-factor research scores and timestamp-link to first WATCH")
+    auto_rs.add_argument("--market",choices=["KR","US"],required=True)
+    auto_rs.add_argument("--model-version",required=True)
+    auto_rs.add_argument("--features-dir",required=True)
+    auto_rs.add_argument("--watch-ledger",required=True)
+    auto_rs.add_argument("--score-ledger",required=True)
     ra=sub.add_parser("audit-rank-scores",
                       help="Match pinned frozen top-K numeric scores to original local score-entry time and feature hashes")
     ra.add_argument("--frozen-rank",required=True)
@@ -799,6 +812,7 @@ def main(argv=None):
         elif args.command=="audit-pit-chain":result=execute_pit_chain(args)
         elif args.command=="audit-ranked-registry":result=execute_ranked_registry(args)
         elif args.command=="record-rank-scores":result=execute_register_rank_scores(args)
+        elif args.command=="compute-rank-scores":result=execute_compute_rank_scores(args)
         elif args.command=="audit-rank-scores":result=execute_audit_rank_scores(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)

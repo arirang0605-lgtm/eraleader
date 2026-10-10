@@ -47,8 +47,8 @@ def outcomes_file(tmp_path):
        "mature_at":"2026-08-01T17:00:00+09:00",
        "outcome_available_at":"2026-08-03T17:00:00+09:00"},
       {"security_id":"B","label_definition_id":LABEL,"is_future_leader":False,
-       "mature_at":"2026-08-01T17:00:00+09:00",
-       "outcome_available_at":"2026-08-03T17:00:00+09:00"},
+       "mature_at":"2026-10-02T17:00:00+09:00",
+       "outcome_available_at":"2026-10-03T17:00:00+09:00"},
       {"security_id":"C","label_definition_id":LABEL,"is_future_leader":True,
        "leader_start_at":"2026-04-01T10:00:00+09:00",
        "mature_at":"2026-08-01T17:00:00+09:00",
@@ -296,3 +296,40 @@ def test_missing_label_protocol_denied_at_freeze(tmp_path):
         freeze_registered_candidates(registry,tmp_path/"manifest.json",market="KR",
                                      model_version=VERSION,label_definition_id="",
                                      clock=FREEZE_CLOCK)
+
+def test_premature_negative_label_is_censored_not_declared_false_positive(tmp_path):
+    freeze(tmp_path)
+    labels=outcomes_file(tmp_path)
+    body=json.loads(labels.read_text())
+    body[1]["mature_at"]="2026-08-01T17:00:00+09:00"
+    body[1]["outcome_available_at"]="2026-08-03T17:00:00+09:00"
+    labels.write_text(json.dumps(body))
+    result=evaluate_frozen_candidates(tmp_path/"holdout_manifest.json",labels,
+                                    evaluated_at="2026-10-10T17:00:00+09:00",
+                                    clock=datetime(2026,10,11,tzinfo=timezone.utc))
+    assert result["true_early_discoveries"]==1
+    assert result["false_discoveries"]==0
+    assert result["late_or_post_onset"]==1
+    assert result["known_outcomes"]==2
+    assert result["censored_outcomes"]==2
+    assert result["premature_negative_labels_censored"]==1
+    assert result["precision_known_including_late"]==0.5
+    assert result["conservative_precision_floor"]==0.25
+    assert result["historic_pit_certified"] is False
+
+
+def test_negative_label_maturing_on_exact_frozen_horizon_is_allowed(tmp_path):
+    freeze(tmp_path)
+    labels=outcomes_file(tmp_path)
+    body=json.loads(labels.read_text())
+    # First candidate registered at 2026-04-02 KST; 180 days is 2026-09-29.
+    body[1]["mature_at"]="2026-09-29T17:00:00+09:00"
+    body[1]["outcome_available_at"]="2026-09-30T10:00:00+09:00"
+    labels.write_text(json.dumps(body))
+    result=evaluate_frozen_candidates(tmp_path/"holdout_manifest.json",labels,
+                                    evaluated_at="2026-10-10T17:00:00+09:00",
+                                    clock=datetime(2026,10,11,tzinfo=timezone.utc))
+    assert result["false_discoveries"]==1
+    assert result["premature_negative_labels_censored"]==0
+    assert result["known_outcomes"]==3
+    assert result["historic_pit_certified"] is False

@@ -6,7 +6,7 @@ independently certified; results are NEVER real investment-performance claims.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 from hashlib import sha256
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -206,6 +206,7 @@ def evaluate_frozen_candidates(
         lookup[sec] = label
     seen_ids=set()
     tp=fp=late=censored=0
+    premature_negative=0
     lead_days=[]
     for signal in frozen["signals"]:
         sec = signal["security_id"]
@@ -229,6 +230,14 @@ def evaluate_frozen_candidates(
             censored+=1
             continue
         if not label["is_future_leader"]:
+            # A negative conclusion is only mature after the FULL frozen
+            # forecast window. Early negative labels cannot be final FPs.
+            required_end = (recorded.astimezone(TIMEZONES[market]).date()
+                            + timedelta(days=frozen_horizon))
+            if matured.astimezone(TIMEZONES[market]).date() < required_end:
+                censored += 1
+                premature_negative += 1
+                continue
             fp+=1
             continue
         onset=_stamp(label["leader_start_at"])
@@ -250,6 +259,7 @@ def evaluate_frozen_candidates(
         "eligible_candidates":len(seen_ids),
         "excluded_historical_backfills":frozen["excluded_historical_backfills"],
         "known_outcomes":known_count, "censored_outcomes":censored,
+        "premature_negative_labels_censored":premature_negative,
         "coverage_fraction":round(known_count/len(seen_ids),6) if seen_ids else None,
         "true_early_discoveries":tp,"false_discoveries":fp,"late_or_post_onset":late,
         "precision_known_including_late":round(tp/known_count,6) if known_count else None,
@@ -257,5 +267,5 @@ def evaluate_frozen_candidates(
         "median_early_lead_days":median(lead_days) if lead_days else None,
         "recall_complete_universe":None,"financial_returns_certified":False,
         "historic_pit_certified":False,"independent_clock_attested":False,
-        "warning":"Data and labels require independent vendor and prospective PIT certification. No certified investing accuracy.",
+        "warning":"Negative outcomes require maturity over the full frozen horizon. Data and labels require independent vendor and prospective PIT certification. No certified investing accuracy.",
     }

@@ -240,3 +240,8 @@
 
 - 신규 `src/eraleader/holdout_outcome_reconcile.py` + `reconcile-holdout-outcomes` CLI 및 `docs/56_FROZEN_OUTCOME_RECONCILIATION.md`: 봉인된 후보의 `registered_at`부터 만기일까지의 조건과 별도 결과 라벨 `mature_at`/`outcome_available_at`를 5가지 미확인/평가가능 연구 상태로 대조. **미성숙 음성은 실패로 확정 금지**; 라벨이 없는 만기 후보도 계속 미확인. 추가 결과 라벨이 성능 분자/분모를 바꾸지 못하도록 제한. 합성 회귀 12개, 전체 `pytest 441 PASS`. 합성 4개 후보 중 라벨 없이 내부 평가 가능 0, 합성 라벨 있으면 3/4 가능하나 **실제 대장주 발굴 적중률 인증 0**. safe JSON ZIP SHA 복구 PASS.
 - 외부 API 계속 연기, D-021 실제 SSD 물리 재연결/재부팅은 API 연결 후 최종 단계로 보류. 최종 Commit SHA/푸시 증거는 `PROJECT_STATE.md` 마지막 및 실제 git 확인.
+
+## 2026-10-10 2_5 / 5_5 결과 라벨 근거 원천 파일/시각 감사
+
+- 신규 `src/eraleader/outcome_source_claims.py` + CLI `audit-outcome-source-claims`, `docs/57_OUTCOME_SOURCE_CLAIM_AUDIT.md`는 동결 모델·결과 라벨 SHA와 per-security 원문 로컬 JSON SHA256/발행시각 주장/취득시각 주장을 교차 대조. 원천 누락·위조·시점 후행시 차단 사유를 저장; **정합성 모두 PASS해도 독립 공급자 PIT·실제 예측 적중률 인증은 항상 false**. 새 합성 테스트 17개, 전체 pytest 458 PASS. 실제 합성 CLI 3개 근거 파일 일치, 일부러 변경한 A 파일 `SOURCE_BYTES_SHA256_MISMATCH` 검출, 파생 JSON만 SHA ZIP 백업/복구 PASS. 실원천 라벨/실제 미래 성능 0 인증.
+- D-021: 실제 SSD 분리·재연결/맥북 재부팅은 외부 API 연결 뒤 최종 단계에서만 실행. 이번 작업/commit SHA는 `PROJECT_STATE.md` 끝부분과 `git status` 확인.

@@ -239,3 +239,50 @@ def test_cli_freeze_and_evaluate_research_only(tmp_path, capsys):
     out = json.loads(report.read_text())
     assert out["censored"] == 1 and out["precision_at_k_on_known"] is None
     assert out["official_leader_promotions"] == 0
+
+
+@pytest.mark.parametrize("market,snapshot,maturity,expected", [
+    ("KR", "2026-01-01T00:00:00Z", "2026-01-30T23:59:00Z", "censored"),
+    ("KR", "2026-01-01T00:00:00Z", "2026-01-31T00:00:00Z", "known_failure"),
+    # US daylight saving begins March 8: the 30-day horizon is local-wall-time,
+    # not UTC elapsed hours or only the calendar date.
+    ("US", "2026-03-07T20:30:00-05:00", "2026-04-06T20:29:00-04:00", "censored"),
+    ("US", "2026-03-07T20:30:00-05:00", "2026-04-06T20:30:00-04:00", "known_failure"),
+    ("US", "2026-03-07T20:30:00-05:00", "2026-04-06T21:00:00-04:00", "known_failure"),
+])
+def test_negative_outcome_requires_complete_local_time_horizon(
+        tmp_path, market, snapshot, maturity, expected):
+    later = datetime(2026, 6, 1, tzinfo=UTC)
+    freeze, _ = sealed(tmp_path, [record("A")], k=1,
+                       market=market, snap=snapshot, now=later)
+    result = measured(tmp_path, freeze, [label("A", False, mature=maturity,
+                      published="2026-04-07T22:00:00Z")],
+                      cutoff="2026-04-10T22:00:00Z", now=later)
+    assert result["ranked_results"][0]["status"] == expected
+    assert result["known_failures"] == (expected == "known_failure")
+    assert result["premature_negative_censored"] == (expected == "censored")
+    assert result["real_leader_prediction_certified"] is False
+
+@pytest.mark.parametrize("market,snapshot,onset,expected", [
+    ("KR", "2026-01-01T00:00:00Z", "2026-01-30T23:59:00Z", "early_hit"),
+    ("KR", "2026-01-01T00:00:00Z", "2026-01-31T00:00:00Z", "early_hit"),
+    ("KR", "2026-01-01T00:00:00Z", "2026-01-31T00:01:00Z", "known_failure"),
+    # 2026-03-07 EST -> 2026-04-06 EDT: local 30-day wall-clock deadline.
+    ("US", "2026-03-07T20:30:00-05:00", "2026-04-06T20:29:00-04:00", "early_hit"),
+    ("US", "2026-03-07T20:30:00-05:00", "2026-04-06T20:30:00-04:00", "early_hit"),
+    ("US", "2026-03-07T20:30:00-05:00", "2026-04-06T20:31:00-04:00", "known_failure"),
+])
+def test_positive_leader_onset_requires_full_local_clock_horizon(
+        tmp_path, market, snapshot, onset, expected):
+    later = datetime(2026, 6, 1, tzinfo=UTC)
+    freeze, _ = sealed(tmp_path, [record("A")], k=1,
+                       market=market, snap=snapshot, now=later)
+    result = measured(tmp_path, freeze, [
+        label("A", True, mature="2026-04-09T00:00:00Z",
+              published="2026-04-11T00:00:00Z", onset=onset),
+    ], cutoff="2026-04-15T00:00:00Z", now=later)
+    assert result["ranked_results"][0]["status"] == expected
+    assert result["early_hits"] == (expected == "early_hit")
+    assert result["known_failures"] == (expected == "known_failure")
+    assert result["censored"] == 0
+    assert result["real_leader_prediction_certified"] is False

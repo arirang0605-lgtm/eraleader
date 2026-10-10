@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from math import isfinite
 
-from .corporate_returns import reconstruct_total_return
+from .corporate_returns import MARKET_ZONE, reconstruct_total_return
 
 def _time(value: str) -> datetime:
     stamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -63,10 +63,9 @@ def compare_total_return_indexes(
         available=_time(row["available_at"])
         if available>limit or (i==0 and available>decision):
             raise ValueError("Reference index was not available by decision/evaluation")
-        # The provider must not claim a session's final total-return index
-        # was published before its own local session date.
-        source_zone=datetime.fromisoformat(decision_at.replace("Z","+00:00")).tzinfo
-        if available.astimezone(source_zone).date()<session:
+        # A request's UTC/offset date is not the exchange session date.
+        # Resolve in the market timezone (including US DST) just like raw bars.
+        if available.astimezone(MARKET_ZONE[market]).date() < session:
             raise ValueError("Reference index reported before its observed session")
         reference_values.append(_positive_number(row.get("index")))
     discrepancies=[]

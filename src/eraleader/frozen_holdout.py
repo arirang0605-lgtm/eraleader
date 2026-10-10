@@ -257,9 +257,12 @@ def evaluate_frozen_candidates(
         if not label["is_future_leader"]:
             # A negative conclusion is only mature after the FULL frozen
             # forecast window. Early negative labels cannot be final FPs.
-            required_end = (recorded.astimezone(TIMEZONES[market]).date()
-                            + timedelta(days=frozen_horizon))
-            if matured.astimezone(TIMEZONES[market]).date() < required_end:
+            # Preserve the recorded local clock, not only the date: a label
+            # matured one minute before the pinned horizon is still censored.
+            # Convert back to UTC to compare absolute instants across US DST.
+            required_end = (recorded.astimezone(TIMEZONES[market])
+                            + timedelta(days=frozen_horizon)).astimezone(timezone.utc)
+            if matured < required_end:
                 censored += 1
                 premature_negative += 1
                 continue
@@ -268,7 +271,11 @@ def evaluate_frozen_candidates(
         onset=_stamp(label["leader_start_at"])
         delta=(onset.astimezone(TIMEZONES[market]).date() -
                recorded.astimezone(TIMEZONES[market]).date()).days
-        if 0 < delta <= horizon_days:
+        # Calendar-day difference alone counts an onset a minute AFTER
+        # horizon expiry as an early hit. Enforce the frozen local clock too.
+        positive_deadline = (recorded.astimezone(TIMEZONES[market])
+                             + timedelta(days=frozen_horizon)).astimezone(timezone.utc)
+        if 0 < delta <= horizon_days and recorded < onset <= positive_deadline:
             tp+=1
             lead_days.append(delta)
         else:

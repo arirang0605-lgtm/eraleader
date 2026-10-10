@@ -8,6 +8,9 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from math import isfinite
 from typing import Any
+from zoneinfo import ZoneInfo
+
+MARKET_ZONE = {"KR": ZoneInfo("Asia/Seoul"), "US": ZoneInfo("America/New_York")}
 
 SUPPORTED = frozenset({"split", "dividend"})
 UNSUPPORTED = frozenset({"delist", "merger", "ticker_change", "rights", "spin_off"})
@@ -50,13 +53,15 @@ def reconstruct_total_return(
     prove that all historic corporate actions or delistings were captured.
     """
     signal_at, eval_at = _time(decision_at), _time(evaluated_at)
-    # Use trading dates in the caller's timezone, never the converted UTC day.
-    signal_day = datetime.fromisoformat(decision_at.replace("Z", "+00:00")).date()
-    eval_day = datetime.fromisoformat(evaluated_at.replace("Z", "+00:00")).date()
     if signal_at > eval_at:
         raise ValueError("Evaluation must not precede signal")
-    if market not in ("KR", "US"):
+    if market not in MARKET_ZONE:
         raise ValueError("Unknown market")
+    # Session labels are defined by the *exchange*, not the request's UTC
+    # offset. A US evening signal is frequently already tomorrow in UTC.
+    market_zone = MARKET_ZONE[market]
+    signal_day = signal_at.astimezone(market_zone).date()
+    eval_day = eval_at.astimezone(market_zone).date()
     if price_basis != "raw_unadjusted":
         raise ValueError("Only raw_unadjusted close is allowed; adjusted data double-counts actions")
     if not isinstance(bars, list) or len(bars) < 2:
@@ -75,6 +80,8 @@ def reconstruct_total_return(
         if not row.get("available_at"):
             raise ValueError("Missing price available_at; cannot verify PIT close")
         available = _time(row["available_at"])
+        if available.astimezone(market_zone).date() < day:
+            raise ValueError("Price availability predates its market session")
         # The signal must not access a close published after decision_at.
         # Every subsequent bar must also be available by evaluation_at.
         if available > eval_at:

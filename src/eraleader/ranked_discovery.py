@@ -182,8 +182,13 @@ def evaluate_ranked_precision_at_k(
     # created. Explicitly disclose this; it is NEVER prospective proof.
     replay_postdated_seal = assessed < _time(frozen["frozen_at_utc"])
     zone = ZONES[frozen["market"]]
-    signal_day = _time(frozen["snapshot_at_utc"]).astimezone(zone).date()
+    signal_local = _time(frozen["snapshot_at_utc"]).astimezone(zone)
+    signal_day = signal_local.date()
     horizon = frozen["horizon_days"]
+    # A negative observation must cover the *entire* pinned horizon,
+    # including the decision's local clock time, across KR/US DST changes.
+    # Merely having the final local calendar date is not sufficient.
+    negative_maturity_utc = (signal_local + timedelta(days=horizon)).astimezone(timezone.utc)
     labels = _read(outcome_file) if outcome_file is not None else []
     if not isinstance(labels, list):
         raise ValueError("Outcomes must be a separate JSON array")
@@ -222,14 +227,18 @@ def evaluate_ranked_precision_at_k(
             available = _time(label["outcome_available_at"])
             if mature <= assessed and available <= assessed:
                 if label["is_future_leader"]:
-                    onset_day = _time(label["leader_start_at"]).astimezone(zone).date()
+                    onset_utc = _time(label["leader_start_at"])
+                    onset_day = onset_utc.astimezone(zone).date()
                     lead = (onset_day - signal_day).days
-                    if 0 < lead <= horizon:
+                    # Local-date lead alone accepts a leader beginning just
+                    # AFTER the pinned horizon on that very same market day.
+                    # Enforce the exact exchange-local wall-clock deadline.
+                    if 0 < lead <= horizon and onset_utc <= negative_maturity_utc:
                         state = "early_hit"
                         lead_days.append(lead)
                     else:
                         state = "known_failure"
-                elif mature.astimezone(zone).date() >= signal_day + timedelta(days=horizon):
+                elif mature >= negative_maturity_utc:
                     state = "known_failure"
                 else:
                     young_negative += 1
@@ -244,6 +253,7 @@ def evaluate_ranked_precision_at_k(
         "requested_k": frozen["requested_k"], "selected_count": selected,
         "frozen_content_sha256": frozen["content_sha256"],
         "snapshot_at_utc": frozen["snapshot_at_utc"],
+        "negative_maturity_not_before_utc": negative_maturity_utc.isoformat(),
         "evaluated_at_utc": assessed.isoformat(),
         "retrospective_freeze": frozen["retrospective_freeze"],
         "evaluation_as_of_precedes_actual_seal": replay_postdated_seal,

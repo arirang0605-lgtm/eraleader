@@ -25,6 +25,8 @@ from .walkforward_replay import replay_walk_forward_folds
 from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .adjusted_crosscheck import compare_total_return_indexes
+from .session_close_gate import audit_declared_session_close
+from .session_calendar_crosscheck import corroborate_declared_closes
 from .frozen_holdout import freeze_registered_candidates, evaluate_frozen_candidates
 from .holdout_maturity import audit_holdout_maturity
 from .holdout_outcome_reconcile import reconcile_holdout_outcomes
@@ -308,12 +310,39 @@ def execute_return_crosscheck(args) -> dict:
         raise ValueError("Explicit offline provenance required")
     if bundle.get("price_basis")!="raw_unadjusted":
         raise ValueError("Raw unadjusted price basis required")
+    clock_audit=None
+    calendar_audit=None
+    if args.exchange_calendar and not args.session_clock:
+        raise ValueError("--exchange-calendar requires --session-clock")
+    if args.session_clock:
+        clock_path=Path(args.session_clock)
+        if clock_path.stat().st_size>2_000_000:
+            raise ValueError("Oversized local session-clock manifest")
+        clock=json.loads(clock_path.read_text(encoding="utf-8"))
+        clock_audit=audit_declared_session_close(
+            bundle["bars"],bundle["reference"]["bars"],clock,
+            market=args.market,raw_source_id=bundle["raw_source_id"],
+            reference_source_id=bundle["reference"]["source_id"],
+            decision_at=args.decision_at,evaluated_at=args.evaluated_at)
+    if args.exchange_calendar:
+        calendar_path=Path(args.exchange_calendar)
+        if calendar_path.stat().st_size>2_000_000:
+            raise ValueError("Oversized exchange calendar")
+        calendar=json.loads(calendar_path.read_text(encoding="utf-8"))
+        calendar_audit=corroborate_declared_closes(
+            clock,calendar,market=args.market,decision_at=args.decision_at,
+            raw_source_id=bundle["raw_source_id"],
+            reference_source_id=bundle["reference"]["source_id"])
     result=compare_total_return_indexes(
         bundle["bars"],bundle["actions"],bundle["reference"],
         decision_at=args.decision_at,evaluated_at=args.evaluated_at,
         security_id=args.security_id,market=args.market,
         raw_source_id=bundle["raw_source_id"],
         tolerance_bps=args.tolerance_bps)
+    if clock_audit is not None:
+        result["declared_session_close_audit"]=clock_audit
+    if calendar_audit is not None:
+        result["declared_calendar_corroboration_audit"]=calendar_audit
     target=Path(args.out)/"total_return_crosscheck_research.json"
     write_json(target,result)
     return {"status":result["status"],"path":str(target),
@@ -691,6 +720,8 @@ def main(argv=None):
     check.add_argument("--decision-at",required=True)
     check.add_argument("--evaluated-at",required=True)
     check.add_argument("--tolerance-bps",type=float,default=5.0)
+    check.add_argument("--session-clock",help="Optional local pre-decision declared close-time manifest")
+    check.add_argument("--exchange-calendar",help="Optional separate claimed calendar with per-session closes")
     check.add_argument("--out",default=str(OUT))
     provenance=sub.add_parser("audit-source-vintage",help="Hash and as-of audit local source vintages without PIT certification")
     provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")

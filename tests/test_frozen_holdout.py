@@ -333,3 +333,140 @@ def test_negative_label_maturing_on_exact_frozen_horizon_is_allowed(tmp_path):
     assert result["premature_negative_labels_censored"]==0
     assert result["known_outcomes"]==3
     assert result["historic_pit_certified"] is False
+
+@pytest.mark.parametrize("mature_time,expected_fp", [
+    ("2026-09-29T16:59:00+09:00", 0),
+    ("2026-09-29T17:00:00+09:00", 1),
+])
+def test_5_5_kr_negative_requires_full_local_clock_horizon(tmp_path, mature_time, expected_fp):
+    freeze(tmp_path)
+    labels = [{
+        "security_id": "B", "label_definition_id": LABEL,
+        "is_future_leader": False, "mature_at": mature_time,
+        "outcome_available_at": "2026-09-29T18:00:00+09:00",
+    }]
+    path = tmp_path / "boundary_labels.json"
+    path.write_text(json.dumps(labels), encoding="utf-8")
+    report = evaluate_frozen_candidates(
+        tmp_path / "holdout_manifest.json", path,
+        evaluated_at="2026-10-10T17:00:00+09:00",
+        clock=datetime(2026, 10, 11, tzinfo=timezone.utc),
+    )
+    assert report["false_discoveries"] == expected_fp
+    assert report["premature_negative_labels_censored"] == 1 - expected_fp
+    assert report["known_outcomes"] == expected_fp
+    assert report["historic_pit_certified"] is False
+
+
+@pytest.mark.parametrize("mature_time,expected_fp", [
+    ("2026-03-13T14:59:00-04:00", 0),
+    ("2026-03-13T15:00:00-04:00", 1),
+])
+def test_5_5_us_dst_negative_requires_full_local_clock_horizon(tmp_path, mature_time, expected_fp):
+    # Mar 6 New York closes on EST; the 7-day local horizon ends on Mar 13 EDT.
+    registered = datetime(2026, 3, 6, 20, 0, tzinfo=timezone.utc)
+    source = tmp_path / "prospective_us.sqlite"
+    registry = ProspectiveRegistry(source)
+    try:
+        registry.record_integrated(
+            run(["US-SYN"], as_of="2026-03-06T14:59:00-05:00", market="US"),
+            clock=registered,
+        )
+    finally:
+        registry.close()
+    manifest = tmp_path / "us_holdout.json"
+    freeze_registered_candidates(
+        source, manifest, market="US", model_version=VERSION,
+        label_definition_id=LABEL, horizon_days=7,
+        clock=datetime(2026, 3, 7, 20, 0, tzinfo=timezone.utc),
+    )
+    labels = [{
+        "security_id": "US-SYN", "label_definition_id": LABEL,
+        "is_future_leader": False, "mature_at": mature_time,
+        "outcome_available_at": "2026-03-13T15:20:00-04:00",
+    }]
+    outcome_path = tmp_path / "us_labels.json"
+    outcome_path.write_text(json.dumps(labels), encoding="utf-8")
+    result = evaluate_frozen_candidates(
+        manifest, outcome_path, evaluated_at="2026-03-14T16:00:00-04:00",
+        clock=datetime(2026, 3, 15, tzinfo=timezone.utc),
+    )
+    assert result["eligible_candidates"] == 1
+    assert result["false_discoveries"] == expected_fp
+    assert result["premature_negative_labels_censored"] == 1 - expected_fp
+    assert result["known_outcomes"] == expected_fp
+    assert result["historic_pit_certified"] is False
+
+
+@pytest.mark.parametrize("onset_time,expected_early", [
+    ("2026-04-09T17:00:00+09:00", 1),
+    ("2026-04-09T17:01:00+09:00", 0),
+])
+def test_5_5_kr_positive_at_full_horizon_clock(tmp_path, onset_time, expected_early):
+    source = tmp_path / "kr_source.sqlite"
+    registered = datetime(2026, 4, 2, 8, 0, tzinfo=timezone.utc)
+    registry = ProspectiveRegistry(source)
+    try:
+        registry.record_integrated(
+            run(["KR-EDGE"], as_of="2026-04-02T16:59:00+09:00"),
+            clock=registered,
+        )
+    finally:
+        registry.close()
+    manifest = tmp_path / "kr_horizon.json"
+    freeze_registered_candidates(
+        source, manifest, market="KR", model_version=VERSION,
+        label_definition_id=LABEL, horizon_days=7,
+        clock=datetime(2026, 4, 3, 8, tzinfo=timezone.utc),
+    )
+    labels = tmp_path / "kr_horizon_outcomes.json"
+    labels.write_text(json.dumps([{
+        "security_id": "KR-EDGE", "label_definition_id": LABEL,
+        "is_future_leader": True, "leader_start_at": onset_time,
+        "mature_at": "2026-04-11T17:00:00+09:00",
+        "outcome_available_at": "2026-04-11T18:00:00+09:00",
+    }]), encoding="utf-8")
+    report = evaluate_frozen_candidates(
+        manifest, labels, evaluated_at="2026-04-12T12:00:00+09:00",
+        clock=datetime(2026, 4, 13, tzinfo=timezone.utc),
+    )
+    assert report["true_early_discoveries"] == expected_early
+    assert report["late_or_post_onset"] == 1 - expected_early
+    assert report["historic_pit_certified"] is False
+
+
+@pytest.mark.parametrize("onset_time,expected_early", [
+    ("2026-03-13T15:00:00-04:00", 1),
+    ("2026-03-13T15:01:00-04:00", 0),
+])
+def test_5_5_us_dst_positive_at_full_horizon_clock(tmp_path, onset_time, expected_early):
+    source = tmp_path / "us_source.sqlite"
+    registered = datetime(2026, 3, 6, 20, tzinfo=timezone.utc)
+    registry = ProspectiveRegistry(source)
+    try:
+        registry.record_integrated(
+            run(["US-EDGE"], as_of="2026-03-06T14:59:00-05:00", market="US"),
+            clock=registered,
+        )
+    finally:
+        registry.close()
+    manifest = tmp_path / "us_horizon.json"
+    freeze_registered_candidates(
+        source, manifest, market="US", model_version=VERSION,
+        label_definition_id=LABEL, horizon_days=7,
+        clock=datetime(2026, 3, 7, 20, tzinfo=timezone.utc),
+    )
+    labels = tmp_path / "us_horizon_outcomes.json"
+    labels.write_text(json.dumps([{
+        "security_id": "US-EDGE", "label_definition_id": LABEL,
+        "is_future_leader": True, "leader_start_at": onset_time,
+        "mature_at": "2026-03-14T15:00:00-04:00",
+        "outcome_available_at": "2026-03-14T16:00:00-04:00",
+    }]), encoding="utf-8")
+    report = evaluate_frozen_candidates(
+        manifest, labels, evaluated_at="2026-03-16T16:00:00-04:00",
+        clock=datetime(2026, 3, 18, tzinfo=timezone.utc),
+    )
+    assert report["true_early_discoveries"] == expected_early
+    assert report["late_or_post_onset"] == 1 - expected_early
+    assert report["historic_pit_certified"] is False

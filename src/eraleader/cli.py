@@ -46,6 +46,8 @@ from .evidence_gate import evaluate_local_evidence
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
 from .watch_progression import audit_watch_progression
+from .watch_rotation import audit_watch_rotation
+from .delivery import write_watch_rotation_dashboard
 from .pit_publication import verify_pit_publication
 from .local_backup import create_backup, verify_backup, restore_backup
 
@@ -511,6 +513,20 @@ def execute_watch_progression(args) -> dict:
             "historical_backfills":result["excluded_retrospective_observations"],
             "official_state_promotions":0}
 
+def execute_watch_rotation(args) -> dict:
+    result=audit_watch_rotation(Path(args.ledger),market=args.market,
+                                model_version=args.model_version,
+                                evaluated_at=args.evaluated_at,
+                                sample_limit=args.sample_limit)
+    dest=Path(args.out)/f"watch_rotation_{args.market.lower()}_research.json"
+    write_json(dest,result)
+    dashboard=write_watch_rotation_dashboard(result,Path(args.out)/"site")
+    return {"status":result["status"],"path":str(dest),
+            "dashboard":str(dashboard),
+            "rotation_hypothesis_count":result["rotation_hypothesis_count"],
+            "official_leader_replacements":0,
+            "historic_pit_certified":False}
+
 def execute_register_rank_scores(args) -> dict:
     return register_rank_scores(Path(args.score_ledger),Path(args.watch_ledger),
                                 Path(args.features_dir),Path(args.scores),
@@ -881,6 +897,14 @@ def main(argv=None):
     wp.add_argument("--model-version",required=True)
     wp.add_argument("--max-lag-days",type=int,default=3)
     wp.add_argument("--out",default=str(OUT))
+    wr=sub.add_parser("audit-watch-rotation",
+                      help="Read-only peer WATCH weakening/replacement hypotheses, never certified leaders")
+    wr.add_argument("--ledger",required=True)
+    wr.add_argument("--market",choices=["KR","US"],required=True)
+    wr.add_argument("--model-version",required=True)
+    wr.add_argument("--evaluated-at",required=True,help="Timezone-aware as-of cutoff")
+    wr.add_argument("--sample-limit",type=int,default=100)
+    wr.add_argument("--out",default=str(OUT))
     pv=sub.add_parser("verify-pit-publication",
                       help="Verify current immutable KR+US PIT research generation, never official leader data")
     pv.add_argument("--out",required=True)
@@ -914,6 +938,7 @@ def main(argv=None):
         elif args.command=="audit-issuer-lineage":result=execute_issuer_lineage(args)
         elif args.command=="audit-evidence-gate":result=execute_evidence_gate(args)
         elif args.command=="audit-watch-progression":result=execute_watch_progression(args)
+        elif args.command=="audit-watch-rotation":result=execute_watch_rotation(args)
         elif args.command=="verify-pit-publication":result=execute_publication_verify(args)
         elif args.command=="audit-holdout-maturity":result=execute_holdout_maturity(args)
         elif args.command=="reconcile-holdout-outcomes":result=execute_holdout_reconciliation(args)

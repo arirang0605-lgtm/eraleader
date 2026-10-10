@@ -36,7 +36,8 @@ JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "issuer_lineage_kr_research.json","issuer_lineage_us_research.json",
             "repeated_walkforward_research.json",
             "evidence_gate_kr_research.json","evidence_gate_us_research.json",
-            "watch_progression_kr_research.json","watch_progression_us_research.json"}
+            "watch_progression_kr_research.json","watch_progression_us_research.json",
+            "watch_rotation_kr_research.json","watch_rotation_us_research.json"}
 FOLDERS={"site":{".html"},"reports":{".md"},"runs":{".json"}}
 MAX_FILES=400
 MAX_FILE_BYTES=40*1024*1024

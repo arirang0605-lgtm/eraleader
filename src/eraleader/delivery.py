@@ -304,3 +304,76 @@ def write_watch_progression_dashboard(report: dict, site_dir: Path) -> Path:
     file=site_dir/f"watch_progression_{report['market'].lower()}.html"
     file.write_text(html,encoding="utf-8")
     return file
+
+
+def render_watch_rotation_dashboard(report: dict) -> str:
+    """Safe, explicit research-only rendering of peer WATCH rotation hypotheses."""
+    if (report.get("status") != "RESEARCH_PEER_WATCH_ROTATION_NOT_CERTIFIED"
+            or report.get("market") not in ("KR", "US")
+            or report.get("official_leader_replacements") != 0
+            or report.get("historic_pit_certified") is not False
+            or report.get("industry_membership_pit_certified") is not False
+            or report.get("peer_universe_coverage_certified") is not False
+            or report.get("actual_prediction_accuracy_certified") is not False):
+        raise ValueError("Uncertified research rotation must never show official promotions")
+    n=report.get("rotation_hypothesis_count")
+    sample=report.get("hypothesis_sample")
+    if (type(n) is not int or n<0 or not isinstance(sample,list)
+            or len(sample)>n or len(sample)>1000):
+        raise ValueError("Research rotation sample/count mismatch")
+    def safe(item):
+        return escape(str(item),quote=True)
+    body=[]
+    for entry in sample[:200]:
+        if (not isinstance(entry,dict) or
+                entry.get("kind") != "RESEARCH_PEER_WATCH_REPLACEMENT_HYPOTHESIS"
+                or entry.get("incumbent_is_certified_leader") is not False
+                or entry.get("contender_is_certified_leader") is not False or
+                entry.get("incumbent_security_id")==entry.get("contender_security_id")):
+            raise ValueError("Invalid research rotation sample kind/leader certification")
+        keys=(
+            "industry_id","incumbent_security_id","contender_security_id",
+            "first_explicit_weakening_at_utc","second_explicit_weakening_at_utc",
+            "contender_first_watch_at_utc","contender_second_watch_at_utc",
+        )
+        if any(not isinstance(entry.get(k),str) or not entry[k] for k in keys):
+            raise ValueError("Invalid incomplete research rotation sample")
+        body.append("<tr>"+"".join(f"<td>{safe(entry[key])}</td>" for key in keys)+"</tr>")
+    if not body:
+        body=["<tr><td colspan='7'>현재 기준 명시적 교체 가설 없음 — 누락 자료를 약화로 추정하지 않음</td></tr>"]
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EraLeader WATCH 교체 후보 · {safe(report['market'])}</title>
+<style>{BASE_CSS}</style></head><body>
+<header><h1>EraLeader · 업종 WATCH 교체 후보 관찰</h1>
+<nav><a href="index.html">처음으로</a></nav></header><main>
+<div class="note"><strong>로컬 연구 가설 · 확정 대장주 0건</strong>
+<p>기존 WATCH 종목의 명시적 연속 약화와 같은 산업의 신규 WATCH 연속 양성을
+서로 비교한 연구입니다. 현재 공식 대장주 확정 또는 실제 투자 추천이 아닙니다.
+완전한 종목군, 공식 업종분류, 데이터 원천 PIT 및 미래 성과라벨은 검증되지 않았습니다.
+관찰 목록에서 기업이 빠졌다는 이유만으로 약화 또는 교체로 판단하지 않습니다.</p></div>
+<h2>시장 {safe(report['market'])} · 모델 {safe(report.get('model_version'))}</h2>
+<div class="stats">
+<div class="stat">교체 연구 가설<br><strong>{n}건</strong></div>
+<div class="stat">전향적 입력 관찰<br><strong>{safe(report.get('eligible_observation_count'))}건</strong></div>
+<div class="stat">소급입력 제외<br><strong>{safe(report.get('excluded_hindsight_or_backfill_count'))}건</strong></div>
+<div class="stat">공식 교체/확정<br><strong>0건 · 미인증</strong></div>
+</div>
+<p>평가 기준 (UTC): {safe(report.get('evaluated_at_utc'))}</p>
+<h2>WATCH 교체 후보 샘플 (최대 200건, 확정 아님)</h2>
+<div class="wrap"><table><thead><tr>
+<th>자기선언 업종 ID</th><th>기존 WATCH ID</th><th>신규 WATCH ID</th>
+<th>첫 명시적 약화(UTC)</th><th>두 번째 약화(UTC)</th>
+<th>신규 첫 양성(UTC)</th><th>신규 두 번째 양성(UTC)</th>
+</tr></thead><tbody>{''.join(body)}</tbody></table></div>
+<p><small>공식 대장주 교체 0 · 미래 조기발굴 성과 N/A · 자동 거래/투자 추천 없음 ·
+외부 인증된 PIT 자료 없이 확정 승격 불가.</small></p>
+</main></body></html>"""
+
+
+def write_watch_rotation_dashboard(report: dict, site_dir: Path) -> Path:
+    html=render_watch_rotation_dashboard(report)
+    site_dir.mkdir(parents=True,exist_ok=True)
+    path=site_dir/f"watch_rotation_{report['market'].lower()}.html"
+    path.write_text(html,encoding="utf-8")
+    return path

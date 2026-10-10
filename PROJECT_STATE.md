@@ -151,3 +151,15 @@
 - **주요 파일**: `pyproject.toml`, `.gitignore`, `src/eraleader/*.py`, `tests/*.py`, `scripts/verify_local_mvp.py`, `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`. 실행 결과는 **SSD의 `output/`** 아래 저장하며 원격 Git 업로드 제외.
 - **Git**: 로컬 `main` 초기화·파일 추가됨. 현재 원격 origin 설정 및 GitHub push **없음** (GitHub가 Public이므로 승인 전 push 금지). 커밋 SHA는 후속 실행 기록에 기재.
 - **최우선 다음 작업**: **2_2 역사 종목군/기업행동 PIT 보완 + 3_1~3_3 오프라인 재무·산업 입력 계약**을 구현하고, 4단계 후보 승격을 실제 검증 가능한 PIT 자료로 연결. 사용자의 최종 목표는 미래 대장주 조기 발굴이며 과거는 검증 수단이다.
+
+## 로컬 Git 체크포인트 결과 (2026-10-10)
+
+- Git 초기화: `/Volumes/T5DATA/eraleader/.git`, 브랜치 `main` (독립 로컬 저장소).
+- 최초 커밋: `72ef51487d6bd997e819d744fbbc26713f46e6a3` (`feat: bootstrap EraLeader offline local-first pipeline`), **68개 파일** 추적.
+- 테스트: `PYTHONPATH=src python3 -m pytest tests -q` → **17/17 PASS**.
+- 로컬 통합: `PYTHONPATH=src python3 scripts/verify_local_mvp.py` → **PASS**. 웹 3페이지 HTTP 200, 결과/이벤트/보고 로컬 확인.
+- 인수인계: `python3 scripts/check_handoff.py` → **PASS** (작업 ID 30개·PNG 7·SVG 7 정상).
+- 개발 출력 `output/`, `results/`, 기존 가격 원시자료, `.env`, 비밀키는 Git 추적 제외. 유출 의심 패턴 4종 확인 결과 매칭 파일 0개.
+- **GitHub:** `arirang0605-lgtm/eraleader` 존재, 이전 확인 당시 **Public**; origin 연결/원격 push **미실행**. 공개범위 승인 후에만 연동.
+- 다음 미완료 작업: **2_2 역사 종목군·기업행동 PIT / 3_1~3_3 오프라인 재무·산업 시점 자료 수입 및 상태 엔진 연결**. API는 로컬 1~6단계 검증 후.
+- 실제 테스트·실행 결과는 SSD의 `results/local_mvp/` 및 `output/`에 보존.

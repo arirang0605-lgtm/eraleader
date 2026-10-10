@@ -19,7 +19,7 @@
 
 1. 항상 **`START_HERE_NEXT_CHAT.md`를 첫 파일로 읽는다**. 다음은 `AGENTS.md`, `PROJECT_STATE.md` 최신 스냅샷, `DECISIONS.md`.
 2. 새 대화에서도 T5DATA SSD 실제 경로와 PC 연결 상태를 먼저 확인; 접근 실패 시 성공한 척하지 않는다.
-3. `docs/25_NEXT_IMPLEMENTATION_SPRINT.md`의 첫 미완료 작업부터 최소 구현·실행·테스트·기록. 오래된 이력의 '실태 점검 전' 문구보다 최신 스냅샷 우선.
+3. 현재 `docs/27_LOCAL_FIRST_IMPLEMENTATION.md`의 실제 통과 결과와 `PROJECT_STATE.md` 최상단·마지막 체크포인트를 우선 확인하고 **2_2/3_1~3_3부터 CONTINUE**. `docs/25_NEXT_IMPLEMENTATION_SPRINT.md`는 개발 시작 이전 계획이므로 이미 구현된 단계 재작성 금지.
 4. 반복 작업은 Python/DB가 처리해 AI 토큰을 절약한다. 긴 중간 분석과 전체 코드를 무조건 다시 읽지 않는다.
 5. 모델 변경은 현재 모델의 품질 부족이나 난도 상승이 분명할 때만 사유와 함께 제안.
 6. 추가 그림은 `docs/24_ARCHITECTURE_GAP_REVIEW.md`에서 진짜 개발에 필요한지 확인하고 만들 것. 구조 그림보다 실제 PIT 데이터와 시험을 우선.

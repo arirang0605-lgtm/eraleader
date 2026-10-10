@@ -25,6 +25,7 @@ from .corporate_returns import reconstruct_total_return
 from .adjusted_crosscheck import compare_total_return_indexes
 from .frozen_holdout import freeze_registered_candidates, evaluate_frozen_candidates
 from .holdout_maturity import audit_holdout_maturity
+from .holdout_outcome_reconcile import reconcile_holdout_outcomes
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
@@ -444,6 +445,22 @@ def execute_watch_progression(args) -> dict:
             "historical_backfills":result["excluded_retrospective_observations"],
             "official_state_promotions":0}
 
+def execute_holdout_reconciliation(args) -> dict:
+    result=reconcile_holdout_outcomes(
+        Path(args.freeze_file), evaluated_at=args.evaluated_at,
+        outcome_file=Path(args.outcomes) if args.outcomes else None,
+        sample_limit=args.sample_limit)
+    path=Path(args.out)/"holdout_outcome_reconciliation_research.json"
+    write_json(path,result)
+    return {"status":result["status"],"path":str(path),
+            "frozen_candidates":result["frozen_candidates"],
+            "horizon_elapsed_count":result["horizon_elapsed_count"],
+            "internally_evaluable_outcome_count":
+                result["internally_evaluable_outcome_count"],
+            "unknown_or_censored_count":result["unknown_or_censored_count"],
+            "official_leader_promotions":0,
+            "leader_accuracy_certified":False}
+
 def execute_holdout_maturity(args) -> dict:
     result = audit_holdout_maturity(
         Path(args.freeze_file), as_of=args.as_of, sample_limit=args.sample_limit)
@@ -568,6 +585,13 @@ def main(argv=None):
     provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")
     provenance.add_argument("--decision-at",required=True,help="Timezone-aware as-of cutoff")
     provenance.add_argument("--out",default=str(OUT))
+    reconcile=sub.add_parser("reconcile-holdout-outcomes",
+                       help="Match matured sealed cohort and separate research labels; never claim verified accuracy")
+    reconcile.add_argument("--freeze-file",required=True)
+    reconcile.add_argument("--outcomes",help="Optional local unverified outcome label array")
+    reconcile.add_argument("--evaluated-at",required=True)
+    reconcile.add_argument("--sample-limit",type=int,default=100)
+    reconcile.add_argument("--out",default=str(OUT))
     maturity=sub.add_parser("audit-holdout-maturity",
                       help="Calendar-only full-horizon readiness; does NOT generate leader outcomes")
     maturity.add_argument("--freeze-file",required=True)
@@ -669,6 +693,7 @@ def main(argv=None):
         elif args.command=="audit-watch-progression":result=execute_watch_progression(args)
         elif args.command=="verify-pit-publication":result=execute_publication_verify(args)
         elif args.command=="audit-holdout-maturity":result=execute_holdout_maturity(args)
+        elif args.command=="reconcile-holdout-outcomes":result=execute_holdout_reconciliation(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)

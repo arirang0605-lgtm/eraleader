@@ -235,3 +235,8 @@
 
 - 다른 세션의 5_3 음성 라벨 30일/180일 누출 수정은 **418 독립 pytest PASS** 후 코드 커밋 `35614e7` 원격 푸시 완료. 새 `src/eraleader/holdout_maturity.py` + CLI `audit-holdout-maturity` / `docs/55_HOLDOUT_MATURITY_SCHEDULE.md`: 동결된 모델·라벨 정의·평가기간을 보존하면서 당시 **등록일(시장 현지일)** 기준 평가기간 종료/미경과를 계산. 결과 라벨을 읽거나 성공·실패를 추측하지 않는다. 신규 11 합성 회귀, 전체 `pytest 429 PASS`, CLI/derived JSON SHA ZIP 백업·복원 PASS. 합성 4개 만기 경과, **실제 결과 레이블 0**, 확정 대장주 0, API 0.
 - D-021 물리 SSD 분리/재연결과 재부팅 실험은 API 연결 후 마지막으로 미룸; 코딩과 합성 복구만 수행. 최신 Git sha/푸시는 실제 `PROJECT_STATE.md` 마지막 확인 결과와 `git status -sb`를 우선한다.
+
+## 2026-10-10 5_4/5_5 동결 후보 만기 ↔ 성과라벨 근거 대조
+
+- 신규 `src/eraleader/holdout_outcome_reconcile.py` + `reconcile-holdout-outcomes` CLI 및 `docs/56_FROZEN_OUTCOME_RECONCILIATION.md`: 봉인된 후보의 `registered_at`부터 만기일까지의 조건과 별도 결과 라벨 `mature_at`/`outcome_available_at`를 5가지 미확인/평가가능 연구 상태로 대조. **미성숙 음성은 실패로 확정 금지**; 라벨이 없는 만기 후보도 계속 미확인. 추가 결과 라벨이 성능 분자/분모를 바꾸지 못하도록 제한. 합성 회귀 12개, 전체 `pytest 441 PASS`. 합성 4개 후보 중 라벨 없이 내부 평가 가능 0, 합성 라벨 있으면 3/4 가능하나 **실제 대장주 발굴 적중률 인증 0**. safe JSON ZIP SHA 복구 PASS.
+- 외부 API 계속 연기, D-021 실제 SSD 물리 재연결/재부팅은 API 연결 후 최종 단계로 보류. 최종 Commit SHA/푸시 증거는 `PROJECT_STATE.md` 마지막 및 실제 git 확인.

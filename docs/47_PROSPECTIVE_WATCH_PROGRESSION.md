@@ -33,3 +33,10 @@ Synthetic input clock is **injected for deterministic tests only** (four dates O
 - Existing *historical* `prospective.sqlite` files from before this schema contain positive registered signals without full negative-screen history. A replay of an identical old positive signal reuses original positive registration time; missing past negative rows **cannot be reconstructed** from absence and are never manufactured.
 - The local computer clock and provider assertions are not independently attested. A malicious actor with complete SQLite and wall-clock access could forge data, even with SHA checks. Our code only catches local inconsistency or an unrecognized altered record.
 - All input data remain local research-only. Before officially identifying future leaders: verify complete PIT historical issuer/corporate-action/adjusted-price/fiscal industry sources, real contemporary input freshness, full observed universe and forward unaltered maturity labels; then validate lead time, false positives, replacement tracking on truly prospective observations. External API sources are still postponed by user.
+
+## 2026-10-10 추가 6_2 — 정적 WATCH 변화 대시보드
+
+- `src/eraleader/delivery.py`의 `render_watch_progression_dashboard`/`write_watch_progression_dashboard`를 기존 HTML 코드에 **추가**했다. 시장, 모델, 명시적 최초/지속/약화/재진입/사전 미충족 건수, 실제 기록시각과 관측시각, 과거자료 소급 제외 건수를 표시한다. 종목 누락을 약화로 판정하지 않으며 **확정 대장주 0건 / 연구용 / 실제 예측 성과 미인증**을 화면에 상시 고정한다.
+- `audit-watch-progression` CLI가 JSON과 `site/watch_progression_{kr,us}.html` 페이지 경로를 함께 생성한다. 공격성 종목 문자열 `<script>` escape, 잘못된 공식 승격 또는 가짜 인증 수치 주입, 합계 불일치는 오류로 차단한다. 표는 샘플 200건만 표시하고 내부 자료 전체 및 개인키를 노출하지 않는다.
+- 신규 웹 테스트 3개, 백업 기존 예상 산출물 개수 1→2 수정. 합성 4일 실제 CLI → 로컬 `127.0.0.1` HTTP GET 페이지 **200** 응답·약화/재진입/확정 차단 표시 확인. 로컬 `output/continuous/watch_progression_html_20261010.zip`에 파생 JSON + 정적 HTML **2개만** 보관 (input 4,872 bytes); SHA256 검증 및 새 폴더 복원 성공, 원시 SQLite/시장가격/민감키 포함 없음.
+- 전 테스트는 기존 357에서 신규 3개 포함 **360 PASS / 0 FAIL**. 현물 시장의 진짜 전향적 WATCH 통계나 실제 검증된 한국·미국 대장주 발견 능력이 아니다. 외부 API 연기는 그대로 유지.

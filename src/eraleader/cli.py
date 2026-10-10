@@ -11,7 +11,7 @@ from . import __version__
 from .data import LEGACY_DEFAULT, read_market_bars
 from .discovery import score_price_observations, detect_watch_changes,run_id_for
 from .pit import LocalStore
-from .delivery import write_dashboard,make_report,write_integrated_dashboard,write_prospective_dashboard,write_evidence_gate_dashboard
+from .delivery import write_dashboard,make_report,write_integrated_dashboard,write_prospective_dashboard,write_evidence_gate_dashboard,write_watch_progression_dashboard
 from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .offline_features import financial_snapshot
@@ -418,7 +418,9 @@ def execute_watch_progression(args) -> dict:
                                    max_registration_lag_days=args.max_lag_days)
     dest=Path(args.out)/f"watch_progression_{args.market.lower()}_research.json"
     write_json(dest,result)
+    page=write_watch_progression_dashboard(result,Path(args.out)/"site")
     return {"status":result["status"],"path":str(dest),
+            "dashboard":str(page),
             "prospective_observations":result["eligible_prospective_observations"],
             "historical_backfills":result["excluded_retrospective_observations"],
             "official_state_promotions":0}

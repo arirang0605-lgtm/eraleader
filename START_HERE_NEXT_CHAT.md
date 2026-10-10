@@ -191,3 +191,7 @@
 ## 2026-10-10 5_4/5_5 WATCH 지속/약화/재진입 이력
 
 - 전 채팅의 홀드아웃 원장 무결성 3개 파일은 별도 검증 후 `c57ec59` 원격 푸시 확인. 새 로컬 연구 원장은 스크리닝 hit true/false를 동일 트랜잭션에 명시적 저장, 누락 종목은 약화로 간주 금지. 최초 양성/지속/명시적 약화/재등장을 추적하며 3일 초과 소급 연구자료는 전향적 성과에서 제외. `audit-watch-progression`, `docs/47_PROSPECTIVE_WATCH_PROGRESSION.md`, 신규 테스트 16개, 합계 `pytest 357 PASS`. 모의·합성 4일 자료로 CLI/ZIP SHA 복구 검증. 공식 대장주/PIT 인증 여전히 0. Git 최종 SHA 및 실제 Push는 `PROJECT_STATE.md` 최신 기록과 Git을 확인.
+
+## 2026-10-10 6_2 후보 WATCH 변화 로컬 웹 화면
+
+- `audit-watch-progression`이 `site/watch_progression_{kr,us}.html` 생성, 명시적 최초/지속/약화/재진입·소급 제외 건수 확인. 안전 HTML escape, 확정 대장주 0건 및 미래 정확도 미인증 고정. 합성 후보 4일/로컬 HTTP 200/파생 JSON+HTML ZIP SHA 검증·복원 PASS. 신규 웹 테스트 3개 포함 전체 **360 pytest PASS**. `docs/47_PROSPECTIVE_WATCH_PROGRESSION.md` 하단, 실제 Git 상태는 `PROJECT_STATE.md` 마지막 기록에서 확인.

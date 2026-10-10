@@ -243,3 +243,63 @@ def write_evidence_gate_dashboard(report: dict, site_dir: Path) -> Path:
     target=site_dir/f"evidence_{report['market'].lower()}.html"
     target.write_text(rendered,encoding="utf-8")
     return target
+
+def render_watch_progression_dashboard(report: dict) -> str:
+    """Read-only research WATCH lifecycle, never a certified leader board."""
+    if (report.get("status") != "LOCAL_WATCH_TRANSITIONS_RESEARCH_ONLY_NOT_CERTIFIED"
+            or report.get("market") not in ("KR","US")
+            or report.get("official_state_promotions") != 0
+            or report.get("pit_certified") is not False
+            or report.get("leader_prediction_accuracy_certified") is not False):
+        raise ValueError("Uncertified WATCH progression cannot show leader promotions")
+    totals=report.get("transition_counts")
+    entries=report.get("transition_event_sample")
+    if not isinstance(totals,dict) or not isinstance(entries,list):
+        raise ValueError("Missing WATCH progression data")
+    tags=("INITIAL_WATCH","WATCH_PERSISTED","SCREEN_WEAKENED",
+          "SCREEN_STILL_WEAK","SCREEN_REENTERED","PRE_WATCH")
+    if any(type(totals.get(tag)) is not int or totals[tag]<0 for tag in tags):
+        raise ValueError("Invalid WATCH transition counts")
+    if sum(totals[tag] for tag in tags)!=report.get("eligible_prospective_observations"):
+        raise ValueError("WATCH transition total mismatch")
+    def safe(value):
+        return escape(str(value),quote=True)
+    rows=[]
+    for row in entries[:200]:
+        if not isinstance(row,dict) or row.get("transition") not in tags:
+            raise ValueError("Invalid WATCH transition entry")
+        values=(row.get("security_id"),row.get("observed_at"),
+                row.get("registered_at"),row["transition"],
+                row.get("registration_lag_days"))
+        rows.append("<tr>"+"".join(f"<td>{safe(v)}</td>" for v in values)+"</tr>")
+    summary="".join(
+        f'<div class="stat">{safe(tag)}<br><strong>{totals[tag]}</strong></div>'
+        for tag in tags)
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EraLeader 후보 변화 관찰 · {safe(report["market"])}</title>
+<style>{BASE_CSS}</style></head><body>
+<header><h1>EraLeader · 후보 WATCH 변화 기록</h1>
+<nav><a href="index.html">처음으로</a></nav></header><main>
+<div class="note"><strong>연구용 관찰 · 확정 대장주 0건</strong>
+<p>명시적으로 분석한 신호의 최초 관찰, 지속, 약화, 재진입만 기록합니다.
+관찰 목록에 종목이 없다는 이유만으로 약화로 판정하지 않습니다.
+로컬 등록 시각과 데이터 원천은 독립 PIT 인증되지 않았으며 투자 추천이 아닙니다.</p></div>
+<h2>시장 {safe(report["market"])} · 모델 {safe(report.get("model_version"))}</h2>
+<div class="stats">{summary}</div>
+<p>전향적 관측: {report["eligible_prospective_observations"]}건 ·
+소급 입력 제외: {report["excluded_retrospective_observations"]}건</p>
+<h2>관측 전이 샘플 (최대 200건)</h2>
+<div class="wrap"><table><thead><tr>
+<th>종목 식별자</th><th>관측일</th><th>실제 기록일</th><th>변화 유형</th><th>기록 지연일</th>
+</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
+<p><small>검증 완료된 미래 대장주 성능: N/A · 공식 승격: 0 · 자동 매수/매도 없음.</small></p>
+</main></body></html>"""
+
+
+def write_watch_progression_dashboard(report: dict, site_dir: Path) -> Path:
+    html=render_watch_progression_dashboard(report)
+    site_dir.mkdir(parents=True,exist_ok=True)
+    file=site_dir/f"watch_progression_{report['market'].lower()}.html"
+    file.write_text(html,encoding="utf-8")
+    return file

@@ -195,15 +195,17 @@ def test_cli_writes_derived_report_only_and_backup_is_safe(tmp_path,capsys):
     printed=json.loads(capsys.readouterr().out)
     assert printed["prospective_observations"]==2
     assert printed["official_state_promotions"]==0
+    assert printed["dashboard"]==str(derived/"site"/"watch_progression_kr.html")
     report=json.loads((derived/"watch_progression_kr_research.json").read_text())
     assert report["transition_counts"]["SCREEN_WEAKENED"]==1
     assert report["pit_certified"] is False
     (derived/"original_private_prices.json").write_text('{"password":"NEVER_EXPORT"}')
     archive=tmp_path/"safe.zip"
-    assert create_backup(derived,archive)["file_count"]==1
+    assert create_backup(derived,archive)["file_count"]==2
     assert verify_backup(archive)["status"]=="LOCAL_BACKUP_VERIFIED"
     with ZipFile(archive) as z:
-        assert z.namelist()==["watch_progression_kr_research.json","MANIFEST.json"]
+        assert set(z.namelist())=={"watch_progression_kr_research.json",
+                                     "site/watch_progression_kr.html","MANIFEST.json"}
     restored=tmp_path/"restored"
     restore_backup(archive,restored)
     assert (restored/"watch_progression_kr_research.json").is_file()
@@ -223,3 +225,64 @@ def test_audit_rejects_invalid_parameters(tmp_path,kwargs):
     defaults.update(kwargs)
     with pytest.raises(ValueError):
         audit_watch_progression(path,**defaults)
+
+
+def test_watch_progression_web_explicitly_keeps_leader_certification_blocked(tmp_path):
+    from eraleader.delivery import render_watch_progression_dashboard
+    path=tmp_path/"prospective.sqlite"
+    p=ProspectiveRegistry(path)
+    try:
+        observe(p,0)
+        observe(p,1,hit=False)
+    finally:p.close()
+    report=audit_watch_progression(path,market="KR",model_version=MODEL)
+    html=render_watch_progression_dashboard(report)
+    assert "확정 대장주 0건" in html
+    assert "SCREEN_WEAKENED" in html
+    assert "투자 추천이 아닙니다" in html
+    assert "관찰 목록에 종목이 없다는 이유만으로" in html
+
+
+def test_web_escapes_untrusted_research_identity(tmp_path):
+    from eraleader.delivery import render_watch_progression_dashboard
+    report={
+      "status":"LOCAL_WATCH_TRANSITIONS_RESEARCH_ONLY_NOT_CERTIFIED",
+      "market":"KR","model_version":"<script>bad</script>",
+      "eligible_prospective_observations":1,
+      "excluded_retrospective_observations":0,
+      "official_state_promotions":0,"pit_certified":False,
+      "leader_prediction_accuracy_certified":False,
+      "transition_counts":{
+          "INITIAL_WATCH":1,"WATCH_PERSISTED":0,"SCREEN_WEAKENED":0,
+          "SCREEN_STILL_WEAK":0,"SCREEN_REENTERED":0,"PRE_WATCH":0},
+      "transition_event_sample":[{"security_id":"<script>alert(1)</script>",
+          "observed_at":"2026-10-05","registered_at":"2026-10-05",
+          "transition":"INITIAL_WATCH","registration_lag_days":0}]
+    }
+    html=render_watch_progression_dashboard(report)
+    assert "<script>" not in html and "&lt;script&gt;" in html
+    report["official_state_promotions"]=1
+    with pytest.raises(ValueError,match="cannot show"):
+        render_watch_progression_dashboard(report)
+
+
+def test_watch_progression_html_backup_restore_roundtrip(tmp_path,capsys):
+    from zipfile import ZipFile
+    from eraleader.local_backup import create_backup,verify_backup,restore_backup
+    root=tmp_path/"timeline"
+    reg=ProspectiveRegistry(root/"prospective.sqlite")
+    try:observe(reg,0)
+    finally:reg.close()
+    derived=tmp_path/"results"
+    main(["audit-watch-progression","--ledger",str(root/"prospective.sqlite"),
+          "--market","KR","--model-version",MODEL,"--out",str(derived)])
+    capsys.readouterr()
+    zip_path=tmp_path/"verified.zip"
+    assert create_backup(derived,zip_path)["file_count"]==2
+    assert verify_backup(zip_path)["status"]=="LOCAL_BACKUP_VERIFIED"
+    with ZipFile(zip_path) as z:
+        assert "site/watch_progression_kr.html" in z.namelist()
+        assert "prospective.sqlite" not in z.namelist()
+    output=tmp_path/"restored"
+    restore_backup(zip_path,output)
+    assert "확정 대장주 0건" in (output/"site"/"watch_progression_kr.html").read_text()

@@ -504,6 +504,10 @@ def main(argv=None):
     batch.add_argument("--legacy",default=str(LEGACY_DEFAULT))
     batch.add_argument("--days",type=int,default=550)
     batch.add_argument("--top",type=int,default=20)
+    batch.add_argument("--integrate-pit-research",action="store_true",
+                       help="Explicit opt-in: join offline PIT research ledger with price reports; never certify leaders")
+    batch.add_argument("--kr-decision-at",help="Timezone-aware local KR research decision timestamp")
+    batch.add_argument("--us-decision-at",help="Timezone-aware local US research decision timestamp")
     cr=sub.add_parser("corporate-return",help="Offline raw split/dividend total return, research only")
     cr.add_argument("--file",required=True,help="Raw bars and announced actions JSON")
     cr.add_argument("--security-id",required=True)

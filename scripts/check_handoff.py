@@ -48,6 +48,9 @@ required=[
  "tests/test_corporate_returns.py",
  "tests/test_universe_audit.py",
  "tests/fixtures/corporate_split_dividend_synthetic.json",
+ "docs/32_LOCAL_BACKUP_RECOVERY.md",
+ "src/eraleader/local_backup.py",
+ "tests/test_local_backup.py",
 ]
 errors=[]
 for name in required:

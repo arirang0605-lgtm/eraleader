@@ -62,7 +62,7 @@
 
 ## 다음 실제 개발 작업 (가장 우선, 아직 미완료)
 
-**최신 NEXT_TASK = 2_2·2_5 기업행동/상폐 PIT 원천 감사·조정가격 교차검증 + 5단계 실제 검증 + 6단계 로컬 자동화**. 2026-10-10 `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md`에 분할/배당 비조정 총수익 계산·KR 종목군 관측 감사까지 구현/실행했고 **전체 pytest 72개 통과**. 3_4·3_5 결합/4_2~4_5 상태 이력/5_2 계산기/6_2 연구 화면까지 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`로 개발됐고 **54개 테스트 통과**, 이어서 `docs/30_WALKFORWARD_LOCAL_BATCH.md`에 5_3 워크포워드 및 6단계 로컬 KR+US 일/주/월 배치 구현/실행 결과 반영. 이전 초기 TODO는 역사적 계획으로만 취급. 사용자 Public GitHub 푸시 승인 완료.
+**최신 NEXT_TASK = 2_2·2_5 기업행동/상폐 PIT 원천 감사·조정가격 교차검증 + 5단계 실제 검증 + 6단계 로컬 자동화**. 2026-10-10 `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md`에 분할/배당 비조정 총수익 계산·KR 종목군 관측 감사까지 구현/실행했고 **전체 pytest 79개 통과**. 6_5 SQLite 온라인 백업·파일 무결성 검사·원자적 신규 경로 복구도 `docs/32_LOCAL_BACKUP_RECOVERY.md`와 자동 테스트로 검증됨. 3_4·3_5 결합/4_2~4_5 상태 이력/5_2 계산기/6_2 연구 화면까지 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`로 개발됐고 **54개 테스트 통과**, 이어서 `docs/30_WALKFORWARD_LOCAL_BATCH.md`에 5_3 워크포워드 및 6단계 로컬 KR+US 일/주/월 배치 구현/실행 결과 반영. 이전 초기 TODO는 역사적 계획으로만 취급. 사용자 Public GitHub 푸시 승인 완료.
 
 1. 이 경로가 Git 미초기화 상태임을 확인하고 독립 Python 패키지 구조·pytest 환경을 만든다. 새 GitHub **Private** 저장소 연결은 사용자 승인 후 시행.
 2. `scripts/read_cached_marcap.py`의 로컬 가격 읽기 기능을 **새 패키지의 read-only 데이터 어댑터**로 편입하되 원본 경로를 강제 의존으로 만들지 않는다.

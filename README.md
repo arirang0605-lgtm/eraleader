@@ -199,3 +199,9 @@ PYTHONPATH=src python3 -m eraleader serve --port 8765
 - `PYTHONPATH=src python3 -m eraleader corporate-return --help`: 비조정(raw) 종가와 공시·실효일을 이용한 분할/배당 누적수익 복원(연구용). 과거 종가의 `available_at`이 신호시점 후라면 누출 차단.
 - `PYTHONPATH=src python3 -m eraleader audit-universe --as-of 2026-10-02 --days 35`: 실제 SSD 캐시 관측 종목군 비교. 직전/당일 등장·미관측·무거래/정지 플래그 검사, 실제 상장폐지 진실 등록부로 오인 금지.
 - **전체 pytest 73 PASS**, 외부 API·유료 데이터 요청 없음. 인증된 분할/배당·상폐 재무/기업행동 완전성 검증은 미완료이며 현황에 명시.
+
+## 17. SQLite 연구 결과 로컬 백업·복구 (6_5 부분 구현, 2026-10-10)
+
+- [32_LOCAL_BACKUP_RECOVERY.md](docs/32_LOCAL_BACKUP_RECOVERY.md): `backup-local`, `verify-backup`, `restore-backup` 명령. SQLite 온라인 일관 백업 + SHA256 매니페스트 확인, 검증 후 새 경로에만 원자적 복구.
+- 실제 SSD 한국/미국 결과로 **16개 파일 백업 및 복구 PASS**, 보고서 6개·HTML 3개 확인. 비밀정보·원시 주가 자료 제외. 전체 **pytest 79개 통과**.
+- 이 기능은 같은 SSD 내부의 운영 복구용이므로 외장장치 손상 대비 오프사이트 백업이나 실제 서비스 자동 스케줄의 완료를 뜻하지 않는다.

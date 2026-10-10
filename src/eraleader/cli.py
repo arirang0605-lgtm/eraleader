@@ -21,6 +21,7 @@ from .walkforward import walk_forward_split
 from .state_history import StateHistory
 from .corporate_returns import reconstruct_total_return
 from .universe_audit import audit_observed_universe
+from .local_backup import create_backup, verify_backup, restore_backup
 
 ROOT=Path(__file__).resolve().parents[2]
 OUT=ROOT/"output"
@@ -220,6 +221,13 @@ def execute_universe_audit(args) -> dict:
             "halted_count":audit["halted_count"],
             "historic_membership_certified":False}
 
+def execute_backup(args) -> dict:
+    if args.command=="backup-local":
+        return create_backup(Path(args.out),Path(args.archive))
+    if args.command=="verify-backup":
+        return verify_backup(Path(args.archive))
+    return restore_backup(Path(args.archive),Path(args.target))
+
 def main(argv=None):
     parser=argparse.ArgumentParser(prog="eraleader",description="Offline EraLeader prototype (APIs disabled)")
     parser.add_argument("--version",action="version",version=__version__)
@@ -295,6 +303,14 @@ def main(argv=None):
     ua.add_argument("--legacy",default=str(LEGACY_DEFAULT))
     ua.add_argument("--days",type=int,default=30)
     ua.add_argument("--out",default=str(OUT))
+    bkp=sub.add_parser("backup-local",help="Consistent SQLite + safe local output archive")
+    bkp.add_argument("--out",default=str(OUT))
+    bkp.add_argument("--archive",required=True)
+    vb=sub.add_parser("verify-backup",help="Check archive hashes and approved paths")
+    vb.add_argument("--archive",required=True)
+    rb=sub.add_parser("restore-backup",help="Restore only to a new empty path")
+    rb.add_argument("--archive",required=True)
+    rb.add_argument("--target",required=True)
     args=parser.parse_args(argv)
     try:
         if args.command=="run":result=execute_run(args)
@@ -308,6 +324,8 @@ def main(argv=None):
         elif args.command=="walkforward":result=execute_walkforward(args)
         elif args.command=="corporate-return":result=execute_corporate_research(args)
         elif args.command=="audit-universe":result=execute_universe_audit(args)
+        elif args.command in ("backup-local","verify-backup","restore-backup"):
+            result=execute_backup(args)
         elif args.command=="batch":
             from .batch import execute_local_batch
             result=execute_local_batch(args)
@@ -319,7 +337,7 @@ def main(argv=None):
                 print(f"EraLeader local: http://127.0.0.1:{args.port}/",flush=True)
                 httpd.serve_forever()
             return
-    except (ValueError,FileNotFoundError,RuntimeError) as exc:
+    except (ValueError,OSError,RuntimeError) as exc:
         parser.exit(2,f"EraLeader ERROR: {exc}\n")
     print(json.dumps(result,ensure_ascii=False,indent=2))
 

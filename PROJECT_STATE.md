@@ -8,11 +8,11 @@
 
 > 2026-10-10 KST. 이 절이 현재 상태의 단일 기준(SSOT)입니다. 아래 이전 기록은 작성 당시의 역사적 상태입니다.
 
-- **현재(2026-10-10 최신)**: 기존 1~6 로컬 기초 통합 + 2_2·2_3 오프라인 PIT/3_1~3_3 산업·실적 피처에 이어 **3_4·3_5 가격·재무·산업 시점 결합, 4_2~4_5 상태·이벤트 이력(합성 검증), 5_2 조기 발견 리드타임/오탐 계산기, 6_2 통합 연구 웹페이지** 추가. **전체 pytest 72개 PASS, 로컬 e2e·한국/미국 캐시 배치·기업행동 수익률/관측 종목군 감사 실행 PASS**. 5_3 워크포워드 분리/6단계 KR+US 배치 추가; `docs/30_WALKFORWARD_LOCAL_BATCH.md` 참고. 실전용 완전한 PIT·검증된 미래 대장주 성능·전체 30개 작업 완성은 **미완료**. 상세 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`.
+- **현재(2026-10-10 최신)**: 기존 1~6 로컬 기초 통합 + 2_2·2_3 오프라인 PIT/3_1~3_3 산업·실적 피처에 이어 **3_4·3_5 가격·재무·산업 시점 결합, 4_2~4_5 상태·이벤트 이력(합성 검증), 5_2 조기 발견 리드타임/오탐 계산기, 6_2 통합 연구 웹페이지** 추가. **전체 pytest 79개 PASS, 로컬 e2e·한국/미국 캐시 배치·기업행동/종목군 감사·6_5 로컬 백업/무결성 검사/복구 실행 PASS**. 5_3 워크포워드 분리/6단계 KR+US 배치 추가; `docs/30_WALKFORWARD_LOCAL_BATCH.md` 참고. 실전용 완전한 PIT·검증된 미래 대장주 성능·전체 30개 작업 완성은 **미완료**. 상세 `docs/29_LOCAL_STAGE3_TO_6_MILESTONE.md`.
 - **테스트 근거**: marcap 1995~2026 연도별 Parquet 32개 / 15,648,407행 메타데이터 대조 PASS. 005930 2025년 1월 18거래일 로컬 캐시 조회 PASS. 기존 미국 업종 모멘텀 계산 실행 PASS. **투자 성능·PIT 적합성 검증은 아님**.
 - **Git 상태(2026-10-10 최신)**: 사용자 **Public GitHub 업로드 승인**. 로컬 origin을 `https://github.com/arirang0605-lgtm/eraleader.git`에 연결해 **최초 main push 성공**, 초기 원격 체크포인트 `eb439ba`. `.secrets/`는 owner-only이며 Git ignore. 이후 커밋·추가 push 상태는 이 파일 하단 최신 기록 참고.
 - **기존 재활용**: `/Volumes/T5DATA/CycleOS-Lab_BacktestEngine` 읽기 전용, `/Volumes/T5DATA/backtestengine`은 확인 당시 빈 폴더. 분할·배당·상폐·공시 이용시각·라이선스 추가 검증 필요.
-- **다음 작업**: `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md`의 첫 미완료 항목. 2_2·2_5 원천 PIT 커버리지/조정가격·상폐 정산 교차검증, 5단계 실제 거래가능성·비용/워크포워드 강화, 6단계 로컬 자동운영·백업/복구. **현재 분할·배당 계산 및 실측 시장 종목군 감사 프로토타입은 구현·테스트 완료(독립 PIT 인증은 아님)**. 모든 미완료 항목을 1_1~6_5로 관리하고 추가 승인 요청 없이 계속 개발. 외부 API는 로컬 기능 마무리 뒤 연결.
+- **다음 작업**: `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md` 및 `docs/32_LOCAL_BACKUP_RECOVERY.md`의 첫 미완료 항목. 2_2·2_5 원천 PIT 커버리지/조정가격·상폐 정산 교차검증, 5단계 실제 거래가능성·비용/워크포워드 강화, 6단계 로컬 자동운영·백업/복구. **현재 분할·배당 계산 및 실측 시장 종목군 감사 프로토타입은 구현·테스트 완료(독립 PIT 인증은 아님)**. 모든 미완료 항목을 1_1~6_5로 관리하고 추가 승인 요청 없이 계속 개발. 외부 API는 로컬 기능 마무리 뒤 연결.
 - **재개 순서**: `START_HERE_NEXT_CHAT.md` → `AGENTS.md` → 상태 상단 → 관련 상세 MD 1~2개. 기존 코드 무단 재작성, 반복 전체 대화 분석 금지.
 
 ---
@@ -238,3 +238,13 @@
 - **현재 제한**: 기업행동 보정 가능 원시가격 완전성, delist proceeds, 역사적 universe 전체 PIT, 공시 이용 가능 시각/최종 모델 실증 부재. 연구용 반환 결과 `pit_certified=false` 강제.
 - **다음**: 2_2/2_5 source-level PIT 커버리지 증명 및 상폐 정산/보정가격 교차검증 → 5_2/5_4/5_5 비용/워크포워드/정량 발견성능 → 6_5 독립 로컬 일정 및 복구. 외부 API 연결은 로컬 완성 후, 이번에도 별도 API 호출 0.
 - **세부 증거**: `docs/31_CORPORATE_ACTION_AND_UNIVERSE_AUDIT.md`. Git 변경 파일·커밋 SHA·푸시 결과는 이 작업의 최종 체크포인트에서 추가 기록.
+
+## GitHub 동기화 및 6_5 로컬 백업 복구 체크포인트 — 2026-10-10
+
+- **이전 개발 푸시**: `8a25c7112218c831556ca0fb53531320e847a3d3` (`feat: add PIT-gated corporate returns and observed-universe audit`)를 사용자 승인된 Public GitHub `arirang0605-lgtm/eraleader` main에 실제 푸시, `git ls-remote` SHA 일치 확인. 기존 상태 파일의 73개 테스트 기준 코드 포함.
+- **이번 추가 개발 ID**: 6_5 로컬 백업·무결성 검사·다른 경로 복구 기능을 `src/eraleader/local_backup.py`, `tests/test_local_backup.py`, `src/eraleader/cli.py`, `docs/32_LOCAL_BACKUP_RECOVERY.md` 등으로 구현.
+- **테스트**: `PYTHONPATH=src python3 -m pytest tests -q` → **79 PASS/0 FAIL** (기존 73 + 신규 6). SQLite WAL 미커밋 데이터 제외·복원/해시 검증·민감파일 제외·Zip 경로탈출·덮어쓰기 방지·CLI 회귀 포함.
+- **실제 로컬 캐시 출력 복구**: `PYTHONPATH=src python3 -m eraleader backup-local --out output/batch_20261010 --archive output/continuous/eraleader_batch_backup_20261010.zip` → **16개 파일·162,531bytes** 수집; `verify-backup` PASS; `restore-backup --target output/continuous/restored_batch_20261010` PASS(보고서 6/HTML 3). 비밀키와 원시 시세는 archive/Git 모두 제외.
+- **PIT/실전 한계**: 역사적 상장·상폐 및 기업행동·조정가격 원본 완전성, 실전 대장주 조기 발굴 성능·엄격한 워크포워드·실전 알림은 아직 미검증. 로컬 API 미연결 유지.
+- **다음 미완료 ID**: 2_2·2_5 역사 구성 및 공급자 교차검증 → 5_2/5_4/5_5 정교한 평가 → 6_5 launchd 로컬 스케줄·실패/재부팅 복구 실검증. 상세 `docs/31_...`, `docs/32_LOCAL_BACKUP_RECOVERY.md`.
+- **이번 추가 Git 커밋 및 푸시**: 최종 검증 후 SHA/원격 일치 기록을 계속 추가. 인수인계 문서와 Git에 실제 완료 여부를 구분하여 보존.

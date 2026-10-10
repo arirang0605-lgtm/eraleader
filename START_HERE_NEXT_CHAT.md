@@ -304,3 +304,45 @@
 - 새로운 개발 파일: src/eraleader/price_cache_witness.py, tests/test_price_cache_witness.py, tests/test_rank_feature_ledger.py, docs/64_READONLY_PIT_LEDGER_FEATURE_RECHECK.md 및 docs/65_LOCAL_PRICE_CACHE_RANK_WITNESS.md. 기존 offline_pit.py, rank_feature_bridge.py, cli.py는 오프라인 read-only/opt-in 기능만 추가. CLI prepare-rank-features --offline-ledger <offline.sqlite> --price-cache-root <legacy cache> --cache-days 550 사용.
 - 실증: git archive HEAD 격리 전체 652 pytest PASS, 로컬 웹 HTTP 200 3개, handoff 30작업ID PASS. 과거 KR 2026-10-02 / US 2026-02-23 가격 관측 화면의 20+20개 수익률이 기존 로컬 read-only Parquet와 일치; 외부 공급자 조정가격·종목군/상폐·미래 발굴 적중률을 인증한 것이 아님.
 - 공식 실제 PIT / 미래 대장주 적중률 / 장기 실제 성숙 라벨 / API 연결 / live 알림 / SSD 물리 탈착·재부팅 아직 미완료. D-017 원격 공급자 연결은 나중, D-021 실제 SSD 재연결 시험은 최종 단계. 다음 작업은 독립 PIT 공급자/상폐·기업행동/조정수익 검증(2_2/2_5)과 미래 성숙 라벨(5_3/5_5), 기존 정상 기능 재작성 금지.
+
+## 2026-10-11 01시 KST 최신 — 2_3/2_5 거래소 현지 거래일 기업행동 총수익 PIT 회귀
+
+- **실제 로컬 완료**: 이전 세션이 남긴 `corporate_returns.py`의 KR/US 거래일 UTC 자정 교정 및 새 `test_market_local_return_pit.py`를 보존했고, `adjusted_crosscheck.py`의 참조 총수익지수 날짜 비교도 KR=`Asia/Seoul`, US=`America/New_York`의 시장 현지일(`MARKET_ZONE`)로 고쳐 DST 종료 후 미래 지수 게시일 위장 차단. 엄격 xfail 표시는 제거, 합성 회귀 6개 모두 정상 PASS.
+- 집중 pytest **40 PASS**, 전체 **658 collected / pytest exit 0**, handoff 30 ID PASS. 기존 합성 `audit-total-return` CLI 실제 성공(`RESEARCH_RETURN_SERIES_MATCH_NOT_CERTIFIED`, outlier 0, PIT certification false). Git Public 보안검사 정확한 코드·테스트·문서 4경로 `scanned=4 suspicious=0`.
+- **GitHub 변경 미반영**: `git commit` 정상 호출 1회가 원격 안전검사 차단. 우회하지 않고 정확히 4경로 staged 보존(`corporate_returns.py`, `adjusted_crosscheck.py`, `test_market_local_return_pit.py`, `docs/36_TOTAL_RETURN_CROSSCHECK.md`). 기존 HEAD `ec9feea28f9364c7d6375e1f2bda2f81546b72a6`; **이번 변경 commit SHA 없음/푸시 안 됨**. 상태문서 최신 `PROJECT_STATE.md` 맨 마지막 참고.
+- 다음 시작 시 Git 상태와 다른 세션 변경을 다시 확인; 안전도구 허용 시 **해당 4파일만** 테스트·보안검사 후 scoped commit/push/SHA 기록. 별개 첫 미완료 PIT 인증 기능부터 계속. 외부 API, 실제 SSD 탈착/재부팅 D-017/D-021에 따라 마지막, 실제 미래 대장주 적중률/30기능 완성 인증 금지.
+
+## 2026-10-11 02:15 KST — 2_3/2_5 로컬 거래소 종가 시각 PIT 감사 추가 (Git 대기)
+
+- 기존 거래소 현지일 보완 4경로는 원래 staged 보존. 신규 `session_close_gate.py`, `test_session_close_gate.py`, `docs/66_SESSION_CLOSE_ASOF_GATE.md`, `cli.py --session-clock` 4경로를 추가: 거래소별 세션 종가가 선언된 별도 오프라인 manifest의 시장 현지일/공개시각/취득시각 검사 후 원시 종가·총수익 참조지수 `available_at >= close_at` 필수. 기존 CLI는 옵션 생략 시 이전 방식 연구용 호환. 공식 거래소 캘린더 독립 인증/실전 수익률 증거 아님.
+- 신규 14 회귀 포함 집중 **54 PASS**, 전체 **672 pytest PASS/exit 0**, 30작업 handoff PASS. 1건 합성 검사 시각 오류를 뉴욕 현지일에 맞게 바로잡고 재검증. 합성 CLI 정상/종가 전 가짜 공개시각 차단 재현. Public safety: 정확히 8파일 staged scanned=8/suspicious=0; 과거 4파일 및 신규 4파일 이외 Git index 변화 없음.
+- **Commit/push 막힘**: 정상 `git commit` 원격 도구 안전검사 차단 2회, 우회하지 않음. 확인한 HEAD와 GitHub origin/main 모두 `ec9feea28f9364c7d6375e1f2bda2f81546b72a6`; 새 8파일 미반영. PROJECT_STATE 최신 기록 참조. D-017 외부 API 연기, D-021 실제 SSD 분리·재부팅 최종 단계; 실제 미래 대장주 적중률 미검증, 로컬 30항목 미완료. **CONTINUE**.
+
+## 2026-10-11 03시대 KST — 2_2/2_5 두 선언 원천 거래일·종가 교차검증 (Git 미반영)
+
+- 신규 `session_calendar_crosscheck.py` + 테스트 `test_session_calendar_crosscheck.py` + `docs/67_DUAL_DECLARED_SESSION_CALENDAR_CROSSCHECK.md`, 기존 `cli.py` 소폭 확장. `audit-total-return --session-clock ... --exchange-calendar ...`로 자기선언 거래소 종가 일정과 별도 개장/휴장 달력 간 일치/누락/반장일/취득시각 비교; 인증 없음. 합성 초기 시각 테스트 실패 수정 후 **전체 688 pytest PASS**, handoff 30 ID PASS, 합성 CLI 2세션 성공, 실제 미래 대장주 인증 0.
+- 이전 8 staged 경로 보존, 신규 3 + CLI 수정까지 Public Git 안전검사 **11 staged / suspicious=0**. 정상 commit 요청은 원격 안전검사가 차단. **새 commit·push 없음**; 점검된 local/remote main SHA `ec9feea28f9364c7d6375e1f2bda2f81546b72a6`, 새 기능은 포함하지 않음. PROJECT_STATE.md 마지막 기록·실제 Git index 반드시 확인 후 CONTINUE.
+- 외부 API D-017 로컬 1~6 완성 뒤, 물리 SSD 재연결·재부팅 D-021 최종 검수. 독립 PIT·상폐·기업행동·조정수익과 성숙된 실제 발굴 적중률 미검증. 30개 전체 완료 선언 금지.
+
+## 2026-10-11 04시 KST 최신 — 5_3 음성 만기 '현지 날짜만' 오판 수정 / 693 pytest PASS
+
+- 신규 5개 회귀 중 KR·US 만기 당일 정확한 거래소 현지시각 **1분 전** 성급한 known_failure 판정 2건을 실패로 재현하고 `ranked_discovery.py`가 snapshot 현지 시각 + horizon_days 완전 경과만 실패 확정하도록 수정, DST 현지시각 적용. `tests/test_ranked_discovery.py`, `docs/58_RANKED_DISCOVERY_PRECISION_AT_K.md` 추가/수정, `negative_maturity_not_before_utc` 결과 표기.
+- **최종 전체 693 pytest exit 0 / 0 FAIL**, 한정 CLI 합성 KR 샘플 (30일 만기 1분 전: 실패 0/미확정 1), handoff 30개 ID PASS, staged 14개(이전 11+이번 3) `check_git_safety.py suspicious=0` 및 `git diff --cached --check` PASS. 본 기능은 실제 대장주 발굴 성공률을 인증하지 않음.
+- 14개 검증 파일 Git commit 시도는 OpenAI Remote Tool 안전검사 차단; 우회하지 않음. **새 SHA/push 미발생**, 이전 확인 main/remote `ec9feea28f9364c7d6375e1f2bda2f81546b72a6` (최종 SHA/인덱스는 실제 Git·PROJECT_STATE 마지막 재확인). 14개 변경은 staged, 두 상태문서는 unstaged. 다음: 정상 commit/push 가능 시 테스트·안전검사 재검증, 독립 PIT 원천·상폐/행동 자료 및 전향 만기 라벨 연구 로컬 CONTINUE. 외부 API D-017, 물리 SSD 분리·재부팅 D-021 최종 단계. 전체 30기능 미완료.
+
+## 2026-10-11 05시 KST 최신 — 5_5 holdout 음성 만기 실제 시각/DST 오류 수정
+
+- 이전 5_3 ranked 만기 분단위 수정은 유지. 별도로 `frozen_holdout.py` 5_5의 등록일+동결 horizon **날짜만** 확인하는 동일 오탐을 발견했다. KR/US(미국 3월 서머타임 포함) 음성 만기 1분 이전 2 FAIL을 먼저 재현, `recorded_at`의 **시장 현지 시각+horizon**을 UTC로 환산해 판정하도록 최소 수정. 새 합성 회귀 4개 `tests/test_frozen_holdout.py`, `docs/38_FROZEN_HOLDOUT_OPERATIONS.md` 보강. 전체 **697 pytest PASS/0 FAIL**, 30개 ID handoff PASS. 실제 합성 스모크: 1분 이전 음성 censored=1/실패=0, 정시 음성 censored=0/실패=1; 실전 발굴 인증은 여전히 false.
+- 기존 14개 staged 보존 + 이번 3개 staged = **17파일** `check_git_safety.py suspicious=0`, diff check PASS. 정상 `git commit` 요청은 Remote Tool 안전검사 차단, **새 SHA·push 없음**, 검증된 local/remote main `ec9feea28f9364c7d6375e1f2bda2f81546b72a6`에는 staged 변경 불포함. `PROJECT_STATE.md` **가장 마지막** 기록/실제 `git status` 우선. 상태문서 2개 unstaged. D-017 API 및 D-021 물리 SSD 재연결·재부팅 연기, 로컬 30개·진짜 성숙 라벨 미완료. 다음 CONTINUE: 정상 commit 가능 시 안전 재검증 후 push, 2_2/2_5 독립 PIT/상폐 및 5_5 실제 라벨 성숙 검증.
+
+## 2026-10-11 06시 KST 5_5 양성 조기적중 만기시각 수정
+
+- KR/US(뉴욕 3월 DST 포함) `frozen_holdout.py` 양성 `leader_start_at`가 동결 등록시각+기간보다 1분 늦어도 단순 날짜 차이로 적중 판정되는 오류를 수정. `tests/test_frozen_holdout.py` 합성 4건 추가, 수정 전 2 FAIL 재현, 이후 전체 **701 pytest PASS/exit 0**, 30 ID handoff PASS.
+- `docs/38_FROZEN_HOLDOUT_OPERATIONS.md` 근거 보강. 이전 staged 17개 중 이 3경로 갱신, Public 검사 scanned=17/suspicious=0, diff check PASS. 정상 Git commit은 원격 안전검사 차단, **새 SHA/푸시 없음**. 마지막 확인 HEAD/origin/main `ec9feea28f9364c7d6375e1f2bda2f81546b72a6`. 상태문서 2개 unstaged.
+- 별도 합성 단독 스모크 실행은 안전검사 차단으로 미실행(테스트는 실제 실행). 다음은 실제 Git 상태·PROJECT_STATE 하단 확인 후 `ranked_discovery` 양성 경계 오분류 점검 및 독립 PIT/상폐/성숙 라벨 검증 계속. 외부 API D-017, 물리 SSD 재연결/재부팅 D-021 연기; 전체 30항목/실전 미래 대장주 성과 미완료. CONTINUE.
+
+## 2026-10-11 최신 5_3 양성 리더 조기적중 경계·17경로 GitHub 릴리스
+
+- 실제 원격 맥북/T5DATA Online 확인, 기존 인수인계·AGENTS/PROJECT_STATE/DECISIONS·docs/58/38 및 Git 확인. 5_3 `ranked_discovery.py` 양성 적중은 거래소 현지 **날짜**만 보아 horizon 1분 초과 후 등장도 early_hit로 과대계상: KR·US DST 포함 새 6 회귀 중 **수정 전 2 FAIL** 확인, 정확한 현지 시각 마감으로 수정, 이후 집중 **83 PASS**, 전체 **707 PASS/exit 0**, handoff 30작업 PASS.
+- 지난 회차에서 안전검사 차단으로 남았던 17개 staged 변경 전부 그대로 포함하여 `python3 scripts/check_git_safety.py` scanned=17/suspicious=0, `git diff --cached --check` PASS 후 **정상 commit/push 성공**. GitHub main/로컬 SHA **`b5f653f6aa1cc9b996488b1efeda00c275b4d856`** 일치. 이전 `ec9feea`/17개 미커밋 설명은 *과거 시점 기록*이며 현재 해당 코드들은 이미 GitHub에 반영됨. 상태문서의 후속 Git 적용 결과는 PROJECT_STATE 최신 및 실제 git 우선.
+- 미래 대장주 실적, 독립 공급자 PIT·상폐/조정수익·실제 만기 라벨/정밀도 및 1_1~6_5 전체 운영 검증은 **미완료**. 다음은 2_2/2_5 실제 원천 인증과 5_5 전향 결과. 외부 API D-017 이후, SSD 물리 탈착·재연결/재부팅 D-021 최종 단계. 기존 정상 코드 보존/CONTINUE.

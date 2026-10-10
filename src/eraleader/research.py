@@ -4,8 +4,9 @@ This is descriptive until independent evidence proves PIT completeness.
 No model promotions from synthetic or incomplete historical coverage.
 """
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from hashlib import sha256
+from zoneinfo import ZoneInfo
 import json
 
 from .offline_features import financial_snapshot
@@ -22,10 +23,15 @@ def integrated_snapshot(offline: dict, price: dict | None, decision_at: str) -> 
     moment=datetime.fromisoformat(decision_at.replace("Z","+00:00"))
     if moment.tzinfo is None:
         raise ValueError("decision_at requires timezone")
-    asof=moment.date()
-    if moment.astimezone(__import__("datetime").timezone.utc).isoformat()!=offline["as_of"]:
-        raise ValueError("Offline PIT cutoff does not match decision_at")
     market=offline["market"]
+    if market not in ("KR", "US"):
+        raise ValueError("Unsupported research market")
+    market_zone=ZoneInfo("Asia/Seoul" if market=="KR" else "America/New_York")
+    asof=moment.astimezone(market_zone).date()
+    if moment.astimezone(timezone.utc).isoformat()!=offline["as_of"]:
+        raise ValueError("Offline PIT cutoff does not match decision_at")
+    if offline.get("trading_day") != asof.isoformat():
+        raise ValueError("Offline PIT market day does not match exchange-local decision date")
     if price is not None:
         if price["source_market"]!=market:
             raise ValueError("Cross-market data join forbidden")

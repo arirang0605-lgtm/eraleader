@@ -1,6 +1,7 @@
 """Offline CLI: data -> quality -> screen -> event ledger -> web/report."""
 from __future__ import annotations
 import argparse
+from copy import deepcopy
 from datetime import date
 import json
 from pathlib import Path
@@ -42,14 +43,28 @@ def write_json(path: Path, data: dict | list) -> None:
     path.write_text(json.dumps(data,ensure_ascii=False,indent=2,sort_keys=True),encoding="utf-8")
 
 def execute_run(args) -> dict:
-    asof=date.fromisoformat(args.as_of)
-    data,quality=read_market_bars(args.market,asof,days=args.days,
-                      legacy_root=Path(args.legacy),tickers=args.tickers)
-    snap=score_price_observations(data,args.market,args.as_of,args.top)
-    snap["data_source"]=quality["source"]
-    snap["quality_flags"]=quality
-    rid=run_id_for(args.market,args.as_of,snap["rows"])
-    snap["run_id"]=rid
+    prepared=getattr(args,"prepared_snapshot",None)
+    if prepared is None:
+        asof=date.fromisoformat(args.as_of)
+        data,quality=read_market_bars(args.market,asof,days=args.days,
+                          legacy_root=Path(args.legacy),tickers=args.tickers)
+        snap=score_price_observations(data,args.market,args.as_of,args.top)
+        snap["data_source"]=quality["source"]
+        snap["quality_flags"]=quality
+        rid=run_id_for(args.market,args.as_of,snap["rows"])
+        snap["run_id"]=rid
+    else:
+        # Only the in-process explicit batch preflight supplies this snapshot.
+        # Default CLI and scheduled runs still read and score their own data.
+        if not isinstance(prepared,dict) or (
+                prepared.get("source_market")!=args.market or
+                prepared.get("as_of_requested")!=args.as_of):
+            raise ValueError("Preflight price snapshot market/day mismatch")
+        snap=deepcopy(prepared)
+        quality=snap["quality_flags"]
+        rid=run_id_for(args.market,args.as_of,snap["rows"])
+        if snap.get("run_id") != rid:
+            raise ValueError("Preflight price snapshot content changed")
     store=LocalStore(Path(args.out)/"state.sqlite")
     try:
         before=store.recent(args.market)

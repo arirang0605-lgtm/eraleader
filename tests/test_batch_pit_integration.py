@@ -26,6 +26,7 @@ def src(tmp_path,monkeypatch):
             "historic_membership_verified":False,"corporate_actions_verified":False,
             "financial_pit_verified":False}
     monkeypatch.setattr("eraleader.cli.read_market_bars",reader)
+    monkeypatch.setattr("eraleader.batch.read_market_bars",reader)
     return tmp_path
 
 def base(root):
@@ -99,3 +100,65 @@ def test_pit_batch_requires_then_known_us_membership(src):
         main(optin(src))
     assert failure.value.code==2
     assert not (src/"state.sqlite").exists()
+
+
+def test_second_market_price_source_failure_has_no_partial_first_market_state(src,monkeypatch):
+    from eraleader import batch as batch_module
+    original=batch_module.read_market_bars
+    calls=[]
+    def failing_reader(market,asof,**kw):
+        calls.append(market)
+        if market=="US":
+            raise ValueError("SYNTHETIC_US_CACHE_DAMAGED")
+        return original(market,asof,**kw)
+    monkeypatch.setattr(batch_module,"read_market_bars",failing_reader)
+    with pytest.raises(SystemExit) as error:
+        main(optin(src))
+    assert error.value.code==2
+    assert calls==["KR","US"]
+    for missing in ("state.sqlite","prospective.sqlite","state_history.sqlite",
+                    "batch_manifest.json","kr_latest.json"):
+        assert not (src/missing).exists()
+    assert not (src/"site"/"kr.html").exists()
+    assert not (src/"reports").exists()
+
+
+def test_second_market_pit_price_join_error_cannot_register_kr_watch(src,monkeypatch):
+    from eraleader import batch as batch_module
+    original=batch_module.integrated_snapshot
+    calls=[]
+    def failing_join(offline,price,at):
+        calls.append(offline["market"])
+        if offline["market"]=="US":
+            raise ValueError("SYNTHETIC_US_PIT_PRICE_MISMATCH")
+        return original(offline,price,at)
+    monkeypatch.setattr(batch_module,"integrated_snapshot",failing_join)
+    with pytest.raises(SystemExit) as error:
+        main(optin(src))
+    assert error.value.code==2
+    assert calls==["KR","US"]
+    assert not (src/"state.sqlite").exists()
+    assert not (src/"prospective.sqlite").exists()
+    assert not (src/"batch_manifest.json").exists()
+
+
+def test_price_cache_read_once_per_market_during_optin_preflight(src,monkeypatch,capsys):
+    from eraleader import batch as batch_module
+    original=batch_module.read_market_bars
+    calls=[]
+    def record(market,asof,**kw):
+        calls.append(market)
+        return original(market,asof,**kw)
+    monkeypatch.setattr(batch_module,"read_market_bars",record)
+    main(optin(src))
+    capsys.readouterr()
+    assert calls==["KR","US"]  # no duplicate expensive cache read
+
+
+def test_default_batch_never_executes_pit_preflight(src,monkeypatch,capsys):
+    from eraleader import batch as batch_module
+    monkeypatch.setattr(batch_module,"integrated_snapshot",
+                        lambda *a,**kw: pytest.fail("Default batch must stay price-only"))
+    main(base(src))
+    result=json.loads(capsys.readouterr().out)
+    assert result["integrated_research_markets"]==0

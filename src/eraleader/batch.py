@@ -6,9 +6,11 @@ Explicit as-of dates prevent silent assumptions of real-time prices.
 from __future__ import annotations
 from argparse import Namespace
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
-from .cli import execute_run, execute_report, execute_alerts, execute_integrated, write_json
+from .cli import (execute_run, execute_report, execute_alerts, execute_integrated,
+                  read_market_bars, score_price_observations, run_id_for,
+                  integrated_snapshot, write_json)
 from .offline_pit import OfflineLedger
 
 PERIODS=("daily","weekly","monthly")
@@ -23,6 +25,7 @@ def execute_local_batch(args: Namespace) -> dict:
         raise ValueError("PIT batch integration opt-in must be boolean")
     if not integrate and any(x is not None for x in decisions.values()):
         raise ValueError("Decision timestamps require explicit PIT research opt-in")
+    prepared={}
     if integrate:
         if not all(isinstance(x,str) and x.strip() for x in decisions.values()):
             raise ValueError("Both market-local decision timestamps are required")
@@ -41,17 +44,32 @@ def execute_local_batch(args: Namespace) -> dict:
             raise FileNotFoundError("Existing local offline.sqlite required for PIT batch")
         ledger=OfflineLedger(db)
         try:
-            for market in ("KR","US"):
+            # Preflight BOTH markets before creating any dashboards, state
+            # events, WATCH records or dry-run alerts. A bad second-market
+            # price/PIT join must never leave a partial first-market run.
+            for market,asof in (("KR",args.kr_as_of),("US",args.us_as_of)):
                 snapshot=ledger.snapshot(decisions[market],market=market)
                 if not snapshot["members"]:
                     raise ValueError(f"Missing usable then-known {market} PIT membership")
+                bars,quality=read_market_bars(
+                    market,date.fromisoformat(asof),
+                    days=args.days,legacy_root=Path(args.legacy),tickers=None)
+                price=score_price_observations(bars,market,asof,args.top)
+                price["data_source"]=quality["source"]
+                price["quality_flags"]=quality
+                price["run_id"]=run_id_for(market,asof,price["rows"])
+                candidate=integrated_snapshot(snapshot,price,decisions[market])
+                if candidate.get("pit_certified") is not False or candidate.get("confirmed_leaders") != 0:
+                    raise ValueError("Uncertified PIT preflight cannot promote leaders")
+                prepared[market]=price
         finally:
             ledger.close()
     manifests=[]
     for market,asof in (("KR",args.kr_as_of),("US",args.us_as_of)):
         result=execute_run(Namespace(market=market,as_of=asof,days=args.days,
                                      legacy=args.legacy,out=args.out,
-                                     tickers=None,top=args.top))
+                                     tickers=None,top=args.top,
+                                     prepared_snapshot=prepared.get(market)))
         integrated=None
         if integrate:
             integrated=execute_integrated(Namespace(

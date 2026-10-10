@@ -6,6 +6,7 @@ historical completeness, issuer authenticity, cash receipt or tradable returns.
 from __future__ import annotations
 
 import argparse
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, timezone, date
 from hashlib import sha256
 import json
@@ -19,6 +20,21 @@ from .issuer_lineage import _timestamp, _date
 STATUS_MATCH = "LOCAL_DUAL_VINTAGE_CASH_EXIT_RESEARCH_NOT_CERTIFIED"
 STATUS_BLOCKED = "CENSORED_UNCORROBORATED_CASH_EXIT"
 MAX_BYTES = 5_000_000
+
+
+def _same_claim_amount(claim: object, price_amount: object, *, positive: bool) -> bool:
+    """Exact decimal comparison of two declared numbers, not provider proof."""
+    if isinstance(claim, bool) or isinstance(price_amount, bool):
+        return False
+    try:
+        asserted = Decimal(str(claim))
+        original = Decimal(str(price_amount))
+    except (InvalidOperation, TypeError, ValueError):
+        return False
+    if not asserted.is_finite() or not original.is_finite():
+        return False
+    minimum_ok = asserted > 0 if positive else asserted >= 0
+    return minimum_ok and asserted == original
 
 
 def _read(path: Path) -> tuple[dict, str]:
@@ -60,6 +76,7 @@ def _known_events(bundle: dict, cutoff: datetime) -> list[dict]:
 def audit_dual_vintage_cash_exit(
     cash_file: Path, decision_lineage_file: Path, evaluation_lineage_file: Path,
     *, security_id: str, market: str, decision_at: str, evaluated_at: str,
+    require_lineage_amount_claims: bool = False,
 ) -> dict:
     """Fail closed if the as-of issuer, terminal event or action path disagree.
 
@@ -68,6 +85,8 @@ def audit_dual_vintage_cash_exit(
     """
     if market not in MARKET_ZONE or not isinstance(security_id, str) or not security_id.strip():
         raise ValueError("KR/US and a permanent security ID are required")
+    if type(require_lineage_amount_claims) is not bool:
+        raise ValueError("Strict amount-claim flag must be a boolean")
     decision = _timestamp(decision_at)
     evaluation = _timestamp(evaluated_at)
     if evaluation < decision:
@@ -127,6 +146,8 @@ def audit_dual_vintage_cash_exit(
     terms = cash.get("settlement")
     matched_exit = False
     matched_actions = 0
+    amount_claims_matched = 0
+    cash_event_currency_claim_matched = False
     if not isinstance(terms, dict):
         reasons.add("MISSING_CASH_SETTLEMENT")
     elif calc["cash_exit_total_return"] is None:
@@ -156,6 +177,32 @@ def audit_dual_vintage_cash_exit(
                         _date(exits[0]["effective_on"]) == final_day)
         if not matched_exit:
             reasons.add("MISSING_OR_CONFLICTING_EXIT_EVENT")
+        else:
+            exit_event = exits[0]
+            # Explicit contradictions are unsafe even in legacy research
+            # mode. Missing amount claims become blockers only in opt-in
+            # strict mode (older offline issuer snapshots lack these keys).
+            if "cash_per_share" not in exit_event:
+                if require_lineage_amount_claims:
+                    reasons.add("MISSING_CASH_EXIT_AMOUNT_CLAIM")
+            elif not _same_claim_amount(exit_event["cash_per_share"],
+                                        terms["cash_per_share"], positive=True):
+                reasons.add("CASH_EXIT_AMOUNT_CLAIM_MISMATCH")
+            else:
+                amount_claims_matched += 1
+            if "currency" not in exit_event:
+                if require_lineage_amount_claims:
+                    reasons.add("MISSING_CASH_EXIT_CURRENCY_CLAIM")
+            elif exit_event["currency"] != terms["currency"]:
+                reasons.add("CASH_EXIT_CURRENCY_CLAIM_MISMATCH")
+            else:
+                cash_event_currency_claim_matched = True
+            if "paid_at" in exit_event:
+                if _timestamp(exit_event["paid_at"]) != _timestamp(terms["paid_at"]):
+                    reasons.add("CASH_EXIT_PAID_AT_CLAIM_MISMATCH")
+            if "cash_payment_confirmed" in exit_event:
+                if exit_event["cash_payment_confirmed"] is not True:
+                    reasons.add("CASH_EXIT_PAID_CONFIRMATION_CLAIM_MISMATCH")
         if any(e["security_id"] == security_id and e["action_type"] in
                ("cash_delist", "delist", "merger") and e["event_id"] != terms["event_id"]
                and _date(e["effective_on"]) <= final_day
@@ -183,6 +230,33 @@ def audit_dual_vintage_cash_exit(
         if registry_actions - price_actions:
             reasons.add("ISSUER_ACTION_NOT_IN_RAW_PRICE_PATH")
         matched_actions = len(price_actions & registry_actions)
+        price_action_map = {
+            (event["action_type"], event["effective_on"]): event
+            for event in cash["actions"]
+            if start_trade < _date(event["effective_on"]) <= last_trade
+        }
+        source_action_map = {
+            (event["action_type"], event["effective_on"]): event
+            for event in visible_actions
+        }
+        for key in sorted(price_actions & registry_actions):
+            raw_action = price_action_map[key]
+            source_action = source_action_map[key]
+            if raw_action["action_id"] != source_action["event_id"]:
+                reasons.add("CORPORATE_ACTION_ID_MISMATCH")
+            amount_key = "ratio" if key[0] == "split" else "cash_amount"
+            if amount_key not in source_action:
+                if require_lineage_amount_claims:
+                    reasons.add("MISSING_SPLIT_RATIO_CLAIM" if key[0] == "split"
+                                else "MISSING_DIVIDEND_CASH_CLAIM")
+            elif not _same_claim_amount(
+                source_action[amount_key], raw_action[amount_key],
+                positive=key[0] == "split",
+            ):
+                reasons.add("SPLIT_RATIO_CLAIM_MISMATCH" if key[0] == "split"
+                            else "DIVIDEND_CASH_CLAIM_MISMATCH")
+            else:
+                amount_claims_matched += 1
 
     blocks = sorted(reasons)
     status = STATUS_BLOCKED if blocks else STATUS_MATCH
@@ -206,6 +280,9 @@ def audit_dual_vintage_cash_exit(
         ),
         "terminal_cash_event_matched_by_id_type_and_date": matched_exit,
         "raw_price_actions_matched_by_type_and_day": matched_actions,
+        "lineage_amount_claims_required": require_lineage_amount_claims,
+        "action_amount_claims_matched": amount_claims_matched,
+        "cash_exit_currency_claim_matched": cash_event_currency_claim_matched,
         "local_cash_exit_input_status": calc["status"],
         "cash_exit_total_return": (
             calc["cash_exit_total_return"] if not blocks else None
@@ -237,6 +314,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--market", choices=("KR", "US"), required=True)
     parser.add_argument("--decision-at", required=True)
     parser.add_argument("--evaluated-at", required=True)
+    parser.add_argument("--require-lineage-amount-claims", action="store_true",
+                        help="Require explicit split/dividend and cash payout amounts in issuer events")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
@@ -244,6 +323,7 @@ def main(argv: list[str] | None = None) -> int:
             args.cash_file, args.decision_lineage, args.evaluation_lineage,
             security_id=args.security_id, market=args.market,
             decision_at=args.decision_at, evaluated_at=args.evaluated_at,
+            require_lineage_amount_claims=args.require_lineage_amount_claims,
         )
         args.out.parent.mkdir(parents=True, exist_ok=True)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)

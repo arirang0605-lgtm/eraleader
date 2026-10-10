@@ -46,3 +46,16 @@ python3 scripts/check_handoff.py
 ## 남은 작업
 
 합성 KR 2:1 분할 후 현금 55 연구수익 +10%, 미국 DST를 통과한 합성 현금 105 연구수익 +5%는 단위 시험이며 실제 종목/성과가 아니다. 실전 독립 PIT 법적 기업ID·상폐현금·행동/배당/조정총수익·상장폐지 포함 종목군 증빙과, 사전 동결한 미래 대장주 성숙 결과가 필요하다. 외부 API 연동은 로컬 1~6단계 구현 후(D-017), 실제 SSD 분리·재연결/재부팅은 API 연결 후 최종 검수(D-021)로 연기한다.
+
+## 2026-10-11 후속 — 기업행동 금액·현금지급 조건 교차검사 (2_2 / 2_5)
+
+기존 이중 빈티지 감사는 raw 주가 경로와 발행인 행동 이력의 **action_type + effective_on**만 비교했다. 즉 raw 2:1 분할인데 issuer 문서가 3:1, 원천은 주당 현금 54인데 정산 계약은 55, 원천 배당금이 2인데 raw 계산은 1인 경우에도 연구 수익률이 그대로 나올 수 있었다. 정확히 동일한 날짜이지만 다른 action_id인 경우도 탐지하지 못했다.
+
+추가 로컬 계약: 결제기관/법적 원천과 **독립적으로 확인됐다는 뜻이 아닌** 자기선언 issuer 이벤트의 `ratio`(split), `cash_amount`(dividend), `cash_per_share`/`currency`(cash_delist), 선택적 `paid_at`/`cash_payment_confirmed`. 원시 수익률 입력과 이벤트 ID·비율·금액·통화·지급 상태가 서로 충돌하면 기본 호환 모드에서도 오류 차단(`cash_exit_total_return=null`). 양쪽 숫자는 Decimal 유한성 검사 및 정확한 금액 비교(부정확한 부울/NaN/Inf/음수 금지)를 사용한다. 수치가 **애초에 없는** 과거 issuer JSON은 기본 연구 호환을 유지하지만, 선택적 `--require-lineage-amount-claims`로 실행하면 각 raw split/dividend와 현금형 상폐의 정규화된 금액·통화 주장까지 필수화하여 미제출을 명시적 blocker로 남긴다.
+
+- `SPLIT_RATIO_CLAIM_MISMATCH`, `DIVIDEND_CASH_CLAIM_MISMATCH`, `CASH_EXIT_AMOUNT_CLAIM_MISMATCH`, `CASH_EXIT_CURRENCY_CLAIM_MISMATCH`, `CORPORATE_ACTION_ID_MISMATCH`: 서로 모순되는 원천값이 있을 때 결과 보류
+- `MISSING_SPLIT_RATIO_CLAIM`, `MISSING_DIVIDEND_CASH_CLAIM`, `MISSING_CASH_EXIT_AMOUNT_CLAIM`, `MISSING_CASH_EXIT_CURRENCY_CLAIM`: strict 모드에서 미제출을 결과 보류
+- `CASH_EXIT_PAID_AT_CLAIM_MISMATCH`, `CASH_EXIT_PAID_CONFIRMATION_CLAIM_MISMATCH`: 제출된 지급 사실/시각에 모순이 있으면 결과 보류
+- 추적 필드 `lineage_amount_claims_required`, `action_amount_claims_matched`, `cash_exit_currency_claim_matched` 추가. 기존 `action_amounts_independently_verified=false`, `cash_payment_independently_verified=false`, `historical_universe_pit_certified=false`는 절대 승격되지 않는다.
+
+실행 형식은 기존 `audit-cash-delist --file ... --decision-lineage ... --evaluation-lineage ... --security-id ... --market KR|US --decision-at ... --evaluated-at ... --out ...` 뒤에 `--require-lineage-amount-claims`를 추가한다. 새 standalone 모듈에서도 동일 옵션 지원. 코드·합성 테스트: `src/eraleader/cash_exit_lineage.py`, `src/eraleader/cli.py`, `tests/test_cash_exit_amount_claims.py`. **이 기능은 금액/일치 여부를 확인할 뿐 실제 정산액의 진위, 기업행동 원본 완전성, 실제 PIT/발굴 적중률을 증명하지 못한다.** 외부 API는 D-017대로 나중, 물리 SSD 재연결 시험은 D-021대로 마지막 검수.

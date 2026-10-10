@@ -5,8 +5,8 @@ def outcomes():
     return [
       {"security_id":"A","is_future_leader":True,"leader_start_at":"2024-05-01",
        "mature_on":"2024-08-01","outcome_available_at":"2024-08-02"},
-      {"security_id":"B","is_future_leader":False,"leader_start_at":"2024-08-01",
-       "mature_on":"2024-08-01","outcome_available_at":"2024-08-02"},
+      {"security_id":"B","is_future_leader":False,"leader_start_at":"2024-08-10",
+       "mature_on":"2024-08-10","outcome_available_at":"2024-08-11"},
       {"security_id":"D","is_future_leader":True,"leader_start_at":"2024-05-01",
        "mature_on":"2024-08-01","outcome_available_at":"2024-08-02"},
       {"security_id":"E","is_future_leader":True,"leader_start_at":"2025-05-01",

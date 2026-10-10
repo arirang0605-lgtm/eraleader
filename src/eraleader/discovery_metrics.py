@@ -4,8 +4,9 @@ Evaluation ONLY; labels must never enter discovery or scoring modules.
 No financial PIT completeness claim follows from these statistics alone.
 """
 from __future__ import annotations
-from datetime import date, datetime
+from datetime import date, timedelta
 from statistics import median
+
 
 def _day(raw: str) -> date:
     return date.fromisoformat(raw)
@@ -56,6 +57,7 @@ def evaluate_early_discovery(
         if sec not in first or effective<first[sec]:
             first[sec]=effective
     tp=fp=late=unknown=0
+    premature_negative=0
     lead=[]
     for sec,seen in first.items():
         label=labels.get(sec)
@@ -81,6 +83,10 @@ def evaluate_early_discovery(
             else:
                 late+=1
         else:
+            if matured < seen + timedelta(days=horizon_days):
+                unknown+=1
+                premature_negative+=1
+                continue
             fp+=1
     precision=tp/(tp+fp) if tp+fp else None
     all_positives=[sec for sec,label in labels.items()
@@ -93,6 +99,7 @@ def evaluate_early_discovery(
        "evaluated_at":evaluated_at,"horizon_days":horizon_days,
        "signals":len(first),"evaluable":tp+fp+late,"censored":unknown,
        "evaluable_fraction":round((tp+fp+late)/len(first),6) if first else None,
+       "premature_negative_labels_censored":premature_negative,
        "retrospective_unregistered_signals":len(unregistered),
        "all_signal_dates_independently_registered":not unregistered,
        "conservative_early_precision_floor":round(tp/len(first),6) if first else None,
@@ -103,6 +110,7 @@ def evaluate_early_discovery(
        "median_early_lead_days":median(lead) if lead else None,
        "full_universe_certified":full_universe_certified,
        "warnings":["Censored future outcomes excluded, NOT treated as failure",
+                   "Negative labels maturing before the complete signal horizon remain censored",
                    "Missing recorded_at means signal discovery dates lack an independent registration audit",
                    "Registered signal date (not backdated first_seen) determines early lead time",
                    "Official recall unavailable until complete historical universe and labels certified",

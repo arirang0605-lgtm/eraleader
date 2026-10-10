@@ -297,3 +297,10 @@
 - 신규 CLI prepare-rank-features: src/eraleader/rank_feature_bridge.py와 docs/63_CURRENT_ASOF_RANK_FEATURE_BRIDGE.md 참고. 출처 해시와 시장 시점 일치, 누락·stale 보류, 최근 3일 초과 과거 자료 신규 점수 등록 차단, WATCH/score ledger 원본 불변. 3개 합성 WATCH 등록→실제 시간 기준 feature 문서 생성→3개 숫자점수 첫 기록 성공.
 - 테스트: 현재 변경 전체 619 PASS, b5a34dc HEAD만 독립 616 PASS, HEAD + 3개 독립 staged로 재구성한 33b1aff 수정 격리 619 PASS. handoff 30개 ID PASS, 웹 HTTP200 3경로/API 0. 실전 PIT/예측 실적 인증은 여전히 FALSE.
 - 원격 SSD/데이터 API 분리, D-017 API는 로컬 1~6단계 이후, D-021 실제 SSD 탈착·재부팅은 API 이후 최종 검수. 코드 기준으로 다음 미완료부터 CONTINUE, 당시 Git/PROJECT_STATE 최신 확인.
+
+## 2026-10-10 23:59 KST 인수인계 — 재무 PIT/로컬 시세 캐시 이중 재계산 릴리스
+
+- 실제 Mac T5DATA eraleader main/origin 릴리스: b80032e8e5adc9e99f2e79ada6c712b6cbdd2cdc (2_3/2_5 SQLite PIT 재계산), 3e94db13a90cab0d24bc300c1d4b92ab15edc5af (2_5/3_4 KR/US 원시 캐시 가격수익률 재계산). 둘 다 staged 보안검사 이상 0, 실제 origin/main push 및 remote SHA 일치 확인.
+- 새로운 개발 파일: src/eraleader/price_cache_witness.py, tests/test_price_cache_witness.py, tests/test_rank_feature_ledger.py, docs/64_READONLY_PIT_LEDGER_FEATURE_RECHECK.md 및 docs/65_LOCAL_PRICE_CACHE_RANK_WITNESS.md. 기존 offline_pit.py, rank_feature_bridge.py, cli.py는 오프라인 read-only/opt-in 기능만 추가. CLI prepare-rank-features --offline-ledger <offline.sqlite> --price-cache-root <legacy cache> --cache-days 550 사용.
+- 실증: git archive HEAD 격리 전체 652 pytest PASS, 로컬 웹 HTTP 200 3개, handoff 30작업ID PASS. 과거 KR 2026-10-02 / US 2026-02-23 가격 관측 화면의 20+20개 수익률이 기존 로컬 read-only Parquet와 일치; 외부 공급자 조정가격·종목군/상폐·미래 발굴 적중률을 인증한 것이 아님.
+- 공식 실제 PIT / 미래 대장주 적중률 / 장기 실제 성숙 라벨 / API 연결 / live 알림 / SSD 물리 탈착·재부팅 아직 미완료. D-017 원격 공급자 연결은 나중, D-021 실제 SSD 재연결 시험은 최종 단계. 다음 작업은 독립 PIT 공급자/상폐·기업행동/조정수익 검증(2_2/2_5)과 미래 성숙 라벨(5_3/5_5), 기존 정상 기능 재작성 금지.

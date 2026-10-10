@@ -69,3 +69,42 @@ def test_research_evaluation_cli_writes_report(tmp_path,capsys):
     assert stdout["true_early_discoveries"]==1
     saved=json.loads((tmp_path/"validation_research.json").read_text())
     assert saved["recall_certified_universe"] is None
+
+def test_backdated_signal_uses_registration_date_instead_of_claimed_first_seen():
+    signal=[{"security_id":"A","first_seen":"2024-01-01",
+             "recorded_at":"2024-06-01"}]
+    result=evaluate_early_discovery(signal,outcomes(),
+                                     evaluated_at="2024-10-01",horizon_days=180)
+    assert result["true_early_discoveries"]==0
+    assert result["late_or_post_onset"]==1
+    assert result["retrospective_unregistered_signals"]==0
+    assert result["all_signal_dates_independently_registered"] is True
+
+def test_registered_early_signal_and_censored_denominator():
+    signals=[{"security_id":"A","first_seen":"2024-02-01",
+              "recorded_at":"2024-02-15"},
+             {"security_id":"C","first_seen":"2024-02-01"}]
+    result=evaluate_early_discovery(signals,outcomes(),
+                                     evaluated_at="2024-10-01",horizon_days=180)
+    assert result["true_early_discoveries"]==1
+    assert result["median_early_lead_days"]==76
+    assert result["evaluable_fraction"]==0.5
+    assert result["conservative_early_precision_floor"]==0.5
+    assert result["retrospective_unregistered_signals"]==1
+
+def test_forged_or_future_signal_registration_rejected():
+    with pytest.raises(ValueError,match="precedes first_seen"):
+        evaluate_early_discovery([
+            {"security_id":"A","first_seen":"2024-02-01","recorded_at":"2024-01-01"}
+        ],outcomes(),evaluated_at="2024-10-01",horizon_days=180)
+    with pytest.raises(ValueError,match="Future signal"):
+        evaluate_early_discovery([
+            {"security_id":"A","first_seen":"2024-02-01","recorded_at":"2024-11-01"}
+        ],outcomes(),evaluated_at="2024-10-01",horizon_days=180)
+
+def test_invalid_onset_after_maturity_rejected():
+    broken=outcomes()
+    broken[0]={**broken[0],"leader_start_at":"2024-09-01"}
+    with pytest.raises(ValueError,match="after label maturity"):
+        evaluate_early_discovery([{"security_id":"A","first_seen":"2024-02-01"}],
+                                 broken,evaluated_at="2024-10-01",horizon_days=180)

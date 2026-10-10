@@ -37,13 +37,24 @@ def evaluate_early_discovery(
             raise ValueError("Outcome cannot be known before its maturity")
         labels[sec]=row
     first={}
+    unregistered=set()
     for row in signals:
         sec=row["security_id"]
-        day=_day(row["first_seen"])
-        if day>today:
+        seen=_day(row["first_seen"])
+        # Backfilled first_seen cannot masquerade as the actual signal
+        # registration date. Count early lead from the later date.
+        if "recorded_at" in row:
+            recorded=_day(row["recorded_at"])
+            if recorded<seen:
+                raise ValueError("Signal recorded_at precedes first_seen")
+            effective=recorded
+        else:
+            unregistered.add(sec)
+            effective=seen
+        if effective>today or seen>today:
             raise ValueError("Future signal cannot enter evaluation")
-        if sec not in first or day<first[sec]:
-            first[sec]=day
+        if sec not in first or effective<first[sec]:
+            first[sec]=effective
     tp=fp=late=unknown=0
     lead=[]
     for sec,seen in first.items():
@@ -61,6 +72,8 @@ def evaluate_early_discovery(
             continue
         if label["is_future_leader"]:
             onset=_day(label["leader_start_at"])
+            if onset>matured:
+                raise ValueError("Leader onset after label maturity")
             elapsed=(onset-seen).days
             if 0<elapsed<=horizon_days:
                 tp+=1
@@ -79,6 +92,10 @@ def evaluate_early_discovery(
        "status":"RESEARCH_EVALUATION_ONLY_NOT_CERTIFIED",
        "evaluated_at":evaluated_at,"horizon_days":horizon_days,
        "signals":len(first),"evaluable":tp+fp+late,"censored":unknown,
+       "evaluable_fraction":round((tp+fp+late)/len(first),6) if first else None,
+       "retrospective_unregistered_signals":len(unregistered),
+       "all_signal_dates_independently_registered":not unregistered,
+       "conservative_early_precision_floor":round(tp/len(first),6) if first else None,
        "true_early_discoveries":tp,"false_discoveries":fp,
        "late_or_post_onset":late,
        "precision_on_known_nonlate":round(precision,6) if precision is not None else None,
@@ -86,6 +103,8 @@ def evaluate_early_discovery(
        "median_early_lead_days":median(lead) if lead else None,
        "full_universe_certified":full_universe_certified,
        "warnings":["Censored future outcomes excluded, NOT treated as failure",
+                   "Missing recorded_at means signal discovery dates lack an independent registration audit",
+                   "Registered signal date (not backdated first_seen) determines early lead time",
                    "Official recall unavailable until complete historical universe and labels certified",
                    "Investing return and corporate actions are not measured here"]
     }

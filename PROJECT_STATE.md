@@ -248,3 +248,11 @@
 - **PIT/실전 한계**: 역사적 상장·상폐 및 기업행동·조정가격 원본 완전성, 실전 대장주 조기 발굴 성능·엄격한 워크포워드·실전 알림은 아직 미검증. 로컬 API 미연결 유지.
 - **다음 미완료 ID**: 2_2·2_5 역사 구성 및 공급자 교차검증 → 5_2/5_4/5_5 정교한 평가 → 6_5 launchd 로컬 스케줄·실패/재부팅 복구 실검증. 상세 `docs/31_...`, `docs/32_LOCAL_BACKUP_RECOVERY.md`.
 - **이번 추가 Git 커밋 및 푸시**: 최종 검증 후 SHA/원격 일치 기록을 계속 추가. 인수인계 문서와 Git에 실제 완료 여부를 구분하여 보존.
+
+## 확정 Git 체크포인트 — 2026-10-10 백업·복구 구현 이후
+
+- **로컬 코드 커밋** `0f5e356efde5f612c8967e12dee2f45b47bdc67e` (`feat: add verified atomic local backup and recovery`).
+- **GitHub push 성공**: `main` → `origin/main`. `git ls-remote origin refs/heads/main` 반환 SHA와 로컬 HEAD 완전 일치 확인.
+- 최종 검증 시점: **pytest 79 PASS/0 FAIL**, 인수인계 필수 40개/작업 ID 30개 PASS, 로컬 웹 3경로 HTTP200 및 e2e PASS, staged 안전 검사 **9개 파일 중 의심 0건**.
+- 외부 KRX/DART/SEC 등 실제 API 호출 없음; 인증키·대형 원시 데이터·가상 검증 산출물은 원격 Git 대상에서 제외.
+- **다음 미완료**: PIT 원본 기업행동/상폐 정산·기업/산업 공개 시점 완전성, 실제 조기 대장주 발굴 성능, 5단계 장기 워크포워드/강건성, 6_5 일정·휴장/실패 복구. 정상 코드 재작성 금지.

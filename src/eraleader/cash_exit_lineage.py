@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 from .delist_cash import reconstruct_cash_delisting, MARKET_ZONE
+from .cash_payment_receipts import audit_declared_cash_payment_receipt
 from .issuer_lineage import audit_issuer_lineage, SCHEMA as LINEAGE_SCHEMA
 from .issuer_lineage import _timestamp, _date
 
@@ -77,6 +78,8 @@ def audit_dual_vintage_cash_exit(
     cash_file: Path, decision_lineage_file: Path, evaluation_lineage_file: Path,
     *, security_id: str, market: str, decision_at: str, evaluated_at: str,
     require_lineage_amount_claims: bool = False,
+    settlement_receipt_file: Path | None = None,
+    require_settlement_receipt: bool = False,
 ) -> dict:
     """Fail closed if the as-of issuer, terminal event or action path disagree.
 
@@ -87,6 +90,8 @@ def audit_dual_vintage_cash_exit(
         raise ValueError("KR/US and a permanent security ID are required")
     if type(require_lineage_amount_claims) is not bool:
         raise ValueError("Strict amount-claim flag must be a boolean")
+    if type(require_settlement_receipt) is not bool:
+        raise ValueError("Require-settlement-receipt flag must be boolean")
     decision = _timestamp(decision_at)
     evaluation = _timestamp(evaluated_at)
     if evaluation < decision:
@@ -258,6 +263,19 @@ def audit_dual_vintage_cash_exit(
             else:
                 amount_claims_matched += 1
 
+    receipt_audit = None
+    if settlement_receipt_file is None:
+        if require_settlement_receipt:
+            reasons.add("CASH_PAYMENT_RECEIPT_NOT_PROVIDED")
+    elif not isinstance(terms, dict):
+        reasons.add("CASH_PAYMENT_RECEIPT_CANNOT_REPLACE_MISSING_SETTLEMENT")
+    else:
+        receipt_audit = audit_declared_cash_payment_receipt(
+            Path(settlement_receipt_file), terms, security_id=security_id,
+            market=market, evaluated_at=evaluated_at,
+            issuer_source_id=after["source_id"],
+        )
+        reasons.update(receipt_audit["blockers"])
     blocks = sorted(reasons)
     status = STATUS_BLOCKED if blocks else STATUS_MATCH
     return {
@@ -284,6 +302,15 @@ def audit_dual_vintage_cash_exit(
         "action_amount_claims_matched": amount_claims_matched,
         "cash_exit_currency_claim_matched": cash_event_currency_claim_matched,
         "local_cash_exit_input_status": calc["status"],
+        "settlement_receipt_required": require_settlement_receipt,
+        "settlement_receipt_supplied": settlement_receipt_file is not None,
+        "settlement_receipt_manifest_sha256": (
+            receipt_audit["receipt_manifest_sha256"] if receipt_audit else None
+        ),
+        "settlement_receipt_claims_consistent": (
+            receipt_audit["receipt_claims_consistent"] if receipt_audit else False
+        ),
+        "settlement_receipt_independently_authenticated": False,
         "cash_exit_total_return": (
             calc["cash_exit_total_return"] if not blocks else None
         ),
@@ -316,6 +343,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--evaluated-at", required=True)
     parser.add_argument("--require-lineage-amount-claims", action="store_true",
                         help="Require explicit split/dividend and cash payout amounts in issuer events")
+    parser.add_argument("--settlement-receipt", type=Path,
+                        help="Local manifest and normalized cash-payment JSON; no authenticity certification")
+    parser.add_argument("--require-settlement-receipt", action="store_true",
+                        help="Censor a missing cash-payment evidence manifest")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
@@ -324,6 +355,8 @@ def main(argv: list[str] | None = None) -> int:
             security_id=args.security_id, market=args.market,
             decision_at=args.decision_at, evaluated_at=args.evaluated_at,
             require_lineage_amount_claims=args.require_lineage_amount_claims,
+            settlement_receipt_file=args.settlement_receipt,
+            require_settlement_receipt=args.require_settlement_receipt,
         )
         args.out.parent.mkdir(parents=True, exist_ok=True)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)

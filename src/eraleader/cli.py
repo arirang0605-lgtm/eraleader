@@ -454,12 +454,16 @@ def execute_cash_delist(args) -> dict:
         raise ValueError("Two dated issuer lineage vintages must be provided together")
     if args.require_lineage_amount_claims and not args.decision_lineage:
         raise ValueError("Strict lineage amounts require two issuer vintages")
+    if (args.settlement_receipt or args.require_settlement_receipt) and not args.decision_lineage:
+        raise ValueError("Payment evidence receipt requires both issuer vintages")
     if args.decision_lineage:
         result=audit_dual_vintage_cash_exit(
             Path(args.file),Path(args.decision_lineage),Path(args.evaluation_lineage),
             security_id=args.security_id,market=args.market,
             decision_at=args.decision_at,evaluated_at=args.evaluated_at,
-            require_lineage_amount_claims=args.require_lineage_amount_claims)
+            require_lineage_amount_claims=args.require_lineage_amount_claims,
+            settlement_receipt_file=args.settlement_receipt,
+            require_settlement_receipt=args.require_settlement_receipt)
     else:
         result=reconstruct_cash_delisting(
             bundle["bars"],bundle["actions"],bundle.get("settlement"),
@@ -856,6 +860,10 @@ def main(argv=None):
     cd.add_argument("--evaluation-lineage",help="Later issuer/corporate event JSON (research-only)")
     cd.add_argument("--require-lineage-amount-claims",action="store_true",
                     help="Block missing local split/dividend/cash amount claims (not independent PIT proof)")
+    cd.add_argument("--settlement-receipt",
+                    help="Local cash-payment document receipt manifest (not authenticated)")
+    cd.add_argument("--require-settlement-receipt",action="store_true",
+                    help="Censor a missing cash settlement receipt")
     cd.add_argument("--out",default=str(OUT))
     ii=sub.add_parser("audit-issuer-lineage",help="Offline permanent issuer/ticker/event identity conflicts")
     ii.add_argument("--file",required=True,help="Local eraleader.issuer_lineage_research.v1 input")

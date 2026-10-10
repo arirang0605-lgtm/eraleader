@@ -278,3 +278,22 @@
 
 - 직전 세션의 `compute-rank-scores` 코드 3개 경로는 후속 분리검증 `pytest 565 PASS` 후 **GitHub commit `d832614284eb2aaffea025c04fc860ad7d01f306` push 성공**, 이전 '미커밋' 기록을 갱신. 새 `docs/61_NATIVE_FORMULA_SCORE_PROVENANCE.md` 및 `rank_score_ledger.py` 계산 태그 확장: 첫 numeric 이벤트에 `HEURISTIC_VERSION`/4요인 targets/rule canonical SHA256 원자적 기록; 외부 수동 점수 기록은 태그 없이 보존, 나중에 native로 위장 금지. `audit-native-rank-scores --watch-ledger --score-ledger --features-dir`는 원래 WATCH 해시와 최초 점수 등록 시각, 식 버전과 원본 feature를 재계산. 랭킹 `freeze --require-native-computation`은 계산기록·WATCH 원장을 모두 검증한 뒤에만 최종 랭킹 생성. 새 합성 10개 포함 **pytest 575 PASS**, 실제 OS 시각 합성 CLI→strict 봉인→검증→파생 JSON ZIP SHA 복원 PASS. 여전히 독립 실제 PIT/예측 정확도 인증 X, API 보류, D-021 SSD 탈착/재부팅 최종 단계.
 - 정확한 최신 Git SHA는 PROJECT_STATE 하단 실제 검증 기록 및 git 상태 우선.
+
+## 2026-10-10 22:20 — 3_5 PIT 업종 Peer 정규화 (새 코드 Git 푸시 대기)
+
+- 신규 `peer_normalization.py`와 `test_peer_normalization.py`, `docs/62_PIT_INDUSTRY_PEER_NORMALIZATION.md`, CLI `audit-peer-normalization`: 원래 `offline-features`의 당시 업종별 성장률 연구 백분위. 최소 3개 유효 동종 기업, stale/결측/평가보류의 분모 유입 차단; 원시 시세·WATCH 불변.
+- 로컬 `pytest 595/595 PASS`, handoff 30개 번호 PASS, 3 URL HTTP200/API0; 합성 fixture 실제 CLI 순위 계산은 업종 1개 기업이면 normalized=0/deferred=1. Public Git 보안검사 4 staged 파일 suspicious=0. `git commit`은 Remote Desktop 안전검사가 차단, **이번 기능 아직 GitHub 미푸시**; 기존 확인 SHA `002ca5678827201834e4f03a362a3d9089365f9f`. 상태 세부는 `PROJECT_STATE.md` 마지막 기록 및 현재 Git을 우선.
+- 다음: 4개 staged와 다른 세션 변경 먼저 구별, Git 안전도구가 허용할 때만 scoped commit/push. 2_2 공식 기업·행동 PIT / 3_5 실제 as-of 원천 추출/5_3 성숙 미래 라벨 계속 개발. 외부 API 나중, 물리적 SSD 제거·재연결/재부팅 D-021 최종 단계, 전체 30개 완료 아님.
+
+## 2026-10-10 23시대 3_5 업종·재무기간 단위 PIT peer 비교 (최신 작업)
+
+- **실제 로컬 수정/실행**: `peer_normalization.py`가 같은 industry라도 다른 fiscal end date를 섞지 않게 업종+보고기간 별 상대평가, 유효 동종기업 <3이면 보류. `tests/test_peer_normalization.py` 3개 새 합성 회귀, `docs/62_PIT_INDUSTRY_PEER_NORMALIZATION.md` 보완. 집중 **23 PASS**, 전체 **598 collected / pytest exit 0**, `scripts/check_handoff.py` 30 ID PASS; synthetic CLI normalized=0/deferred=1, 실제 리더 적중률 인증 아님.
+- **Git 사실**: 선행 peer feature가 다른 세션에서 `648f1e9b5f38704aaa51ccd629a98d9580abb7da`로 origin/main push된 것을 확인했으나 **이번 추가 3파일 수정은 아직 푸시되지 않음**. 세 파일만 staged·Git 공개검사 scanned=3/suspicious=0, 이번 git commit 요청은 원격 안전검사 차단. `PROJECT_STATE.md` 최하단 근거 확인/다른 세션 변경 보존 후 CONTINUE.
+- 아직 30개 전체 및 실전 PIT/전향 실적 인증 불가, API/D-021 물리적 SSD 재연결 재부팅 최종 단계로 연기.
+
+## 2026-10-10 23:30+ 최신 git/research 인수인계 (이전 미푸시 기록 갱신)
+
+- 실제 로컬/원격 main 일치 검증: 33b1aff0c6f83b2b97f1da492651306beeb6207e. 앞선 648f1e9 peer 모듈 및 b5a34dc 자동 4요인 feature 브리지 및 33b1aff 업종+재무기간 peer 보강 모두 Public GitHub 푸시 성공. 각각 변경경로만 분리 테스트 후 커밋.
+- 신규 CLI prepare-rank-features: src/eraleader/rank_feature_bridge.py와 docs/63_CURRENT_ASOF_RANK_FEATURE_BRIDGE.md 참고. 출처 해시와 시장 시점 일치, 누락·stale 보류, 최근 3일 초과 과거 자료 신규 점수 등록 차단, WATCH/score ledger 원본 불변. 3개 합성 WATCH 등록→실제 시간 기준 feature 문서 생성→3개 숫자점수 첫 기록 성공.
+- 테스트: 현재 변경 전체 619 PASS, b5a34dc HEAD만 독립 616 PASS, HEAD + 3개 독립 staged로 재구성한 33b1aff 수정 격리 619 PASS. handoff 30개 ID PASS, 웹 HTTP200 3경로/API 0. 실전 PIT/예측 실적 인증은 여전히 FALSE.
+- 원격 SSD/데이터 API 분리, D-017 API는 로컬 1~6단계 이후, D-021 실제 SSD 탈착·재부팅은 API 이후 최종 검수. 코드 기준으로 다음 미완료부터 CONTINUE, 당시 Git/PROJECT_STATE 최신 확인.

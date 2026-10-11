@@ -369,4 +369,10 @@ def test_display_limit_never_hides_full_unresolved_k_denominator(tmp_path):
     assert result["displayed_followup_rows"]==MAX_DISPLAY_ROWS
     assert result["followup_rows_truncated"] is True
     assert len(result["followup_rows"])==MAX_DISPLAY_ROWS
+    changed=[dict(row) for row in rows]
+    changed[-1]["followup_state"]="DUE_RECEIPTS_MISSING"
+    revised=_report(changed,totals,strict,NOW+timedelta(hours=1))
+    assert revised["followup_rows"]==result["followup_rows"]
+    assert revised["due_evidence_followups"]==result["due_evidence_followups"]
+    assert revised["due_evidence_state_sha256"]!=result["due_evidence_state_sha256"]
     assert "전체 코호트" in render_due_followups(result)

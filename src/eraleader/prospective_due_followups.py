@@ -195,6 +195,14 @@ def _report(rows:list[dict],totals:dict,strict:dict,
         priority[r["followup_state"]],r["horizon_due_utc"],
         r["market"],r["registry_ref"],r["cohort_position"]))
     due_gaps=totals.get("due_gaps",0)
+    # Stable across clock advancement and presentation truncation. The digest
+    # covers every unresolved cohort, including rows beyond the 500 displayed.
+    # No security ID, source path, mutable due-days or outcome label enters it.
+    unresolved=[(row["cohort_ref"],row["followup_state"],
+                 row["top_k_selected_count"],row["unknown_or_censored"])
+                for row in rows if row["followup_state"] in FOLLOWUP_REQUIRED]
+    due_digest=sha256(json.dumps(sorted(unresolved),sort_keys=True,
+                           separators=(",",":"),ensure_ascii=False).encode()).hexdigest()
     return {
         "schema_version":SCHEMA,
         "status":"LOCAL_DUE_EVIDENCE_GAPS_NOT_CERTIFIED" if due_gaps
@@ -209,6 +217,7 @@ def _report(rows:list[dict],totals:dict,strict:dict,
         "horizon_elapsed_frozen_k":totals.get("due_k",0),
         "due_evidence_followups":due_gaps,
         "due_evidence_followup_k":totals.get("due_gap_k",0),
+        "due_evidence_state_sha256":due_digest,
         "due_unknown_or_censored_k":totals.get("due_unknown",0),
         "all_unknown_or_censored_k":totals.get("unknown",0),
         "followup_state_counts":statuses,

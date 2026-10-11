@@ -48,6 +48,7 @@ from .prospective import ProspectiveRegistry
 from .watch_progression import audit_watch_progression
 from .watch_rotation import audit_watch_rotation
 from .peer_score_series import record_peer_score_series, audit_peer_score_advantage
+from .rotation_holdout import freeze_rotation_pairs, audit_rotation_pair_outcomes
 from .delivery import write_watch_rotation_dashboard, write_peer_score_rotation_dashboard
 from .pit_publication import verify_pit_publication
 from .local_backup import create_backup, verify_backup, restore_backup
@@ -361,6 +362,30 @@ def execute_source_vintage(args) -> dict:
             "source_count":audit["source_count"],
             "retrospective_source_count":audit["retrospective_source_count"],
             "historical_pit_certified":False}
+
+def execute_freeze_rotation_pairs(args) -> dict:
+    return freeze_rotation_pairs(
+        Path(args.watch_ledger), Path(args.score_history),
+        Path(args.feature_root), Path(args.freeze_file),
+        market=args.market, model_version=args.model_version,
+        label_definition_id=args.label_definition_id,
+        horizon_days=args.horizon_days,
+    )
+
+def execute_rotation_pair_outcomes(args) -> dict:
+    report = audit_rotation_pair_outcomes(
+        Path(args.freeze_file), evaluated_at=args.evaluated_at,
+        outcome_file=Path(args.outcomes) if args.outcomes else None,
+        sample_limit=args.sample_limit,
+    )
+    output = Path(args.out)/"rotation_pair_outcomes_research.json"
+    write_json(output,report)
+    return {"status":report["status"],"path":str(output),
+            "frozen_pair_count":report["frozen_pair_count"],
+            "internally_evaluable_pair_count":report["internally_evaluable_pair_count"],
+            "research_pair_confirmed_count":report["research_pair_confirmed_count"],
+            "official_leader_replacements":0,
+            "independent_future_label_source_certified":False}
 
 def execute_freeze_holdout(args) -> dict:
     return freeze_registered_candidates(Path(args.ledger), Path(args.freeze_file),
@@ -848,6 +873,24 @@ def main(argv=None):
     maturity.add_argument("--as-of",required=True,help="Timezone-aware audit timestamp not in future")
     maturity.add_argument("--sample-limit",type=int,default=20)
     maturity.add_argument("--out",default=str(OUT))
+    rp=sub.add_parser("freeze-rotation-pairs",
+                      help="Seal two-score WATCH rotation pair cohort before any future labels")
+    rp.add_argument("--watch-ledger",required=True)
+    rp.add_argument("--score-history",required=True)
+    rp.add_argument("--feature-root",required=True)
+    rp.add_argument("--market",choices=["KR","US"],required=True)
+    rp.add_argument("--model-version",required=True)
+    rp.add_argument("--label-definition-id",required=True)
+    rp.add_argument("--horizon-days",type=int,default=180)
+    rp.add_argument("--freeze-file",required=True,
+                    help="New exclusive frozen pair JSON; prior cohort cannot be overwritten")
+    ra=sub.add_parser("audit-rotation-pair-outcomes",
+                      help="Reconcile only separately dated mature pair labels; never actual alpha proof")
+    ra.add_argument("--freeze-file",required=True)
+    ra.add_argument("--evaluated-at",required=True)
+    ra.add_argument("--outcomes",help="Separate later local self-declared issuer labels")
+    ra.add_argument("--sample-limit",type=int,default=100)
+    ra.add_argument("--out",default=str(OUT))
     hf=sub.add_parser("freeze-holdout",help="Seal an actual-registration research holdout before future labels")
     hf.add_argument("--ledger",required=True,help="Existing prospective.sqlite")
     hf.add_argument("--market",choices=["KR","US"],required=True)
@@ -992,6 +1035,8 @@ def main(argv=None):
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)
         elif args.command=="prospective-signals":result=execute_prospective_export(args)
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)
+        elif args.command=="freeze-rotation-pairs":result=execute_freeze_rotation_pairs(args)
+        elif args.command=="audit-rotation-pair-outcomes":result=execute_rotation_pair_outcomes(args)
         elif args.command=="freeze-holdout":result=execute_freeze_holdout(args)
         elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
         elif args.command=="audit-source-vintage":result=execute_source_vintage(args)

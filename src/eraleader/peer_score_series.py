@@ -365,6 +365,7 @@ def audit_peer_score_advantage(
         differences = []
         paired_event_hashes = []
         paired_scores = []
+        paired_registered_at = []
         issues = []
         for day in candidate_days:
             if len(a[day]) != 1 or len(b[day]) != 1:
@@ -388,6 +389,10 @@ def audit_peer_score_advantage(
                 "incumbent_score":old["score"],
                 "contender_score":new["score"],
             })
+            paired_registered_at.append({
+                "incumbent_score_recorded_at_utc":old["score_recorded_at_utc"],
+                "contender_score_recorded_at_utc":new["score_recorded_at_utc"],
+            })
             paired_event_hashes.append({
                 "incumbent_event_sha256":sha256(_canonical(old).encode()).hexdigest(),
                 "contender_event_sha256":sha256(_canonical(new).encode()).hexdigest(),
@@ -409,6 +414,7 @@ def audit_peer_score_advantage(
             "last_two_paired_market_days": good_days[-2:],
             "last_two_contender_minus_incumbent_scores": differences[-2:],
             "last_two_paired_scores": paired_scores[-2:],
+            "last_two_paired_score_registered_at": paired_registered_at[-2:],
             "last_two_paired_score_event_hashes": paired_event_hashes[-2:],
             "score_advantage_min_points_hypothesis": MIN_SCORE_ADVANTAGE,
             "locally_score_correlated": not issues,

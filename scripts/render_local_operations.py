@@ -12,11 +12,17 @@ def main(argv=None):
     parser=ArgumentParser(description="Offline EraLeader research operations health")
     parser.add_argument("--project",type=Path,required=True,
                         help="Existing EraLeader root (report writes only under output/operations)")
+    parser.add_argument("--include-local-outbox",action="store_true",
+                        help="Opt-in read-only joined operations/outbox page, no delivery")
     args=parser.parse_args(argv)
     root=args.project.resolve(strict=True)
     sys.path.insert(0,str(root/"src"))
-    from eraleader.operations_overview import publish_operations_overview
-    report=publish_operations_overview(root)
+    if args.include_local_outbox:
+        from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
+        report=publish_operations_alert_dashboard(root)
+    else:
+        from eraleader.operations_overview import publish_operations_overview
+        report=publish_operations_overview(root)
     print(json.dumps(report,ensure_ascii=False,sort_keys=True,indent=2))
     return 0
 

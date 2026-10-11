@@ -46,6 +46,7 @@ JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "pit_provider_readiness_research.json",
             "provider_pit_import_research.json","provider_pit_asof_research.json",
             "provider_stage_normalization_research.json",
+            "provider_staged_lineage_research.json",
             "provider_source_pair_research.json",
             "provider_candidate_gate_research.json",
             "ranked_outcome_receipts_research.json"}

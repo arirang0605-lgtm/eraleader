@@ -19,6 +19,7 @@ from .offline_pit import OfflineLedger
 from .pit_provider_readiness import audit_pit_provider_readiness
 from .provider_pit_adapter import import_provider_bundle, audit_registered_provider_asof
 from .provider_export_normalizer import normalize_provider_export
+from .provider_staged_lineage import audit_staged_source_lineage
 from .provider_dual_source_audit import audit_provider_source_pair
 from .provider_candidate_gate import audit_candidate_provider_gate
 from .offline_features import financial_snapshot
@@ -421,6 +422,22 @@ def execute_ranked_outcome_receipts(args) -> dict:
         "actual_future_leader_accuracy_certified":False,
         "official_leader_promotions":0,
     }
+
+
+def execute_staged_source_lineage(args) -> dict:
+    result=audit_staged_source_lineage(
+        Path(args.staged_manifest),Path(args.normalized_manifest),
+        ledger_file=(Path(args.ledger) if args.ledger else None),
+        decision_at=args.decision_at,
+    )
+    dest=Path(args.out)/"provider_staged_lineage_research.json"
+    write_json(dest,result)
+    return {"status":result["status"],"path":str(dest),
+            "source_and_normalized_bytes_matched":result["source_and_normalized_bytes_matched"],
+            "usable_as_local_research_source_at_decision":
+                result["usable_as_local_research_source_at_decision"],
+            "normalized_record_count":result["normalized_record_count"],
+            "official_leader_promotions":0,"external_pit_certified":False}
 
 
 def execute_provider_source_pair(args) -> dict:
@@ -981,6 +998,13 @@ def main(argv=None):
     dp.add_argument("--decision-at",required=True)
     dp.add_argument("--sample-limit",type=int,default=40)
     dp.add_argument("--out",default=str(OUT))
+    lineage=sub.add_parser("audit-provider-staged-lineage",
+                          help="Recheck original staged source lines/doc IDs -> normalized bytes -> optional first PIT ingest")
+    lineage.add_argument("--staged-manifest",required=True)
+    lineage.add_argument("--normalized-manifest",required=True)
+    lineage.add_argument("--ledger",help="Optional local first-ingest SQLite receipt; missing means no timely PIT claim")
+    lineage.add_argument("--decision-at",required=True)
+    lineage.add_argument("--out",default=str(OUT))
     pe=sub.add_parser("normalize-provider-export",
                       help="Offline staged KRX/DART or SEC/exchange declared exports into provider-neutral JSONL")
     pe.add_argument("--manifest",required=True,help="Raw staged export SHA/record-count manifest")
@@ -1291,6 +1315,7 @@ def main(argv=None):
         elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
         elif args.command=="audit-provider-source-pair":result=execute_provider_source_pair(args)
         elif args.command=="normalize-provider-export":result=execute_normalize_provider_export(args)
+        elif args.command=="audit-provider-staged-lineage":result=execute_staged_source_lineage(args)
         elif args.command=="import-provider-pit":result=execute_provider_pit_import(args)
         elif args.command=="audit-provider-pit-asof":result=execute_provider_pit_asof(args)
         elif args.command=="audit-pit-provider-readiness":result=execute_pit_provider_readiness(args)

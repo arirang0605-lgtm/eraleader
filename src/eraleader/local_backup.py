@@ -17,9 +17,9 @@ import tempfile
 from zipfile import ZipFile, ZIP_DEFLATED
 
 DB_NAMES={"state.sqlite","offline.sqlite","state_history.sqlite","prospective.sqlite",
-          "peer_scores.sqlite"}
+          "peer_scores.sqlite","dry_run_alerts.sqlite"}
 JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
-            "baseline_research.json","alerts_preview.json",
+            "baseline_research.json","alerts_preview.json","dry_run_alerts_research.json",
             "validation_research.json","walkforward_research.json",
             "prospective_kr_research.json","prospective_us_research.json",
             "total_return_crosscheck_research.json",

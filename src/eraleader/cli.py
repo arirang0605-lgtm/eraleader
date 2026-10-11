@@ -42,6 +42,7 @@ from .pit_chain import audit_pit_to_outcome_chain
 from .ranked_registry import audit_ranked_watch_registry
 from .rank_score_ledger import register_rank_scores, audit_frozen_rank_scores
 from .rank_score_pipeline import compute_and_register_rank_scores, audit_computed_rank_provenance
+from .native_topk_freeze import freeze_native_topk
 from .source_vintage import audit_source_vintages
 from .universe_audit import audit_observed_universe
 from .continuity_audit import audit_observation_continuity
@@ -737,6 +738,17 @@ def execute_compute_rank_scores(args) -> dict:
         Path(args.features_dir),Path(args.watch_ledger),Path(args.score_ledger),
         market=args.market,model_version=args.model_version)
 
+def execute_freeze_native_topk(args) -> dict:
+    return freeze_native_topk(
+        Path(args.score_ledger), Path(args.watch_ledger), Path(args.features_dir),
+        Path(args.label_definition_file), Path(args.out_file),
+        market=args.market, model_version=args.model_version,
+        label_definition_id=args.label_definition_id,
+        horizon_days=args.horizon_days, k=args.k,
+        max_age_hours=args.max_age_hours,
+    )
+
+
 def execute_audit_native_scores(args) -> dict:
     result=audit_computed_rank_provenance(
         Path(args.frozen_rank),Path(args.score_ledger),Path(args.features_dir),
@@ -1013,6 +1025,19 @@ def main(argv=None):
     auto_rs.add_argument("--features-dir",required=True)
     auto_rs.add_argument("--watch-ledger",required=True)
     auto_rs.add_argument("--score-ledger",required=True)
+    seal=sub.add_parser("freeze-native-topk",
+                        help="Safely seal all first-WRITTEN four-factor scores for one prospective WATCH cohort")
+    seal.add_argument("--market", choices=["KR", "US"], required=True)
+    seal.add_argument("--model-version", required=True)
+    seal.add_argument("--score-ledger", required=True)
+    seal.add_argument("--watch-ledger", required=True)
+    seal.add_argument("--features-dir", required=True)
+    seal.add_argument("--label-definition-file", required=True)
+    seal.add_argument("--label-definition-id", required=True)
+    seal.add_argument("--horizon-days", type=int, required=True)
+    seal.add_argument("--k", type=int, required=True)
+    seal.add_argument("--max-age-hours", type=int, default=24)
+    seal.add_argument("--out-file", required=True, help="Exclusive new local frozen-cohort JSON path")
     native=sub.add_parser("audit-native-rank-scores",
                           help="Verify sealed rank against persisted formula digest and recomputed four-factor source")
     native.add_argument("--frozen-rank",required=True)
@@ -1253,6 +1278,7 @@ def main(argv=None):
         elif args.command=="audit-ranked-registry":result=execute_ranked_registry(args)
         elif args.command=="record-rank-scores":result=execute_register_rank_scores(args)
         elif args.command=="compute-rank-scores":result=execute_compute_rank_scores(args)
+        elif args.command=="freeze-native-topk":result=execute_freeze_native_topk(args)
         elif args.command=="audit-native-rank-scores":result=execute_audit_native_scores(args)
         elif args.command=="audit-rank-scores":result=execute_audit_rank_scores(args)
         elif args.command=="audit-pit-coverage":result=execute_coverage(args)

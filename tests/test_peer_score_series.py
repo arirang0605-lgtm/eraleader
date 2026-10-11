@@ -307,12 +307,16 @@ def test_cli_asof_score_audit_and_safe_derived_archive(tmp_path,capsys):
     assert "features" not in json.dumps(saved)
     archive=tmp_path/"derived_only.zip"
     meta=create_backup(tmp_path/"derived",archive)
-    assert meta["file_count"]==1
+    assert meta["file_count"]==2
     assert verify_backup(archive)["status"]=="LOCAL_BACKUP_VERIFIED"
     with ZipFile(archive) as z:
-        assert z.namelist()==["peer_score_rotation_kr_research.json","MANIFEST.json"]
+        assert sorted(z.namelist()) == sorted([
+            "peer_score_rotation_kr_research.json",
+            "site/peer_score_rotation_kr.html", "MANIFEST.json"])
     restore_backup(archive,tmp_path/"recovered")
     assert (tmp_path/"recovered"/"peer_score_rotation_kr_research.json").read_bytes()==path.read_bytes()
+    assert (tmp_path/"recovered"/"site"/"peer_score_rotation_kr.html").read_bytes() == (
+        tmp_path/"derived"/"site"/"peer_score_rotation_kr.html").read_bytes()
 
 
 def test_local_backup_reliably_snapshots_peer_score_sqlite_but_not_feature_documents(tmp_path):
@@ -453,7 +457,8 @@ def test_source_feature_file_is_not_copied_into_derived_cli_output(tmp_path,caps
           "--evaluated-at",EVALUATED,"--out",str(out)])
     capsys.readouterr()
     tree=list(out.rglob("*"))
-    assert sum(p.is_file() for p in tree)==1
+    assert sorted(p.relative_to(out).as_posix() for p in tree if p.is_file()) == [
+        "peer_score_rotation_kr_research.json", "site/peer_score_rotation_kr.html"]
     report=json.loads((out/"peer_score_rotation_kr_research.json").read_text())
     assert report["rank_scores_independently_authenticated"] is False
     assert report["official_leader_replacements"]==0

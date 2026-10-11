@@ -48,7 +48,7 @@ from .prospective import ProspectiveRegistry
 from .watch_progression import audit_watch_progression
 from .watch_rotation import audit_watch_rotation
 from .peer_score_series import record_peer_score_series, audit_peer_score_advantage
-from .delivery import write_watch_rotation_dashboard
+from .delivery import write_watch_rotation_dashboard, write_peer_score_rotation_dashboard
 from .pit_publication import verify_pit_publication
 from .local_backup import create_backup, verify_backup, restore_backup
 
@@ -540,7 +540,9 @@ def execute_audit_peer_score_rotation(args) -> dict:
         evaluated_at=args.evaluated_at,sample_limit=args.sample_limit)
     dest=Path(args.out)/f"peer_score_rotation_{args.market.lower()}_research.json"
     write_json(dest,result)
+    dashboard=write_peer_score_rotation_dashboard(result,Path(args.out)/"site")
     return {"status":result["status"],"path":str(dest),
+            "dashboard":str(dashboard),
             "rotation_hypotheses":result["rotation_hypothesis_count"],
             "locally_two_session_score_correlated":result["locally_two_session_score_correlated"],
             "official_leader_replacements":0,

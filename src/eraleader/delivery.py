@@ -377,3 +377,165 @@ def write_watch_rotation_dashboard(report: dict, site_dir: Path) -> Path:
     path=site_dir/f"watch_rotation_{report['market'].lower()}.html"
     path.write_text(html,encoding="utf-8")
     return path
+
+
+def render_peer_score_rotation_dashboard(report: dict) -> str:
+    """Sanitized, locally evidenced peer-score hypotheses, never official leaders."""
+    from datetime import date
+    from math import isfinite
+    from .peer_score_series import MIN_SCORE_ADVANTAGE
+
+    if (report.get("status") != "LOCAL_PEER_SCORE_ADVANTAGE_HYPOTHESES_NOT_CERTIFIED"
+            or report.get("market") not in ("KR", "US")
+            or report.get("source_watch_rotation_status")
+                != "RESEARCH_PEER_WATCH_ROTATION_NOT_CERTIFIED"
+            or report.get("official_leader_replacements") != 0
+            or report.get("issuer_industry_pit_certified") is not False
+            or report.get("rank_scores_independently_authenticated") is not False
+            or report.get("real_leader_replacement_certified") is not False):
+        raise ValueError("Research peer score is not an official certified leader")
+    needed=("rotation_hypothesis_count", "locally_two_session_score_correlated",
+            "uncorroborated_rotation_hypotheses", "score_history_event_count",
+            "score_history_events_available_by_cutoff")
+    if any(type(report.get(key)) is not int or report[key]<0 for key in needed):
+        raise ValueError("Invalid peer score hypothesis counts")
+    total=report["rotation_hypothesis_count"]
+    matched=report["locally_two_session_score_correlated"]
+    other=report["uncorroborated_rotation_hypotheses"]
+    if (matched+other != total or
+            report["score_history_events_available_by_cutoff"] >
+                report["score_history_event_count"] or
+            type(report.get("minimum_score_difference_hypothesis")) not in
+                (int,float) or
+            report["minimum_score_difference_hypothesis"] != MIN_SCORE_ADVANTAGE):
+        raise ValueError("Inconsistent peer score hypothesis count or threshold")
+    sample=report.get("hypothesis_sample")
+    if not isinstance(sample,list) or len(sample)>min(total,1000):
+        raise ValueError("Invalid peer score evidence sample length")
+
+    def safe(value):
+        return escape(str(value),quote=True)
+
+    rows=[]
+    correlated_sample=0
+    for entry in sample[:200]:
+        if not isinstance(entry,dict):
+            raise ValueError("Invalid peer score hypothesis sample")
+        keys=("industry_id","incumbent_security_id","contender_security_id")
+        if (any(not isinstance(entry.get(k),str) or not entry[k] for k in keys)
+                or entry["incumbent_security_id"]==entry["contender_security_id"]):
+            raise ValueError("Malformed peer score identity evidence")
+        checks=entry.get("locally_score_correlated")
+        issues=entry.get("issues")
+        if type(checks) is not bool or not isinstance(issues,list) or len(issues)>100:
+            raise ValueError("Invalid peer score corroboration/issue fields")
+        if any(not isinstance(issue,str) or not issue for issue in issues):
+            raise ValueError("Malformed peer score issue")
+        count=entry.get("paired_market_day_count")
+        days=entry.get("last_two_paired_market_days")
+        diffs=entry.get("last_two_contender_minus_incumbent_scores")
+        pairs=entry.get("last_two_paired_score_event_hashes")
+        scores=entry.get("last_two_paired_scores")
+        if (type(count) is not int or count<0 or
+                not all(isinstance(v,list) for v in (days,diffs,pairs,scores)) or
+                not (len(days)==len(diffs)==len(pairs)==len(scores)==min(count,2))):
+            raise ValueError("Incomplete paired peer score evidence")
+        try:
+            parsed_days=[date.fromisoformat(day) for day in days]
+        except (ValueError,TypeError) as exc:
+            raise ValueError("Invalid paired peer score market dates") from exc
+        if (any(type(day) is not str or len(day)!=10 for day in days) or
+                parsed_days!=sorted(set(parsed_days))):
+            raise ValueError("Unordered or duplicated peer score evidence dates")
+        if any(type(diff) not in (int,float) or
+               not isfinite(diff) or not -100<=diff<=100 for diff in diffs):
+            raise ValueError("Invalid paired numeric score evidence")
+        for day,diff,score_pair in zip(days,diffs,scores):
+            if (not isinstance(score_pair,dict) or set(score_pair)!={
+                    "market_day","incumbent_score","contender_score"} or
+                    score_pair["market_day"]!=day or
+                    any(type(score_pair[k]) not in (int,float) or
+                        not isfinite(score_pair[k]) or not 0<=score_pair[k]<=100
+                        for k in ("incumbent_score","contender_score")) or
+                    round(score_pair["contender_score"]-score_pair["incumbent_score"],6)!=diff):
+                raise ValueError("Original paired peer score witness mismatch")
+        for item in pairs:
+            if not isinstance(item,dict) or set(item)!={
+                    "incumbent_event_sha256","contender_event_sha256"}:
+                raise ValueError("Malformed peer score event SHA evidence")
+            if any(not isinstance(item[field],str) or
+                   not re.fullmatch("[0-9a-f]{64}",item[field])
+                   for field in item):
+                raise ValueError("Invalid peer score evidence SHA256")
+        if checks:
+            if (issues or len(days)<2 or
+                    diffs[-1]<MIN_SCORE_ADVANTAGE or
+                    diffs[-2]<MIN_SCORE_ADVANTAGE):
+                raise ValueError("Research score evidence falsely claims corroboration")
+            correlated_sample+=1
+        elif not issues:
+            raise ValueError("Missing reasons for uncorroborated peer-score hypothesis")
+
+        label="2회 연속 점수 우위 충족 · 연구용" if checks else "점수 근거 미충족"
+        recorded=" / ".join(
+            f"{safe(day)} (기존 {scores[i]['incumbent_score']:.2f} → "
+            f"신규 {scores[i]['contender_score']:.2f}, 차이 {diff:+.2f}점)"
+            for i,(day,diff) in enumerate(zip(days,diffs))
+        ) or "관찰일 미확인 · N/A"
+        hashes=" / ".join(
+            "<span title='"+safe(a["incumbent_event_sha256"])+"'>"
+            +safe(a["incumbent_event_sha256"][:12])+"</span> ↔ "
+            +"<span title='"+safe(a["contender_event_sha256"])+"'>"
+            +safe(a["contender_event_sha256"][:12])+"</span>"
+            for a in pairs
+        ) or "N/A"
+        reason=", ".join(safe(reason) for reason in issues) if issues else "로컬 점수 정합성 충족"
+        cells=(entry["industry_id"],entry["incumbent_security_id"],
+               entry["contender_security_id"])
+        rows.append("<tr>"+"".join("<td>"+safe(value)+"</td>" for value in cells)
+                    +"<td>"+safe(label)+"</td><td>"+recorded+"</td><td>"+hashes
+                    +"</td><td>"+reason+"</td></tr>")
+    if correlated_sample>matched or len(sample[:200])-correlated_sample>other:
+        raise ValueError("Peer score evidence sample contradicts aggregate counts")
+
+    if not rows:
+        rows=["<tr><td colspan='7'>관측된 교체 가설 없음 — N/A, 미검증 데이터를 실패 신호로 대체하지 않음</td></tr>"]
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EraLeader 점수 기반 교체 후보 · {safe(report["market"])}</title>
+<style>{BASE_CSS}</style></head><body>
+<header><h1>EraLeader · 점수 기반 교체 후보</h1>
+<nav><a href="index.html">처음으로</a></nav></header>
+<main><div class="note"><strong>연구용 검증 · 확정 대장주 0건 · PIT 미인증</strong>
+<p>동일 업종 기존 WATCH의 명시적 약화와 신규 WATCH의 연속 양성 관찰을
+각 시장 현지 관찰일의 실제 로컬 저장 점수로 비교한 연구입니다.
+두 점수 우위가 일치하더라도 공식 대장주 교체·투자 추천이 아닙니다.
+거래소 법적 기업ID, 시점별 업종 분류, 실적 공시/기업행동 및 미래 결과는
+독립 인증되지 않았습니다. 관찰 누락은 약화 판정으로 사용하지 않습니다.</p></div>
+<h2>시장 {safe(report["market"])} · 모델 {safe(report.get("model_version"))}</h2>
+<div class="stats">
+<div class="stat">WATCH 교체 연구 가설<br><strong>{total}건</strong></div>
+<div class="stat">2회 점수 우위의 로컬 근거<br><strong>{matched}건</strong></div>
+<div class="stat">점수 근거 미충족<br><strong>{other}건</strong></div>
+<div class="stat">공식 교체 0건<br><strong>미인증</strong></div></div>
+<p>평가 기준 UTC: {safe(report.get("evaluated_at_utc"))} ·
+점수 이력 전체 {report["score_history_event_count"]}건 ·
+평가시점 이용 가능 {report["score_history_events_available_by_cutoff"]}건 ·
+최근 두 비교일 점수차 가설 기준 {MIN_SCORE_ADVANTAGE:g}점 이상</p>
+<h2>동종기업 연구 점수 근거 샘플 (최대 200건)</h2>
+<div class="wrap"><table><thead><tr>
+<th>자기선언 업종</th><th>기존 WATCH ID</th><th>신규 WATCH ID</th>
+<th>연구 판정</th><th>최근 두 시장 관찰일 · 기존/신규 점수와 차이</th>
+<th>원장 증거 SHA256 앞 12자리 (원문은 툴팁)</th><th>미해결 사유</th>
+</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
+<p><small>최종 대장주 성과: N/A · 공식 확정/교체: 0 · 임계값은 연구 가설 ·
+실제 외부 공시/PIT 증빙 및 전향 성숙 결과 라벨 필요 · 자동 매수/매도 없음.</small></p>
+</main></body></html>"""
+
+
+def write_peer_score_rotation_dashboard(report: dict, site_dir: Path) -> Path:
+    html=render_peer_score_rotation_dashboard(report)
+    site_dir.mkdir(parents=True,exist_ok=True)
+    path=site_dir/f"peer_score_rotation_{report['market'].lower()}.html"
+    path.write_text(html,encoding="utf-8")
+    return path

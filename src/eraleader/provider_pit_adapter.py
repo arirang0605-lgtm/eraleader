@@ -274,7 +274,9 @@ def _receipt_rows_hash(rows:dict[str,list]) -> str:
 
 
 def _verify_registered_bundle_rows(db:sqlite3.Connection,bundle_sha256:str,
-                                   expected_digest:str,expected_count:int) -> None:
+                                   expected_digest:str,expected_count:int, *,
+                                   expected_source:str|None=None,
+                                   expected_market:str|None=None) -> None:
     recorded=db.execute(
         """SELECT kind,record_key,normalized_sha256 FROM provider_ingest_rows
            WHERE bundle_sha256=? ORDER BY kind,record_key""",
@@ -298,6 +300,11 @@ def _verify_registered_bundle_rows(db:sqlite3.Connection,bundle_sha256:str,
         verified=verify_stored_pit_record(*stored)
         if verified["provenance"]!="user_supplied" or stored[-1]!=claimed_sha:
             raise ValueError("Provider first-import receipt row digest/provenance mismatch")
+        if expected_source is not None and verified["source_id"]!=expected_source:
+            raise ValueError("Provider receipt source identity differs from original PIT row")
+        if (expected_market is not None and kind=="membership"
+                and verified["market"]!=expected_market):
+            raise ValueError("Provider receipt market differs from original PIT membership")
         descriptions.append(kind+"|"+key+"|"+claimed_sha)
     digest=sha256(json.dumps(sorted(descriptions),sort_keys=True,
                              separators=(",",":")).encode()).hexdigest()
@@ -340,6 +347,7 @@ def import_provider_bundle(manifest_file: Path, target_ledger:Path, *,
             if previous:
                 _verify_registered_bundle_rows(
                     db,pre["bundle_sha256"],previous[1],pre["rows_received"],
+                    expected_source=pre["source_id"],expected_market=pre["market"],
                 )
                 if previous[1]!=fingerprint:
                     raise ValueError("Recorded provider bundle keys/source digest changed")
@@ -421,6 +429,7 @@ def import_provider_bundle(manifest_file: Path, target_ledger:Path, *,
                 status=INTAKE_STATUS
             _verify_registered_bundle_rows(
                 db,pre["bundle_sha256"],fingerprint,pre["rows_received"],
+                expected_source=pre["source_id"],expected_market=pre["market"],
             )
             db.commit()
         except Exception:
@@ -476,7 +485,8 @@ def audit_registered_provider_asof(
                     any(type(x) is not int or x<0 for x in registered_counts.values())):
                 raise ValueError("Corrupted provider first-import receipt count")
             _verify_registered_bundle_rows(
-                ledger.db,bundle_sha256,row[6],sum(registered_counts.values())
+                ledger.db,bundle_sha256,row[6],sum(registered_counts.values()),
+                expected_source=row[1],expected_market=row[0],
             )
         except sqlite3.DatabaseError as exc:
             raise ValueError("No original provider first-ingest receipt ledger") from exc

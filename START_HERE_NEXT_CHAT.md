@@ -454,3 +454,11 @@
 - 합성 Mac CLI 실행 (ignored `output/provider_pit_adapter_trial_20261011`): KR 4종 원본 합성 16행 수입, 2024-09-01 재조회에서 **14행 소급 투입 차단 / 확인되는 가입기업 0**, `audit-provider-pit-asof` 과거 시점 eligible=false, 공식대장주0. 최초 source 바이트·SQLite read-only SHA 불변, 파생 JSON2개만 ZIP `LOCAL_BACKUP_VERIFIED`/복원 동일. 전체 **1073/1073 pytest PASS/exit0**(기존1028+신규45), handoff 30 ID PASS, pycompile PASS.
 - Pub Git 안전검사 **6 staged suspicious=0**, diff check PASS, 코드 SHA `04cf5544b09a33e48d61c7875a9800de39c7defd` GitHub Public main **push 성공**, local/remote SHA 일치/코드 릴리스 당시 clean. 본 상태/START 후속 docs commit 여부 현재 Git 우선.
 - **NEXT**: 실제 KRX/DART/SEC 출처·법적 발행인/산업·전체 상폐·정정/액면분할·현금 지급/공시 원문 이용 시점 및 실전 사전 등록 WATCH 미래결과는 여전히 없음. 향후 공급자 전용 정규화 어댑터·다중 원천 교차검증 준비, API D-017 로컬 완료 후, 물리 SSD 분리·재연결/재부팅 D-021 API 후 최종. 공식 leader0, 실전 발굴정확도 N/A, 30개 최종 실전인증 아님. 정상 코드 CONTINUE.
+
+
+## 2026-10-11 최신 — 2_2/2_5 일반 PIT snapshot 자체 공급자 영수증 무결성 게이트
+
+- T5DATA 정상/main `54ff6ac` clean에서 CONTINUE. 기존 atomic bundle receipt과 manual asof audit가 이미 검증하던 원본 SHA/row inventory를 **일반 `OfflineLedger.snapshot` 경로**에서는 생략해 rehashed PIT payload/원장 fingerprint 바꿔치기를 통과시키는 문제 발견; 신규 7개 RED FAIL 재현.
+- 신규 `_read_pit_snapshot_rows` SQLite SAVEPOINT 원자 읽기와 `_verify_snapshot_provider_receipts`: claim source/market 원문 일치, 등록 digest/row_key/수량·원장 누락/고아링크/시각 역전 탐지 및 cache revision 변화를 통한 재검증. 기존 `provider_pit_adapter.py`에도 동일 receipt/source/market 교차 대조. 이전 스냅샷/기간 필터·official FALSE 유지.
+- 변경 4경로(실제 코드 2, 테스트 1, docs 1), 신규 **13 pytest**, 전체 **1086/1086 PASS**, 30 handoff PASS, py_compile/diff check PASS. `docs/79_PIT_SNAPSHOT_REGISTERED_RECEIPT_FAIL_CLOSED.md` 재현/한계. 외부 API/원시 데이터 조작·공식 인증 0. GitHub release/push SHA는 현재 Git 상태로 확인.
+- NEXT 2_2/2_5 독립 issuer/industry/상폐/기업행동 공식 출처·공개시각 및 cross-source claims, 5_5 미래 성숙 라벨. D-017 API 이후, D-021 물리 SSD 검수 마지막; 로컬 SQLite 자체는 외부 서명·원본 인증이 아님.

@@ -178,6 +178,112 @@ def verify_stored_pit_record(
     return decoded
 
 
+def _verify_snapshot_provider_receipts(db: sqlite3.Connection) -> None:
+    """Fail closed if any locally registered provider input lost its receipt link.
+
+    Receipt hashes authenticate only internal SQLite consistency, NOT the
+    publisher or its historical source timestamps. This runs before the PIT
+    snapshot can promote a source row into a candidate feature.
+    """
+    # Runtime import avoids changing OfflineLedger's dependency direction:
+    # the provider adapter already imports the normalizer in this module.
+    from .provider_pit_adapter import SHA, _verify_registered_bundle_rows
+
+    try:
+        orphan = db.execute("""
+            SELECT 1 FROM provider_ingest_rows AS x
+            LEFT JOIN provider_ingest_receipts AS p
+              ON x.bundle_sha256=p.bundle_sha256
+            WHERE p.bundle_sha256 IS NULL LIMIT 1
+        """).fetchone()
+        if orphan:
+            raise ValueError("Orphan provider PIT row without original receipt")
+        receipts = db.execute("""
+            SELECT bundle_sha256,market,source_id,publisher_id_claimed,
+                   retrieved_at_claimed_utc,first_registered_at_utc,
+                   row_keys_sha256,by_kind_json
+            FROM provider_ingest_receipts
+        """).fetchall()
+        for (bundle, market, source, publisher, claimed, registered,
+             inventory_digest, counts_text) in receipts:
+            if (not isinstance(bundle,str) or not SHA.fullmatch(bundle)
+                    or market not in ("KR","US")
+                    or not isinstance(source,str) or not source.strip()
+                    or not isinstance(publisher,str) or not publisher.strip()
+                    or not isinstance(inventory_digest,str)
+                    or not SHA.fullmatch(inventory_digest)):
+                raise ValueError("Malformed registered provider receipt identity")
+            first = iso_time(registered)
+            retrieved = iso_time(claimed)
+            if first < retrieved:
+                raise ValueError("Provider receipt precedes declared acquisition")
+            counts = json.loads(counts_text, object_pairs_hook=_no_duplicate_keys)
+            if (not isinstance(counts,dict) or set(counts)!=set(KINDS)
+                    or any(type(n) is not int or n<0 for n in counts.values())
+                    or sum(counts.values())<1):
+                raise ValueError("Malformed provider receipt inventory counts")
+            _verify_registered_bundle_rows(
+                db,bundle,inventory_digest,sum(counts.values()),
+                expected_source=source,expected_market=market,
+            )
+    except (sqlite3.DatabaseError,TypeError,ValueError) as exc:
+        raise ValueError("Provider PIT receipt integrity verification failed") from exc
+
+
+def _read_pit_snapshot_rows(ledger: "OfflineLedger", cutoff: str):
+    """Read provider provenance and records in ONE consistent SQLite snapshot."""
+    db = ledger.db
+    db.execute("SAVEPOINT eraleader_pit_snapshot_read")
+    try:
+        tables = {r[0] for r in db.execute("""
+            SELECT name FROM sqlite_master WHERE type='table'
+              AND name IN ('provider_ingest_receipts','provider_ingest_rows')
+        """)}
+        if len(tables)==1:
+            raise ValueError("Incomplete prospective provider intake receipt schema")
+        if tables:
+            # DB data_version covers external SQLite writers; total_changes
+            # covers writes made through this same connection. Rechecking on
+            # every historical date would otherwise make PIT replay quadratic.
+            revision = (db.execute("PRAGMA data_version").fetchone()[0],
+                        db.execute("PRAGMA schema_version").fetchone()[0],
+                        db.total_changes)
+            if getattr(ledger,"_verified_provider_revision",None)!=revision:
+                _verify_snapshot_provider_receipts(db)
+                ledger._verified_provider_revision=revision
+            rows=db.execute("""
+                WITH first_intake AS (
+                    SELECT x.kind,x.record_key,
+                           MIN(p.first_registered_at_utc) AS first_registered_at,
+                           MIN(p.retrieved_at_claimed_utc) AS claimed_retrieved_at
+                    FROM provider_ingest_rows x
+                    JOIN provider_ingest_receipts p
+                      ON x.bundle_sha256=p.bundle_sha256
+                    GROUP BY x.kind,x.record_key
+                )
+                SELECT r.kind,r.record_key,r.available_at,r.source_id,
+                       r.provenance,r.payload,r.fingerprint,
+                       p.first_registered_at,p.claimed_retrieved_at
+                FROM offline_records r
+                LEFT JOIN first_intake p
+                  ON p.kind=r.kind AND p.record_key=r.record_key
+                WHERE r.available_at<=?
+                ORDER BY r.available_at,r.record_key
+            """,(cutoff,)).fetchall()
+        else:
+            rows=[(*row,None,None) for row in db.execute("""
+                SELECT kind,record_key,available_at,source_id,
+                       provenance,payload,fingerprint FROM offline_records
+                WHERE available_at<=? ORDER BY available_at,record_key
+            """,(cutoff,)).fetchall()]
+        db.execute("RELEASE SAVEPOINT eraleader_pit_snapshot_read")
+        return rows
+    except Exception:
+        db.execute("ROLLBACK TO SAVEPOINT eraleader_pit_snapshot_read")
+        db.execute("RELEASE SAVEPOINT eraleader_pit_snapshot_read")
+        raise
+
+
 class OfflineLedger:
     """Append-only PIT ledger. All operations local to the EraLeader SQLite file."""
     def __init__(self, path: Path):
@@ -282,42 +388,7 @@ class OfflineLedger:
         # (and can hide KR listings for New York callers). DST is zone-aware.
         market_zone = ZoneInfo("Asia/Seoul" if market == "KR" else "America/New_York")
         day = datetime.fromisoformat(cutoff).astimezone(market_zone).date().isoformat()
-        receipt_tables={x[0] for x in self.db.execute(
-            """SELECT name FROM sqlite_master WHERE type='table'
-               AND name IN ('provider_ingest_receipts','provider_ingest_rows')"""
-        ).fetchall()}
-        if len(receipt_tables)==1:
-            raise ValueError("Incomplete prospective provider intake receipt schema")
-        if receipt_tables:
-            # One SQL statement gives a consistent offline-record and receipt
-            # snapshot. A row supplied years after the backtest decision MUST
-            # NOT be visible merely because the claimed known_at is old.
-            rows=self.db.execute("""
-                WITH first_intake AS (
-                    SELECT x.kind,x.record_key,
-                           MIN(p.first_registered_at_utc) AS first_registered_at,
-                           MIN(p.retrieved_at_claimed_utc) AS claimed_retrieved_at
-                    FROM provider_ingest_rows x
-                    JOIN provider_ingest_receipts p
-                         ON x.bundle_sha256=p.bundle_sha256
-                    GROUP BY x.kind,x.record_key
-                )
-                SELECT r.kind,r.record_key,r.available_at,r.source_id,
-                       r.provenance,r.payload,r.fingerprint,
-                       p.first_registered_at,p.claimed_retrieved_at
-                FROM offline_records r
-                LEFT JOIN first_intake p
-                     ON p.kind=r.kind AND p.record_key=r.record_key
-                WHERE r.available_at<=?
-                ORDER BY r.available_at,r.record_key
-            """,(cutoff,)).fetchall()
-        else:
-            rows=[(*row,None,None) for row in self.db.execute(
-                """SELECT kind,record_key,available_at,source_id,
-                          provenance,payload,fingerprint FROM offline_records
-                   WHERE available_at<=? ORDER BY available_at,record_key""",
-                (cutoff,)
-            ).fetchall()]
+        rows = _read_pit_snapshot_rows(self, cutoff)
         categories = {k:[] for k in KINDS}
         retrospective_provider_rows=0
         for item in rows:

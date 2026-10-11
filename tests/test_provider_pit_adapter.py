@@ -550,3 +550,163 @@ def test_issuer_joins_cannot_accept_ambiguous_key_delimiters_or_types(tmp_path,f
     with pytest.raises(ValueError,match="identity|delimiter|type"):
         ingest(tmp_path,mf)
     assert not (tmp_path/"provider_offline.sqlite").exists()
+
+
+# 2_2 / 2_5: receipt integrity must hold at the actual snapshot entrypoint,
+# not only when a user manually runs audit-provider-pit-asof.
+def _registered_snapshot(tmp_path, at="2026-10-12T12:00:00+09:00"):
+    conn = OfflineLedger.open_readonly(tmp_path / "provider_offline.sqlite")
+    try:
+        return conn.snapshot(at, market="KR")
+    finally:
+        conn.close()
+
+
+@pytest.mark.parametrize("mutation", [
+    "rehash_membership_payload",
+    "rewrite_link_digest",
+    "drop_one_link",
+    "remove_whole_receipt",
+    "forge_receipt_row_count",
+    "forge_receipt_digest",
+    "link_to_missing_offline_record",
+])
+def test_snapshot_rejects_corrupted_prospective_provider_receipt_chain(tmp_path, mutation):
+    mf, _ = make_bundle(tmp_path / "sources")
+    ingest(tmp_path, mf)
+    assert "SYN-A" in _registered_snapshot(tmp_path)["members"]
+    source = tmp_path / "provider_offline.sqlite"
+    with sqlite3.connect(source) as db:
+        target = db.execute(
+            "SELECT record_key,payload FROM offline_records "
+            "WHERE kind='membership' ORDER BY record_key LIMIT 1"
+        ).fetchone()
+        key, payload = target
+        if mutation == "rehash_membership_payload":
+            changed = json.loads(payload)
+            changed["ticker"] += "-TAMPER"
+            encoded = json.dumps(
+                changed, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+            )
+            db.execute(
+                "UPDATE offline_records SET payload=?,fingerprint=? "
+                "WHERE kind='membership' AND record_key=?",
+                (encoded, sha256(encoded.encode()).hexdigest(), key),
+            )
+        elif mutation == "rewrite_link_digest":
+            db.execute(
+                "UPDATE provider_ingest_rows SET normalized_sha256=? "
+                "WHERE kind='membership' AND record_key=?",
+                ("a" * 64, key),
+            )
+        elif mutation == "drop_one_link":
+            db.execute(
+                "DELETE FROM provider_ingest_rows "
+                "WHERE kind='membership' AND record_key=?", (key,)
+            )
+        elif mutation == "remove_whole_receipt":
+            db.execute("DELETE FROM provider_ingest_receipts")
+        elif mutation == "forge_receipt_row_count":
+            db.execute(
+                "UPDATE provider_ingest_receipts SET by_kind_json=?",
+                (json.dumps(dict.fromkeys(
+                    ("membership", "actions", "fundamentals", "industry"), 0
+                )),),
+            )
+        elif mutation == "forge_receipt_digest":
+            db.execute(
+                "UPDATE provider_ingest_receipts SET row_keys_sha256=?",
+                ("f" * 64,),
+            )
+        elif mutation == "link_to_missing_offline_record":
+            db.execute(
+                "DELETE FROM offline_records "
+                "WHERE kind='membership' AND record_key=?", (key,)
+            )
+    with pytest.raises(ValueError, match="provider|receipt|PIT|integrity|fingerprint|source"):
+        _registered_snapshot(tmp_path)
+
+
+def test_snapshot_integrity_audit_does_not_change_ledger_bytes(tmp_path):
+    mf, _ = make_bundle(tmp_path / "sources")
+    ingest(tmp_path, mf)
+    ledger = tmp_path / "provider_offline.sqlite"
+    before = sha256(ledger.read_bytes()).hexdigest()
+    for decision in ("2024-09-01T12:00:00+09:00",
+                     "2026-10-12T12:00:00+09:00"):
+        snap = _registered_snapshot(tmp_path, decision)
+        if decision[:4] == "2024":
+            assert "SYN-A" not in snap["members"]
+        else:
+            assert "SYN-A" in snap["members"]
+    assert sha256(ledger.read_bytes()).hexdigest() == before
+
+
+def test_snapshot_rechecks_registered_receipts_after_external_sqlite_change(tmp_path):
+    mf, _ = make_bundle(tmp_path / "sources")
+    ingest(tmp_path, mf)
+    source = tmp_path / "provider_offline.sqlite"
+    ledger = OfflineLedger.open_readonly(source)
+    try:
+        assert "SYN-A" in ledger.snapshot(
+            "2026-10-12T12:00:00+09:00", market="KR"
+        )["members"]
+        with sqlite3.connect(source) as db:
+            db.execute(
+                "UPDATE provider_ingest_receipts SET row_keys_sha256=?",
+                ("1" * 64,),
+            )
+        with pytest.raises(ValueError, match="provider|receipt|PIT|integrity"):
+            ledger.snapshot("2026-10-12T12:00:00+09:00", market="KR")
+    finally:
+        ledger.close()
+
+
+def test_snapshot_same_connection_total_changes_invalidates_receipt_cache(tmp_path):
+    mf, _ = make_bundle(tmp_path / "sources")
+    ingest(tmp_path, mf)
+    ledger = OfflineLedger(tmp_path / "provider_offline.sqlite")
+    try:
+        assert "SYN-A" in ledger.snapshot(
+            "2026-10-12T12:00:00+09:00", market="KR"
+        )["members"]
+        ledger.db.execute(
+            "UPDATE provider_ingest_receipts SET row_keys_sha256=?",
+            ("2" * 64,),
+        )
+        with pytest.raises(ValueError, match="provider|receipt|PIT|integrity"):
+            ledger.snapshot("2026-10-12T12:00:00+09:00", market="KR")
+    finally:
+        ledger.close()
+
+
+def test_snapshot_denies_corrupt_predecision_receipt_even_if_rows_not_yet_usable(tmp_path):
+    mf, _ = make_bundle(tmp_path / "sources")
+    ingest(tmp_path, mf)
+    with sqlite3.connect(tmp_path / "provider_offline.sqlite") as db:
+        db.execute(
+            "UPDATE provider_ingest_receipts SET row_keys_sha256=?",
+            ("3" * 64,),
+        )
+    with pytest.raises(ValueError, match="provider|receipt|PIT|integrity"):
+        _registered_snapshot(tmp_path, "2024-09-01T12:00:00+09:00")
+
+
+@pytest.mark.parametrize("receipt_column,forged_value", [
+    ("source_id", "FORGED-CLAIMED-SOURCE"),
+    ("market", "US"),
+])
+def test_snapshot_and_manual_provider_audit_reject_receipt_claim_identity_rewrite(
+    tmp_path, receipt_column, forged_value
+):
+    mf, _ = make_bundle(tmp_path / "sources")
+    result = ingest(tmp_path, mf)
+    with sqlite3.connect(tmp_path / "provider_offline.sqlite") as db:
+        db.execute(
+            "UPDATE provider_ingest_receipts SET " + receipt_column + "=?",
+            (forged_value,),
+        )
+    with pytest.raises(ValueError, match="provider|receipt|PIT|integrity"):
+        _registered_snapshot(tmp_path)
+    with pytest.raises(ValueError, match="provider|receipt|identity|market"):
+        check(tmp_path, result["bundle_sha256"], "2026-10-12T12:00:00+09:00")

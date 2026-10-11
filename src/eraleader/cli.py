@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from copy import deepcopy
 from datetime import date
+from hashlib import sha256
 import json
 from pathlib import Path
 from functools import partial
@@ -19,6 +20,7 @@ from .pit_provider_readiness import audit_pit_provider_readiness
 from .provider_pit_adapter import import_provider_bundle, audit_registered_provider_asof
 from .provider_export_normalizer import normalize_provider_export
 from .provider_dual_source_audit import audit_provider_source_pair
+from .provider_candidate_gate import audit_candidate_provider_gate
 from .offline_features import financial_snapshot
 from .peer_normalization import normalize_peer_file
 from .rank_feature_bridge import build_rank_feature_inputs
@@ -185,13 +187,53 @@ def execute_rank_feature_inputs(args) -> dict:
                                      price_cache_days=args.cache_days)
 
 def execute_integrated(args) -> dict:
-    source=OfflineLedger(Path(args.out)/"offline.sqlite")
+    # An explicitly selected two-provider PIT check must be complete. Never
+    # fall back to the old ungated integration because one flag was omitted.
+    fields=("provider_ledger_a","provider_bundle_a","provider_ledger_b",
+            "provider_bundle_b")
+    supplied=[getattr(args,field,None) for field in fields]
+    if any(supplied) and not all(supplied):
+        raise ValueError("All four provider PIT flags are required together")
+    pair=supplied if all(supplied) else None
+    offline_path=Path(args.out)/"offline.sqlite"
+    source=(OfflineLedger.open_readonly(offline_path) if pair
+            else OfflineLedger(offline_path))
+    gate=None
     try:
         offline=source.snapshot(args.as_of,market=args.market)
         price=json.loads(Path(args.price_json).read_text(encoding="utf-8")) if args.price_json else None
         result=integrated_snapshot(offline,price,args.as_of)
+        if pair:
+            gate=audit_candidate_provider_gate(
+                Path(pair[0]),pair[1],Path(pair[2]),pair[3],
+                market=args.market,decision_at=args.as_of,
+                candidate_members=offline["members"],
+                candidate_facts=offline["fundamentals"],
+                candidate_industry=offline["industry"],
+                candidate_actions=(offline["actions"]+
+                                   offline["announced_future_actions"]))
     finally:
         source.close()
+    if gate is not None:
+        gate_file=Path(args.out)/"provider_candidate_gate_research.json"
+        # The gate is evaluated on actual source receipts and source rows, not
+        # just a separately supplied self-declared summary report.
+        write_json(gate_file,gate)
+        if not gate["research_watch_allowed"]:
+            return {"status":"BLOCKED_PROVIDER_PIT_CANDIDATE_RESEARCH",
+                    "gate_path":str(gate_file),
+                    "blocker_counts":gate["blocker_counts"],
+                    "new_prospective_research_signals":0,
+                    "official_leaders":0,"pit_certified":False,
+                    "provider_research_watch_allowed":False}
+        # Existing rank/WATCH source_run_id must remain immutable when the
+        # provenance pair changes even if offline candidate numbers do not.
+        result["provider_pair_gate"]=gate
+        stamp=json.dumps({
+            "original_run_id":result["run_id"],
+            "local_pair_digest":gate["source_pair_digest_sha256"]
+        },ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
+        result["run_id"]=sha256(stamp.encode()).hexdigest()[:20]
     target=Path(args.out)/"runs"/f"joined_{args.market.lower()}_{result['run_id']}.json"
     if target.exists():
         existing=json.loads(target.read_text(encoding="utf-8"))
@@ -225,7 +267,8 @@ def execute_integrated(args) -> dict:
             "path":str(target),"company_count":result["company_count"],
             "growth_screen_hits":result["research_growth_screen_count"],
             "deferred_research_screens":result["research_screen_deferred_count"],
-            "official_leaders":0,"pit_certified":False}
+            "official_leaders":0,"pit_certified":False,
+            "provider_research_watch_allowed": bool(gate and gate["research_watch_allowed"])}
 
 def execute_validation(args) -> dict:
     signals=json.loads(Path(args.signals).read_text(encoding="utf-8"))
@@ -839,6 +882,10 @@ def main(argv=None):
     join.add_argument('--as-of',required=True)
     join.add_argument('--price-json')
     join.add_argument('--out',default=str(OUT))
+    join.add_argument('--provider-ledger-a',help='Optional first local PIT source ledger; all four flags required')
+    join.add_argument('--provider-bundle-a',help='First previously registered provider bundle SHA256')
+    join.add_argument('--provider-ledger-b',help='Optional second independent claimed PIT source ledger')
+    join.add_argument('--provider-bundle-b',help='Second previously registered provider bundle SHA256')
     evaluate=sub.add_parser("validate-discovery",help="Post hoc early detection quality, research only")
     evaluate.add_argument("--signals",required=True)
     evaluate.add_argument("--outcomes",required=True)

@@ -392,3 +392,10 @@
 - 시작 PC/T5DATA online, Git main 8e9b96c clean. 신규 watch_rotation.py / test_watch_rotation.py / docs/70, cli.py·delivery.py·local_backup.py 최소 확장. 원본 SQLite read-only, 산업별 명시적 양성2→음성2와 신규 양성2를 날짜순 연결. 동일/누락·노후·소급·임의 산업 재분류 차단, 확정 리더 0 / 미래 실전 성능 미인증.
 - 오탐 2 FAIL 및 HTML 미구현 3 FAIL을 먼저 재현. 전체 827/827 pytest PASS, handoff 30개 PASS. 합성 CLI 1개 연구 가설, 로컬 HTML HTTP 200, 원장 SHA 불변, 파생 JSON·HTML ZIP 2건 검증/복원. Public 안전검사 6파일 suspicious=0, 정상 commit/push 36bcccc291f167f8605897041814cee4c0f89e62, local/remote main SHA 일치. PROJECT_STATE 최신 기록 우선.
 - 다음 연속 실제 수치 점수의 기업/업종 상대성 검증 및 독립 2_2/2_5 PIT·5_5 전향 성과라벨. API D-017 연기, SSD 탈착/재부팅 D-021 최종 단계. 기존 정상 코드 보존.
+
+## 2026-10-11 최신 — 4_5/5_3 동종업종 점수 시계열·2시점 교체 우위 연구
+
+- T5DATA Mac 원격 확인, 시작 main `f7fd3de` clean. 정상 최초점수 `rank_score_events`/WATCH 원장 불변을 유지하고 별도 `peer_score_series.py`/ `peer_scores.sqlite` 개발: 실제 저장된 명시적 WATCH observation에 SHA/시각/종목ID/산업/모델 연결, 고정 4요소 계산식으로 시장 현지 날짜별 점수 최초 등록 (CLI 소급 시계 없음). 원본 archived feature 바이트 SHA 검증, 누락·미래 feature·소급/중복 시각 차단. 신규 연구 `audit-peer-score-rotation`으로 같은 산업 기존 WATCH 약화/신규 후보의 **서로 다른 최근 2거래 관찰일 점수차 ≥5점**을 다시 검사, 둘 다 일치할 때만 로컬 연구 가설 보강. 공식 교체/확정 0.
+- 경로: 신규 `src/eraleader/peer_score_series.py`, `tests/test_peer_score_series.py`(26개), `docs/71_PROSPECTIVE_PEER_SCORE_SERIES.md`, 기존 `cli.py`/ `local_backup.py` 선택 확장. 미래 점수가 과거 판정에 섞이던 초기 회귀 FAIL 수정 후 전체 **853 pytest PASS/exit 0**, handoff 30 ID PASS. GitHub Public 보안검사 5파일 suspicious=0; 커밋 `3bd54e05d1224c318cb26bc43494762a5b6cb92f` main push 성공, local/remote SHA 확인. 상태문서의 후속 commit은 실제 Git 우선.
+- 실제 실행: **100% 합성** KR 2026-10-03/04 INC/NEW 동종업종 WATCH를 로컬 score ledger에 4개 기록 → CLI `audit-peer-score-rotation`: 두 관찰일 score 차이 **+25.0/+34.0**, 연구 상관 가설 1, 확정 0. WATCH/score 원장 감사전후 SHA 불변, 파생 JSON 1 + SQLite 일관 스냅샷 2개 로컬 ZIP SHA검증/새 경로 복원 PASS. 원본 feature 파일·원시 가격·키 Git/ZIP 업로드 없음.
+- 다음: 정식 4_5/6_2 교체 점수 근거 화면/연속 운영·5_3/5_5 사전 동결 전향 라벨 실측/오탐률·2_2/2_5 독립 기업 ID/산업/PIT/상폐기업행동 검증. 현재 점수의 공급자 PIT/진짜 미래 대장주 예측 정확도 미인증, 전체 30개 완료 아님. API D-017 이후, 물리 SSD 재연결/재부팅 D-021 마지막 단계, 정상 코드 CONTINUE.

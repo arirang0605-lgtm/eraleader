@@ -133,12 +133,17 @@ def _one_pass(staged_manifest: Path, normalized_manifest: Path,
 def audit_staged_source_lineage(
     staged_manifest:Path,normalized_manifest:Path,*,decision_at:str,
     ledger_file:Path|None=None,clock:datetime|None=None,
+    require_original_first_ingest_pin:bool=False,
 ) -> dict:
     """Report a conservative, first-ingest-pinned local lineage at cutoff.
 
     Missing imported evidence is not equivalent to a timely import. If any
     original/normalized/witness document is changed, reject before reporting.
     """
+    if type(require_original_first_ingest_pin) is not bool:
+        raise ValueError("Strict original first-ingest pin flag must be boolean")
+    if require_original_first_ingest_pin and ledger_file is None:
+        raise ValueError("Strict original first-ingest pin requires a normalized provider ledger")
     now=_now(clock)
     cutoff=_stamp(decision_at)
     if cutoff>now:
@@ -148,6 +153,7 @@ def audit_staged_source_lineage(
     )
     receipt=None
     timely=False
+    original_pinned=False
     if ledger_file is not None:
         receipt=audit_registered_provider_asof(
             Path(ledger_file),
@@ -163,6 +169,13 @@ def audit_staged_source_lineage(
                 receipt["rows_first_imported_local"]):
             raise ValueError("Staged normalized rows/retrieval differ from first-ingest receipt")
         timely=receipt["eligible_for_contemporaneous_research"] is True
+        from .staged_first_ingest_pin import audit_first_original_receipt
+        original_pinned=audit_first_original_receipt(
+            Path(ledger_file),original,
+            first_registered_at_utc=receipt["first_registered_at_utc"],
+        )
+        if require_original_first_ingest_pin and not original_pinned:
+            raise ValueError("Original staged documents lack a first-ingest pin; retroactive upgrade prohibited")
     # A second source read catches a stage that changed during the receipt
     # lookup, including raw source_doc IDs which do not survive normalization.
     last,second=_one_pass(
@@ -178,6 +191,12 @@ def audit_staged_source_lineage(
         )
         if receipt!=repeated:
             raise ValueError("Provider first-ingest receipt revised during lineage audit")
+        repeated_pin=audit_first_original_receipt(
+            Path(ledger_file),original,
+            first_registered_at_utc=receipt["first_registered_at_utc"],
+        )
+        if repeated_pin != original_pinned:
+            raise ValueError("Original source first-ingest pin revised during lineage audit")
     status=(STATUS_NO_INGEST if receipt is None else
             STATUS_MATCHED if timely else STATUS_CENSORED)
     # The report deliberately contains no raw identifier, unredacted source
@@ -203,7 +222,9 @@ def audit_staged_source_lineage(
         "normalized_by_kind":original["normalized_by_kind"],
         "source_and_normalized_bytes_matched":True,
         "original_doc_id_to_normalized_digest_linked_locally":True,
-        "original_doc_id_hash_attested_at_first_ingest":False,
+        "original_doc_id_hash_attested_at_first_ingest":original_pinned,
+        "original_doc_id_first_ingest_pin_locally_only":original_pinned,
+        "first_ingest_raw_and_witness_pin_present":original_pinned,
         "local_first_ingest_receipt_supplied":receipt is not None,
         "locally_registered_before_decision":timely,
         "usable_as_local_research_source_at_decision":timely,

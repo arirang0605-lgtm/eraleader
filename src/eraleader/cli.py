@@ -429,6 +429,7 @@ def execute_staged_source_lineage(args) -> dict:
         Path(args.staged_manifest),Path(args.normalized_manifest),
         ledger_file=(Path(args.ledger) if args.ledger else None),
         decision_at=args.decision_at,
+        require_original_first_ingest_pin=args.require_original_first_ingest_pin,
     )
     dest=Path(args.out)/"provider_staged_lineage_research.json"
     write_json(dest,result)
@@ -436,6 +437,10 @@ def execute_staged_source_lineage(args) -> dict:
             "source_and_normalized_bytes_matched":result["source_and_normalized_bytes_matched"],
             "usable_as_local_research_source_at_decision":
                 result["usable_as_local_research_source_at_decision"],
+            "first_ingest_raw_and_witness_pin_present":
+                result["first_ingest_raw_and_witness_pin_present"],
+            "original_doc_id_hash_attested_at_first_ingest":
+                result["original_doc_id_hash_attested_at_first_ingest"],
             "normalized_record_count":result["normalized_record_count"],
             "official_leader_promotions":0,"external_pit_certified":False}
 
@@ -464,13 +469,18 @@ def execute_normalize_provider_export(args) -> dict:
 
 
 def execute_provider_pit_import(args) -> dict:
-    audit=import_provider_bundle(Path(args.manifest),Path(args.ledger))
+    audit=import_provider_bundle(
+        Path(args.manifest),Path(args.ledger),
+        staged_manifest=(Path(args.staged_manifest) if args.staged_manifest else None))
     path=Path(args.out)/"provider_pit_import_research.json"
     write_json(path,audit)
     return {"status":audit["status"],"path":str(path),
             "bundle_sha256":audit["bundle_sha256"],
             "rows_received":audit["rows_received"],
             "rows_inserted":audit["rows_inserted"],
+            "first_registered_at_utc":audit["first_registered_at_utc"],
+            "original_staged_receipt_present":audit["original_staged_receipt_present"],
+            "original_staged_receipt_first_pinned":audit["original_staged_receipt_first_pinned"],
             "historic_pit_certified":False,
             "official_leader_promotions":0}
 
@@ -1004,6 +1014,8 @@ def main(argv=None):
     lineage.add_argument("--normalized-manifest",required=True)
     lineage.add_argument("--ledger",help="Optional local first-ingest SQLite receipt; missing means no timely PIT claim")
     lineage.add_argument("--decision-at",required=True)
+    lineage.add_argument("--require-original-first-ingest-pin",action="store_true",
+                         help="Reject normalized-only legacy imports without a concurrent original source/doc witness SHA pin")
     lineage.add_argument("--out",default=str(OUT))
     pe=sub.add_parser("normalize-provider-export",
                       help="Offline staged KRX/DART or SEC/exchange declared exports into provider-neutral JSONL")
@@ -1015,6 +1027,8 @@ def main(argv=None):
     pi.add_argument("--manifest",required=True,
                     help="Existing JSON manifest with SHA of local normalized source JSONL")
     pi.add_argument("--ledger",required=True,help="Local PIT SQLite target; raw sources not copied")
+    pi.add_argument("--staged-manifest",
+                    help="Opt-in: pin original staged source-doc/witness SHA in the SAME first normalized import transaction; cannot backfill older bundle")
     pi.add_argument("--out",default=str(OUT))
     pa=sub.add_parser("audit-provider-pit-asof",
                       help="Reject post-decision ingestion as historical PIT evidence")

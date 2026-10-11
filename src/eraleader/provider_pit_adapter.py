@@ -313,7 +313,8 @@ def _verify_registered_bundle_rows(db:sqlite3.Connection,bundle_sha256:str,
 
 
 def import_provider_bundle(manifest_file: Path, target_ledger:Path, *,
-                           clock: datetime|None=None) -> dict:
+                           clock: datetime|None=None,
+                           staged_manifest:Path|None=None) -> dict:
     """Atomic append of fully checked normalized files plus first-ingest receipt.
 
     All accepted provider rows are permanently tagged 'user_supplied',
@@ -321,6 +322,16 @@ def import_provider_bundle(manifest_file: Path, target_ledger:Path, *,
     """
     now=_now(clock)
     pre,rows,_=_read_bundle(manifest_file,now=now)
+    original=None
+    if staged_manifest is not None:
+        # Import only if the *current* original row/doc/witness bytes match
+        # every normalized stream, before any SQLite changes.
+        from .provider_staged_lineage import _one_pass
+        original,_=_one_pass(Path(staged_manifest),Path(manifest_file),now)
+        if (original["normalized_bundle_manifest_sha256"]!=pre["bundle_sha256"] or
+                original["market"]!=pre["market"] or
+                original["normalized_record_count"]!=pre["rows_received"]):
+            raise ValueError("Original staged source and normalized first-ingest bundle mismatch")
     target=Path(target_ledger)
     if target.is_symlink() or target.parent.is_symlink():
         raise ValueError("symlink PIT import target not permitted")
@@ -431,6 +442,19 @@ def import_provider_bundle(manifest_file: Path, target_ledger:Path, *,
                 db,pre["bundle_sha256"],fingerprint,pre["rows_received"],
                 expected_source=pre["source_id"],expected_market=pre["market"],
             )
+            from .staged_first_ingest_pin import bind_first_original_receipt, _pin_anchor
+            original_new=False
+            if original is not None:
+                # A concurrent source rewrite during the normalized-record
+                # transaction invalidates BOTH the normalized import and raw
+                # first-ingest pin; rollback is provided by this IMMEDIATE txn.
+                last,_=_one_pass(Path(staged_manifest),Path(manifest_file),now)
+                if last!=original:
+                    raise ValueError("Original staged source revised during first ingest")
+                original_new=bind_first_original_receipt(
+                    db,original,first_seen,was_imported=bool(previous),
+                )
+            original_present=_pin_anchor(db,pre["bundle_sha256"])
             db.commit()
         except Exception:
             db.rollback()
@@ -448,6 +472,9 @@ def import_provider_bundle(manifest_file: Path, target_ledger:Path, *,
         "source_retrieval_time_independently_attested":False,
         "official_leader_promotions":0,
         "past_retrieval_proven_by_local_hash":False,
+        "original_staged_receipt_present":original_present,
+        "original_staged_receipt_first_pinned":original_new,
+        "original_staged_receipt_independently_attested":False,
     }
 
 

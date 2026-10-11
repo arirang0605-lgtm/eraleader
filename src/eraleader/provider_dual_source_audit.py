@@ -241,6 +241,21 @@ def audit_provider_source_pair(
     # re-audit receipts at the end as a fail-closed safety recheck.
     a,b=inputs
     ma,mb=(_membership_asof(x["membership"],day) for x in inputs)
+    # A publisher may leave an expired issuer's membership interval open,
+    # while its own then-known delist/merger action already took effect.
+    # Two matching copies of that contradiction are NOT corroborated PIT.
+    exited_by_source=[]
+    for tag,source,members in zip(("A","B"),inputs,(ma,mb)):
+        exited={row["security_id"] for row in
+                _latest(source["actions"],("security_id","action_id")).values()
+                if row["action_type"] in ("delist","merger") and
+                   row["effective_on"]<=day}
+        exited_by_source.append(exited)
+        for sec in sorted(exited & members.keys()):
+            member=members[sec]
+            if member.get("valid_to") is None or member["valid_to"]>day:
+                issue("SOURCE_"+tag+"_KNOWN_TERMINAL_EXIT_STILL_ACTIVE",
+                      "membership",sec)
     matched_known=matched_active=matched_events=matched_facts=matched_industry=0
     for sec in sorted(set(ma)|set(mb)):
         ra,rb=ma.get(sec),mb.get(sec)
@@ -260,13 +275,15 @@ def audit_provider_source_pair(
                 consistent=False
         if consistent:
             matched_known+=1
-            if (ra.get("valid_to") is None or ra["valid_to"]>day):
+            if ((ra.get("valid_to") is None or ra["valid_to"]>day)
+                    and sec not in (exited_by_source[0] | exited_by_source[1])):
                 matched_active+=1
     active_tickers=[]
-    for m in (ma,mb):
+    for members,exited in zip((ma,mb),exited_by_source):
         active_tickers.append({
-            v["ticker"]:sec for sec,v in m.items()
-            if v["valid_to"] is None or v["valid_to"]>day
+            v["ticker"]:sec for sec,v in members.items()
+            if (v["valid_to"] is None or v["valid_to"]>day)
+            and sec not in exited
         })
     for ticker in sorted(set(active_tickers[0])&set(active_tickers[1])):
         if active_tickers[0][ticker]!=active_tickers[1][ticker]:

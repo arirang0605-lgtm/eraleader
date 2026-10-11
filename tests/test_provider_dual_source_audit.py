@@ -373,3 +373,57 @@ def test_invalid_audit_sample_limit_fails_early(tmp_path,sample_limit):
     pair=make_pair(tmp_path)
     with pytest.raises(ValueError,match="sample limit"):
         audit(pair,sample_limit=sample_limit)
+
+
+def test_known_effective_delist_cannot_leave_open_active_membership_in_both_feeds(tmp_path):
+    """A known 2024 delisting conflicts with claiming the same issuer active in 2026."""
+    def open_ended(manifest):
+        edit_stream(manifest,"membership",lambda rows:rows[1].update(valid_to=None))
+    report=audit(make_pair(tmp_path,mutate_a=open_ended,mutate_b=open_ended))
+    assert report["status"]==STATUS_BLOCKED
+    assert report["blocker_counts"]["SOURCE_A_KNOWN_TERMINAL_EXIT_STILL_ACTIVE"]==1
+    assert report["blocker_counts"]["SOURCE_B_KNOWN_TERMINAL_EXIT_STILL_ACTIVE"]==1
+    assert report["official_leader_promotions"]==0
+
+
+def test_future_effective_delist_does_not_prematurely_remove_active_issuer(tmp_path):
+    """A declared terminal action effective AFTER decision has not exited as-of."""
+    def future_delist(manifest):
+        edit_stream(manifest,"actions",lambda rows:rows[1].update(
+            effective_on="2026-12-01", known_at="2024-06-10T12:00:00+09:00"))
+        edit_stream(manifest,"membership",lambda rows:rows[1].update(valid_to=None))
+    report=audit(make_pair(tmp_path,mutate_a=future_delist,mutate_b=future_delist))
+    assert report["status"]==STATUS_CONSISTENT
+    assert report["matched_active_issuer_count"]==3
+    assert "SOURCE_A_KNOWN_TERMINAL_EXIT_STILL_ACTIVE" not in report["blocker_counts"]
+
+
+def test_known_merger_effective_and_open_membership_is_also_pit_blocker(tmp_path):
+    def stale_merger(m):
+        edit_stream(m,"membership",lambda rows:rows[1].update(valid_to=None))
+        edit_stream(m,"actions",lambda rows:rows[1].update(action_type="merger"))
+    report=audit(make_pair(tmp_path,mutate_a=stale_merger,mutate_b=stale_merger))
+    assert report["status"]==STATUS_BLOCKED
+    assert report["matched_active_issuer_count"]==2
+    assert report["blocker_counts"]["SOURCE_A_KNOWN_TERMINAL_EXIT_STILL_ACTIVE"]==1
+    assert report["blocker_counts"]["SOURCE_B_KNOWN_TERMINAL_EXIT_STILL_ACTIVE"]==1
+
+
+def test_only_source_a_stale_delisted_membership_reports_specific_source(tmp_path):
+    def stale_a(m):
+        edit_stream(m,"membership",lambda rows:rows[1].update(valid_to=None))
+    report=audit(make_pair(tmp_path,mutate_a=stale_a))
+    assert report["status"]==STATUS_BLOCKED
+    assert report["blocker_counts"]["SOURCE_A_KNOWN_TERMINAL_EXIT_STILL_ACTIVE"]==1
+    assert "SOURCE_B_KNOWN_TERMINAL_EXIT_STILL_ACTIVE" not in report["blocker_counts"]
+    assert "MEMBERSHIP_VALID_TO_CONFLICT" in report["blocker_counts"]
+
+
+def test_terminal_issuer_membership_closed_by_decision_is_not_a_false_active_blocker(tmp_path):
+    def closed(m):
+        edit_stream(m,"membership",lambda rows:rows[1].update(valid_to="2026-10-11"))
+    report=audit(make_pair(tmp_path,mutate_a=closed,mutate_b=closed))
+    assert report["status"]==STATUS_CONSISTENT
+    assert report["matched_active_issuer_count"]==2
+    assert "SOURCE_A_KNOWN_TERMINAL_EXIT_STILL_ACTIVE" not in report["blocker_counts"]
+    assert "SOURCE_B_KNOWN_TERMINAL_EXIT_STILL_ACTIVE" not in report["blocker_counts"]

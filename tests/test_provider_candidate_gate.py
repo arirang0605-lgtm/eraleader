@@ -393,3 +393,19 @@ def test_model_cannot_supply_only_financial_records_without_industry_and_action_
             candidate_members=source["members"],
             candidate_facts=source["fundamentals"],clock=NOW,
         )
+
+
+def test_both_publishers_stale_delisted_non_candidate_block_watch_globally(tmp_path):
+    """Even when all *current* candidates match, a delisted predecessor cannot
+    remain active in BOTH claimed historic issuer universes unnoticed."""
+    root,_=setup_case(tmp_path)
+    def stale_delisted(manifest):
+        edit_stream(manifest,"membership",lambda rows:rows[1].update(valid_to=None))
+    pair=make_pair(tmp_path/"stale_delist_pair",
+                   mutate_a=stale_delisted,mutate_b=stale_delisted)
+    denied=cohort(root,pair)
+    assert denied["status"]==GATE_BLOCK
+    assert denied["research_watch_allowed"] is False
+    assert denied["blocker_counts"]["PAIR_SOURCE_A_KNOWN_TERMINAL_EXIT_STILL_ACTIVE"]==1
+    assert denied["blocker_counts"]["PAIR_SOURCE_B_KNOWN_TERMINAL_EXIT_STILL_ACTIVE"]==1
+    assert denied["official_leader_promotions"]==0

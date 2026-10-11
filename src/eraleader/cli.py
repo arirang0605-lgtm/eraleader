@@ -18,6 +18,7 @@ from .offline_pit import OfflineLedger
 from .pit_provider_readiness import audit_pit_provider_readiness
 from .provider_pit_adapter import import_provider_bundle, audit_registered_provider_asof
 from .provider_export_normalizer import normalize_provider_export
+from .provider_dual_source_audit import audit_provider_source_pair
 from .offline_features import financial_snapshot
 from .peer_normalization import normalize_peer_file
 from .rank_feature_bridge import build_rank_feature_inputs
@@ -358,6 +359,19 @@ def execute_return_crosscheck(args) -> dict:
     return {"status":result["status"],"path":str(target),
             "intervals_outside_tolerance":result["intervals_outside_tolerance"],
             "historic_price_actions_pit_certified":False}
+
+def execute_provider_source_pair(args) -> dict:
+    result=audit_provider_source_pair(
+        Path(args.ledger_a),args.bundle_a,Path(args.ledger_b),args.bundle_b,
+        decision_at=args.decision_at,sample_limit=args.sample_limit)
+    path=Path(args.out)/"provider_source_pair_research.json"
+    write_json(path,result)
+    return {"status":result["status"],"path":str(path),
+            "blocker_counts":result["blocker_counts"],
+            "matched_active_issuer_count":result["matched_active_issuer_count"],
+            "problem_count":result["problem_count"],
+            "historic_pit_certified":False,"official_leader_promotions":0}
+
 
 def execute_normalize_provider_export(args) -> dict:
     report=normalize_provider_export(Path(args.manifest),Path(args.stage_dir))
@@ -880,6 +894,15 @@ def main(argv=None):
     check.add_argument("--session-clock",help="Optional local pre-decision declared close-time manifest")
     check.add_argument("--exchange-calendar",help="Optional separate claimed calendar with per-session closes")
     check.add_argument("--out",default=str(OUT))
+    dp=sub.add_parser("audit-provider-source-pair",
+                      help="Compare two separately registered local PIT bundle receipts, no official PIT certification")
+    dp.add_argument("--ledger-a",required=True)
+    dp.add_argument("--bundle-a",required=True)
+    dp.add_argument("--ledger-b",required=True)
+    dp.add_argument("--bundle-b",required=True)
+    dp.add_argument("--decision-at",required=True)
+    dp.add_argument("--sample-limit",type=int,default=40)
+    dp.add_argument("--out",default=str(OUT))
     pe=sub.add_parser("normalize-provider-export",
                       help="Offline staged KRX/DART or SEC/exchange declared exports into provider-neutral JSONL")
     pe.add_argument("--manifest",required=True,help="Raw staged export SHA/record-count manifest")
@@ -1163,6 +1186,7 @@ def main(argv=None):
         elif args.command=="audit-rotation-pair-sources":result=execute_rotation_pair_sources(args)
         elif args.command=="freeze-holdout":result=execute_freeze_holdout(args)
         elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
+        elif args.command=="audit-provider-source-pair":result=execute_provider_source_pair(args)
         elif args.command=="normalize-provider-export":result=execute_normalize_provider_export(args)
         elif args.command=="import-provider-pit":result=execute_provider_pit_import(args)
         elif args.command=="audit-provider-pit-asof":result=execute_provider_pit_asof(args)

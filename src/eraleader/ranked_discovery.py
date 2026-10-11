@@ -12,6 +12,7 @@ import hashlib
 import json
 import math
 import os
+import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from statistics import median
@@ -60,6 +61,46 @@ def _digest(obj: dict) -> str:
     return hashlib.sha256(_canonical(obj)).hexdigest()
 
 
+LABEL_PROTOCOL_SCHEMA="eraleader.future_leader_label_definition.v1"
+LABEL_PROTOCOL_KEYS={
+    "schema_version","label_definition_id","market","horizon_days",
+    "positive_criterion","measurement_method","universe_scope",
+    "delisted_handling",
+}
+
+def _label_protocol(file:Path, *,label_id:str,market:str,horizon:int) -> str:
+    """Hash EXACT predeclared rule bytes; no post-hoc redefinition under an ID."""
+    p=Path(file)
+    if (p.is_symlink() or p.parent.is_symlink() or not p.is_file() or
+            not 0<p.stat().st_size<=20_000):
+        raise ValueError("Invalid or unsafe predeclared leader label definition file")
+    raw=p.read_bytes()
+    def unique(pairs):
+        obj={}
+        for key,val in pairs:
+            if key in obj:
+                raise ValueError("Duplicate leader label definition key")
+            obj[key]=val
+        return obj
+    try:
+        proto=json.loads(raw,object_pairs_hook=unique)
+    except (UnicodeError, ValueError) as exc:
+        raise ValueError("Invalid or Duplicate predeclared leader label definition JSON") from exc
+    if (not isinstance(proto,dict) or set(proto)!=LABEL_PROTOCOL_KEYS or
+            proto.get("schema_version")!=LABEL_PROTOCOL_SCHEMA or
+            proto.get("label_definition_id")!=label_id or
+            proto.get("market")!=market or
+            type(proto.get("horizon_days")) is not int or
+            proto.get("horizon_days")!=horizon):
+        raise ValueError("Predeclared leader label protocol mismatch")
+    for name in ("positive_criterion","measurement_method","universe_scope",
+                 "delisted_handling"):
+        value=proto.get(name)
+        if type(value) is not str or not 0<len(value.strip())<=1000:
+            raise ValueError("Incomplete predeclared leader label "+name)
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _save_new(path: Path, obj: dict) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -102,12 +143,26 @@ def _validate_ranked(records: object, snapshot: datetime) -> list[dict]:
 def freeze_ranked_snapshot(
     input_file: Path, output_file: Path, *, market: str, snapshot_at: str,
     model_version: str, horizon_days: int, k: int, clock: datetime | None = None,
+    label_definition_id: str | None = None,
+    label_definition_file: Path | None = None,
 ) -> dict:
     """Seal rank ORDER before outcome labels exist; O_EXCL never overwrites it."""
     if market not in ZONES:
         raise ValueError("Only KR/US supported")
     if not isinstance(model_version, str) or not model_version.strip():
         raise ValueError("Pinned model_version required")
+    if label_definition_id is not None and (
+        type(label_definition_id) is not str or
+        not label_definition_id.strip() or len(label_definition_id)>160
+    ):
+        raise ValueError("Invalid predeclared label definition ID")
+    if label_definition_file is not None and label_definition_id is None:
+        raise ValueError("Predeclared rule file requires label definition ID")
+    pinned_rule_hash=(
+        _label_protocol(Path(label_definition_file),label_id=label_definition_id,
+                        market=market,horizon=horizon_days)
+        if label_definition_file is not None else None
+    )
     if type(k) is not int or k < 1 or k > 1000:
         raise ValueError("k must be within 1..1000")
     if type(horizon_days) is not int or not 1 <= horizon_days <= 1095:
@@ -127,6 +182,14 @@ def freeze_ranked_snapshot(
         "timestamp_independently_attested": False,
         "real_leader_prediction_certified": False,
     }
+    if label_definition_id is not None:
+        # The label definition must be committed in the immutable freeze,
+        # before any future result/positive/negative label can be attached.
+        result["label_definition_id"]=label_definition_id
+        result["outcome_definition_pinned_before_labels"]=True
+        if pinned_rule_hash is not None:
+            result["label_definition_sha256"]=pinned_rule_hash
+            result["label_rule_bytes_pinned"]=True
     result["content_sha256"] = _digest(result)
     _save_new(output_file, result)
     return result
@@ -143,10 +206,32 @@ def _frozen(path: Path) -> dict:
         raise ValueError("Wrong ranked snapshot schema or market")
     if obj.get("source_pit_independently_authenticated") is not False or obj.get("real_leader_prediction_certified") is not False:
         raise ValueError("Ranked research claims independent certification")
+    if obj.get("timestamp_independently_attested") is not False:
+        raise ValueError("Ranked source timestamp cannot claim independent attestation")
+    pinned_label=obj.get("label_definition_id")
+    if pinned_label is not None:
+        if (not isinstance(pinned_label,str) or not pinned_label.strip() or
+                len(pinned_label)>160 or
+                obj.get("outcome_definition_pinned_before_labels") is not True):
+            raise ValueError("Invalid or unpinned frozen label definition")
+    elif "outcome_definition_pinned_before_labels" in obj:
+        raise ValueError("Legacy ranking cannot retrospectively pin label definition")
+    content_sha=obj.get("label_definition_sha256")
+    if content_sha is not None:
+        if (type(content_sha) is not str or
+                not re.fullmatch(r"[0-9a-f]{64}",content_sha) or
+                obj.get("label_rule_bytes_pinned") is not True):
+            raise ValueError("Invalid pinned label rule contents SHA")
+    elif "label_rule_bytes_pinned" in obj:
+        raise ValueError("Missing frozen leader label protocol content SHA")
     snapshot = _time(obj["snapshot_at_utc"])
     seal = _time(obj["frozen_at_utc"])
     if snapshot > seal:
         raise ValueError("Ranking sealed before the snapshot happened")
+    if obj.get("retrospective_freeze") is not (
+        seal - snapshot > timedelta(minutes=60)
+    ):
+        raise ValueError("Frozen retrospective flag contradicts original snapshot/seal instants")
     if type(obj.get("requested_k")) is not int or not 1 <= obj["requested_k"] <= 1000:
         raise ValueError("Invalid pinned K")
     if type(obj.get("horizon_days")) is not int or not 1 <= obj["horizon_days"] <= 1095:
@@ -178,6 +263,7 @@ def evaluate_ranked_precision_at_k(
     assessed = _time(evaluated_at)
     if assessed > _now(clock) or assessed < _time(frozen["snapshot_at_utc"]):
         raise ValueError("Invalid evaluation cutoff relative to snapshot or clock")
+    label_definition_id=frozen.get("label_definition_id")
     # Historical replay may evaluate as-of an earlier day than the file was
     # created. Explicitly disclose this; it is NEVER prospective proof.
     replay_postdated_seal = assessed < _time(frozen["frozen_at_utc"])
@@ -201,6 +287,9 @@ def evaluate_ranked_precision_at_k(
             raise ValueError("Duplicate or invalid outcome ID")
         if type(label.get("is_future_leader")) is not bool:
             raise ValueError("Outcome labels must be boolean")
+        if (label_definition_id is not None and
+                label.get("label_definition_id")!=label_definition_id):
+            raise ValueError("Outcome label definition differs from frozen predeclared protocol")
         mature = _time(label["mature_at"])
         available = _time(label["outcome_available_at"])
         if available < mature:
@@ -256,6 +345,10 @@ def evaluate_ranked_precision_at_k(
         "negative_maturity_not_before_utc": negative_maturity_utc.isoformat(),
         "evaluated_at_utc": assessed.isoformat(),
         "retrospective_freeze": frozen["retrospective_freeze"],
+        "label_definition_id":label_definition_id,
+        "label_definition_predeclared":label_definition_id is not None,
+        "label_definition_sha256":frozen.get("label_definition_sha256"),
+        "label_rule_bytes_pinned":frozen.get("label_rule_bytes_pinned",False),
         "evaluation_as_of_precedes_actual_seal": replay_postdated_seal,
         "early_hits": counts["early_hit"], "known_failures": counts["known_failure"],
         "censored": counts["censored"], "premature_negative_censored": young_negative,
@@ -281,6 +374,10 @@ def main(argv: list[str] | None = None) -> int:
     freeze.add_argument("--model-version", required=True)
     freeze.add_argument("--horizon-days", type=int, required=True)
     freeze.add_argument("--k", type=int, required=True)
+    freeze.add_argument("--label-definition-id",
+                        help="Opt-in predeclared future-leader label rule before freezing")
+    freeze.add_argument("--label-definition-file",type=Path,
+                        help="Optional unaltered protocol JSON bytes pinned by SHA to the new freeze")
     freeze.add_argument("--prospective-ledger",type=Path,
                         help="Optional fail-closed WATCH registration preflight before freeze file is created")
     freeze.add_argument("--score-ledger",type=Path,
@@ -312,7 +409,9 @@ def main(argv: list[str] | None = None) -> int:
                 result=freeze_ranked_snapshot(
                     args.input,prototype,market=args.market,
                     snapshot_at=args.snapshot_at,model_version=args.model_version,
-                    horizon_days=args.horizon_days,k=args.k)
+                    horizon_days=args.horizon_days,k=args.k,
+                    label_definition_id=args.label_definition_id,
+                    label_definition_file=args.label_definition_file)
                 if not args.require_native_computation:
                     linkage=audit_ranked_watch_registry(prototype,args.prospective_ledger)
                     if (linkage["blocker_count"] or
@@ -340,7 +439,9 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = freeze_ranked_snapshot(args.input, args.out, market=args.market,
                                              snapshot_at=args.snapshot_at, model_version=args.model_version,
-                                             horizon_days=args.horizon_days, k=args.k)
+                                             horizon_days=args.horizon_days, k=args.k,
+                                             label_definition_id=args.label_definition_id,
+                                             label_definition_file=args.label_definition_file)
     else:
         result = evaluate_ranked_precision_at_k(args.freeze, args.outcomes,
                                                  evaluated_at=args.evaluated_at)

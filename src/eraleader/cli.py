@@ -37,6 +37,7 @@ from .frozen_holdout import freeze_registered_candidates, evaluate_frozen_candid
 from .holdout_maturity import audit_holdout_maturity
 from .holdout_outcome_reconcile import reconcile_holdout_outcomes
 from .outcome_source_claims import audit_outcome_source_claims
+from .ranked_outcome_receipts import audit_ranked_outcome_receipts
 from .pit_chain import audit_pit_to_outcome_chain
 from .ranked_registry import audit_ranked_watch_registry
 from .rank_score_ledger import register_rank_scores, audit_frozen_rank_scores
@@ -402,6 +403,24 @@ def execute_return_crosscheck(args) -> dict:
     return {"status":result["status"],"path":str(target),
             "intervals_outside_tolerance":result["intervals_outside_tolerance"],
             "historic_price_actions_pit_certified":False}
+
+def execute_ranked_outcome_receipts(args) -> dict:
+    outcome=audit_ranked_outcome_receipts(
+        Path(args.freeze),Path(args.outcomes),Path(args.receipt_manifest),
+        evaluated_at=args.evaluated_at,sample_limit=args.sample_limit,
+        label_definition_file=Path(args.definition_file),
+    )
+    artifact=Path(args.out)/"ranked_outcome_receipts_research.json"
+    write_json(artifact,outcome)
+    return {
+        "status":outcome["status"],"path":str(artifact),
+        "top_k_selected_count":outcome["top_k_selected_count"],
+        "locally_documented_known_count":outcome["locally_documented_known_count"],
+        "source_document_matched_early_hits":outcome["source_document_matched_early_hits"],
+        "actual_future_leader_accuracy_certified":False,
+        "official_leader_promotions":0,
+    }
+
 
 def execute_provider_source_pair(args) -> dict:
     result=audit_provider_source_pair(
@@ -1023,6 +1042,16 @@ def main(argv=None):
     chain.add_argument("--outcomes",help="Optional separate outcome label JSON")
     chain.add_argument("--receipt-manifest",help="Required together with --outcomes")
     chain.add_argument("--out",default=str(OUT))
+    rank_docs=sub.add_parser("audit-ranked-outcome-receipts",
+                      help="Compare predeclared top-K ranked labels to dated local document receipts; NOT certified accuracy")
+    rank_docs.add_argument("--freeze",required=True)
+    rank_docs.add_argument("--outcomes",required=True)
+    rank_docs.add_argument("--receipt-manifest",required=True)
+    rank_docs.add_argument("--definition-file",required=True,
+                           help="Original predeclared leader rule JSON bytes, SHA pinned in freeze")
+    rank_docs.add_argument("--evaluated-at",required=True)
+    rank_docs.add_argument("--sample-limit",type=int,default=100)
+    rank_docs.add_argument("--out",default=str(OUT))
     source_claims=sub.add_parser("audit-outcome-source-claims",
                        help="Audit label source document SHA/chronology; never certify issuer PIT or outcome accuracy")
     source_claims.add_argument("--freeze-file",required=True)
@@ -1218,6 +1247,7 @@ def main(argv=None):
         elif args.command=="verify-pit-publication":result=execute_publication_verify(args)
         elif args.command=="audit-holdout-maturity":result=execute_holdout_maturity(args)
         elif args.command=="reconcile-holdout-outcomes":result=execute_holdout_reconciliation(args)
+        elif args.command=="audit-ranked-outcome-receipts":result=execute_ranked_outcome_receipts(args)
         elif args.command=="audit-outcome-source-claims":result=execute_outcome_source_claims(args)
         elif args.command=="audit-pit-chain":result=execute_pit_chain(args)
         elif args.command=="audit-ranked-registry":result=execute_ranked_registry(args)

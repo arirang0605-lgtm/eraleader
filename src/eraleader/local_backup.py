@@ -47,7 +47,8 @@ JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "provider_pit_import_research.json","provider_pit_asof_research.json",
             "provider_stage_normalization_research.json",
             "provider_source_pair_research.json",
-            "provider_candidate_gate_research.json"}
+            "provider_candidate_gate_research.json",
+            "ranked_outcome_receipts_research.json"}
 FOLDERS={"site":{".html"},"reports":{".md"},"runs":{".json"}}
 MAX_FILES=400
 MAX_FILE_BYTES=40*1024*1024

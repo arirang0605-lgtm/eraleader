@@ -72,6 +72,45 @@ def _due(frozen: dict) -> datetime:
     return (local + timedelta(days=frozen["horizon_days"])).astimezone(timezone.utc)
 
 
+def _merge_documented_lead_days(aggregate: Counter, report: dict, horizon: int) -> None:
+    """Merge ALL corroborated lead-days, never averaged cohort medians.
+
+    The source receipt evaluator owns lead-day eligibility and censorship.
+    Keep a bounded integer histogram to avoid huge expanded per-security lists
+    or leaking security identities to the local summary.
+    """
+    values = report.get("documented_early_lead_day_histogram")
+    hits = report.get("source_document_matched_early_hits")
+    if type(values) is not dict or type(hits) is not int or hits < 0:
+        raise ValueError("Missing or forged local early lead-day histogram")
+    observed = 0
+    for name, value in values.items():
+        if (type(name) is not str or not name.isdecimal() or
+                name != str(int(name)) or type(value) is not int or
+                not 0 < int(name) <= horizon or not 0 < value <= hits):
+            raise ValueError("Unsafe or out-of-horizon lead-day histogram entry")
+        observed += value
+        aggregate[int(name)] += value
+    if observed != hits:
+        raise ValueError("Cohort lead-day histogram disagrees with documented early hits")
+
+
+def _pooled_lead_days_median(histogram: Counter) -> int | float | None:
+    count = sum(histogram.values())
+    if not count:
+        return None
+    lower_rank, upper_rank = (count - 1) // 2, count // 2
+    cumulative = 0
+    lower = None
+    for day, amount in sorted(histogram.items()):
+        cumulative += amount
+        if lower is None and cumulative > lower_rank:
+            lower = day
+        if cumulative > upper_rank:
+            return (lower + day) / 2 if count % 2 == 0 else day
+    raise ValueError("Invalid pooled lead-day histogram count")
+
+
 def _sources(source: Path, item: dict, *, at: datetime | None = None) -> tuple[dict, dict]:
     if not isinstance(item, dict) or set(item) != SPEC_KEYS:
         raise ValueError("Expected frozen/definition/outcomes/receipts in cohort spec")
@@ -196,6 +235,7 @@ def audit_all_registered_censuses(registry_dir: Path, *, evaluated_at: str,
         raise ValueError("Census registry needs 1..1000 first-write manifests")
     counts = Counter()
     status_counts = Counter()
+    lead_days = Counter()
     identities = set()
     markets = Counter()
     for file in files:
@@ -243,6 +283,7 @@ def audit_all_registered_censuses(registry_dir: Path, *, evaluated_at: str,
                         result["top_k_selected_count"]!=k or
                         result["ranked_snapshot_sha256"]!=frozen["content_sha256"]):
                     raise ValueError("Cohort source evaluator changed original prospective K")
+                _merge_documented_lead_days(lead_days,result,frozen["horizon_days"])
                 counts["hits"]+=result["source_document_matched_early_hits"]
                 counts["failures"]+=result["source_document_matched_known_failures"]
                 counts["unknown"]+=result["unknown_or_source_censored_count"]
@@ -250,6 +291,8 @@ def audit_all_registered_censuses(registry_dir: Path, *, evaluated_at: str,
             status_counts[status]+=1
     if counts["hits"]+counts["failures"]+counts["unknown"] != counts["selected"]:
         raise ValueError("Registered frozen Top-K denominator was silently reduced")
+    if sum(lead_days.values()) != counts["hits"]:
+        raise ValueError("Global source-corroborated lead-day histogram count mismatch")
     known=counts["hits"]+counts["failures"]
     return {
         "status":"ALL_REGISTERED_LOCAL_COHORTS_AUDITED_NOT_PIT_CERTIFIED",
@@ -262,6 +305,15 @@ def audit_all_registered_censuses(registry_dir: Path, *, evaluated_at: str,
         "precision_on_documented_known":round(counts["hits"]/known,6) if known else None,
         "full_frozen_k_precision_floor":round(counts["hits"]/counts["selected"],6),
         "full_frozen_k_precision_ceiling":round((counts["hits"]+counts["unknown"])/counts["selected"],6),
+        "false_discovery_rate_on_documented_known":(
+            round(counts["failures"]/known,6) if known else None),
+        "full_frozen_k_false_discovery_floor":round(counts["failures"]/counts["selected"],6),
+        "full_frozen_k_false_discovery_ceiling":round(
+            (counts["failures"]+counts["unknown"])/counts["selected"],6),
+        "documented_early_lead_day_histogram":{
+            str(day):amount for day,amount in sorted(lead_days.items())},
+        "median_locally_documented_lead_days":_pooled_lead_days_median(lead_days),
+        "lead_day_definition":"Local-market calendar days from original frozen signal to source-corroborated early onset",
         "cohort_status_counts":dict(sorted(status_counts.items())),
         "publisher_independently_authenticated":False,
         "census_exhaustiveness_independently_attested":False,

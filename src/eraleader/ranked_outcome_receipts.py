@@ -243,6 +243,15 @@ def audit_ranked_outcome_receipts(
     unknown=n-known
     if verified_hit+verified_failure+unknown!=n:
         raise ValueError("Ranked source counts violate frozen K")
+    # Preserve the FULL distribution of locally documented early lead-days.
+    # A per-cohort median cannot be averaged to get the global median; no
+    # security IDs or unverifiable/late lead values enter this histogram.
+    lead_day_histogram={str(day):count for day,count in
+                        sorted(Counter(lead_values).items())}
+    if (sum(lead_day_histogram.values())!=verified_hit or
+            any(type(day) is not int or not 0<day<=freeze["horizon_days"]
+                for day in lead_values)):
+        raise ValueError("Invalid locally documented early lead-day evidence")
     result={
         "status":STATUS_RETROSPECTIVE if retrospective else STATUS_RESEARCH,
         "market":freeze["market"],"model_version":freeze["model_version"],
@@ -275,6 +284,9 @@ def audit_ranked_outcome_receipts(
             None if retrospective else round((verified_hit+unknown)/n,6)),
         "median_locally_documented_lead_days":(
             median(lead_values) if lead_values else None),
+        "documented_early_lead_day_histogram":lead_day_histogram,
+        "locally_documented_false_discovery_rate_on_known":(
+            round(verified_failure/known,6) if known else None),
         "blocker_counts":dict(sorted(problems.items())),
         "blocker_count":sum(problems.values()),
         "top_k_evidence_sample":samples,

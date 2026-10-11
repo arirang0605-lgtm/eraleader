@@ -406,3 +406,11 @@
 - 경로 6개: 수정 `src/eraleader/cli.py`, `delivery.py`, `peer_score_series.py`, `tests/test_peer_score_series.py`; 신규 `tests/test_peer_score_dashboard.py` (23), `docs/72_PEER_SCORE_ROTATION_WEB_EVIDENCE.md`. 초기 렌더러 누락 ImportError, 절대점수 필드 누락 3 FAIL 재현 후 수정. 집중 76 PASS, 전체 **876/876 pytest PASS/exit 0**, 30작업 handoff PASS, Pub Git safety scanned=6 suspicious=0.
 - 합성 로컬 CLI 직접: KR 2026-10-03/04 INC 40→38 / NEW 65→72, 점수차 +25/+34, 연구 가설1/공식교체0, HTTP GET 200, WATCH/score SQLite SHA 전후 동일, 파생 JSON+HTML 2개만 ZIP SHA 확인/복원 PASS. 실제 미래 대장주 발견/실전 수익·독립 원천 공증 **아님**.
 - 코드 GitHub main 정상 push SHA `4c1e8a6c3d70650645af825f5c3d8aaffd36e64e`; 로컬·원격 SHA 일치, 당시 clean. MD 체크포인트 후속 커밋 여부는 실제 git 확인. NEXT: 5_3/5_5 사전 봉인 전향적 교체 가설 성숙 outcome, 2_2/2_5 독립 PIT 기업ID/산업/공시/상폐 증거, 6_5 일/주/월 운영 고도화. D-017 API 나중, D-021 SSD 물리재연결/재부팅 API 후 최종 단계, REWRITE 금지.
+
+## 2026-10-11 최신 — 5_3/5_5 전향 교체 후보 쌍 동결 및 만기 성과 연구 대조
+
+- 시작 Remote Mac/T5DATA online, Git `ba74a0c` clean. 기존 단일후보 frozen_holdout/peer score/원시 WATCH 불변 보존. 신규 `rotation_holdout.py`, `tests/test_rotation_holdout.py`, `docs/73_PROSPECTIVE_ROTATION_PAIR_HOLDOUT.md`; `peer_score_series.py`에 2개 점수 실제 최초기록 UTC만 추가; `cli.py` `freeze-rotation-pairs`, `audit-rotation-pair-outcomes`; `local_backup.py` 파생 JSON 백업 허용.
+- WATCH 기존→신규 후보가 같은 업종에서 실제 원장 점수 2일 연속 우위임을 `audit_peer_score_advantage`로 read-only 전수 검증하고 가장 최근 점수 등록 후 72시간 이내 현재 OS 시간에 후보 쌍을 O_EXCL+SHA256로 **미래 결과 없이 동결**. 늦게 소급 봉인/종목 중복/암묵적 개체교체 금지. 동결 후 별도 제출한 기존 기업·신규 기업 양쪽 라벨이 **전체 고정 horizon(한국·미국 DST/현지 시각), 성숙·게시**되어야만 연구용 성공/불일치로 대조. 라벨 없음/후행·부정 조기/동결전 긍정 시작은 `null`/검열로 보류. 실제 공식 대장주 교체 0, PIT·라벨 공급자 외부 인증 false. 실제 미래 데이터 없음.
+- RED: 신규 모듈 최초 import 오류, 재해시된 봉인에 미래 라벨 키 삽입되는 보안 회귀 FAIL을 확인해 strict schema 차단. **신규 32개** KR/US DST/정확한 만기시각·현재 OS CLI 검증 포함, 전체 **908/908 pytest PASS/exit 0**, handoff 30작업 PASS, `py_compile` PASS. Public 안전검사 6파일 scanned=6 suspicious=0, 기존 데이터/키/시장 원시 자료 미업로드.
+- 정확한 6경로 GitHub Public main 릴리스 commit/push `407d8664322d3dbc9dbab7a877069b4175a336b2` local/remote SHA 일치, 코드 릴리스 직후 clean. 본 MD 후속 push 결과는 현재 Git 상태 우선.
+- NEXT: 이 Pair-level label 결과도 **공인 성과 아님**. 만기 라벨 출처 정규화/공식 원문 독립 타임스탬프와 2_2/2_5 법적 기업ID·업종/상폐/기업행동 PIT 공급자 증빙, 실제 사전 동결한 후보의 수개월 뒤 성숙 데이터·누락률 검증. 외부 API D-017 로컬 완성 후, 물리 SSD D-021 최종 단계. REWRITE 금지.

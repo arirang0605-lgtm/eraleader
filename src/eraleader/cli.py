@@ -49,6 +49,7 @@ from .watch_progression import audit_watch_progression
 from .watch_rotation import audit_watch_rotation
 from .peer_score_series import record_peer_score_series, audit_peer_score_advantage
 from .rotation_holdout import freeze_rotation_pairs, audit_rotation_pair_outcomes
+from .rotation_pair_source_claims import audit_rotation_pair_source_claims
 from .delivery import write_watch_rotation_dashboard, write_peer_score_rotation_dashboard
 from .pit_publication import verify_pit_publication
 from .local_backup import create_backup, verify_backup, restore_backup
@@ -386,6 +387,20 @@ def execute_rotation_pair_outcomes(args) -> dict:
             "research_pair_confirmed_count":report["research_pair_confirmed_count"],
             "official_leader_replacements":0,
             "independent_future_label_source_certified":False}
+
+def execute_rotation_pair_sources(args) -> dict:
+    result = audit_rotation_pair_source_claims(
+        Path(args.freeze_file),Path(args.outcomes),Path(args.receipt_manifest),
+        evaluated_at=args.evaluated_at,sample_limit=args.sample_limit,
+    )
+    destination = Path(args.out)/"rotation_pair_source_claims_research.json"
+    write_json(destination,result)
+    return {"status":result["status"],"path":str(destination),
+            "frozen_pair_count":result["frozen_pair_count"],
+            "internally_evaluable_pair_count":result["internally_evaluable_pair_count"],
+            "locally_source_corroborated_pairs":result["locally_source_corroborated_pairs"],
+            "official_leader_replacements":0,
+            "publisher_independently_authenticated":False}
 
 def execute_freeze_holdout(args) -> dict:
     return freeze_registered_candidates(Path(args.ledger), Path(args.freeze_file),
@@ -891,6 +906,14 @@ def main(argv=None):
     ra.add_argument("--outcomes",help="Separate later local self-declared issuer labels")
     ra.add_argument("--sample-limit",type=int,default=100)
     ra.add_argument("--out",default=str(OUT))
+    rs=sub.add_parser("audit-rotation-pair-sources",
+                      help="Match two mature pair issuer label documents; no external publisher proof")
+    rs.add_argument("--freeze-file",required=True)
+    rs.add_argument("--outcomes",required=True,help="Later separate declared future-label JSON")
+    rs.add_argument("--receipt-manifest",required=True,help="Local normalized source receipt manifest")
+    rs.add_argument("--evaluated-at",required=True)
+    rs.add_argument("--sample-limit",type=int,default=100)
+    rs.add_argument("--out",default=str(OUT))
     hf=sub.add_parser("freeze-holdout",help="Seal an actual-registration research holdout before future labels")
     hf.add_argument("--ledger",required=True,help="Existing prospective.sqlite")
     hf.add_argument("--market",choices=["KR","US"],required=True)
@@ -1037,6 +1060,7 @@ def main(argv=None):
         elif args.command=="audit-total-return":result=execute_return_crosscheck(args)
         elif args.command=="freeze-rotation-pairs":result=execute_freeze_rotation_pairs(args)
         elif args.command=="audit-rotation-pair-outcomes":result=execute_rotation_pair_outcomes(args)
+        elif args.command=="audit-rotation-pair-sources":result=execute_rotation_pair_sources(args)
         elif args.command=="freeze-holdout":result=execute_freeze_holdout(args)
         elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
         elif args.command=="audit-source-vintage":result=execute_source_vintage(args)

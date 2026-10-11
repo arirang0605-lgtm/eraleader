@@ -626,3 +626,11 @@
 - 코드·테스트·문서 정확히 5개 파일 (`docs/102_FIRST_PINNED_ISSUER_CLASS_WATCH_GATE.md` 참조), 신규 **15 pytest**, 관련 집중 54 PASS, 전체 **1562/1562 PASS exit0**, handoff 30개 ID/40필수 PASS, py_compile/diffcheck PASS. Mac 독립 CLI 합성 KR/US 각 WATCH1/ZIP SHA 복구 및 위조 KR WATCH0, 공급자/시장 SQLite SHA 불변, API·라이브 알림·SSD 물리 분리0.
 - Public Git staged 5 `suspicious=0`; 코드 commit/push **`ffe8e85bb9d8704c0ed31e3efc6e453cd6d4c238`** local/remote main 동일/code 직후 clean. 최신 STATE/START docs 후속 SHA는 실제 git 우선 확인.
 - **NEXT** 6_2 strict 원천 품질·보류 원인 표시의 opt-in 웹 화면, 2_2/2_5 KRX/DART/SEC 공인 최초 공개·수신·상폐현금/기업행동/PIT 역사 종목군 확보, 5_5 진짜 처음 신호 미래 outcome 만기 인증. D-017 API 연결 마지막·D-021 실제 SSD 물리 탈착/재부팅 최종. **API 제외 개발 진척 약94~95%(추정), 실제 예측 정확도 N/A**. 기존 정상 코드 보존.
+
+
+## 2026-10-12 최신 — 6_2 후보 원천 품질/보류 사유 웹 대시보드 연결 (전체 1599 PASS)
+
+- Remote Mac/T5DATA 기존 `main 1d06835` clean에서 시작. 기존 2-provider+first raw SHA PIN+issuer/class 연구 WATCH 게이트를 직접 재사용하며 선택 `offline-integrated --show-provider-gate-quality`의 실제 in-process gate verdict를 `site/provider_quality_kr.html`/`site/provider_quality_us.html`로 원자 출력. 양 공급자 일치·첫 원본 등록 PIN 확인/미요청·회사ID/주식클래스 정확 대조/미요청·불일치 차단 사유별 숫자를 별도 표시. 실제 WATCH blocked면 연구 성과·상태·joined runs **신규 0**, 진단 HTML만 출력. 미요청/합성 공급자 주장을 공인 PIT 인증으로 오인 금지; 원본 시세·CIK·회사 법인코드·개인키 웹/Git 배출0.
+- 정확히 코드/테스트/문서 5경로: `provider_gate_quality_view.py`(신규), `cli.py`/`delivery.py` 최소 옵션·연구 화면 링크, `test_provider_gate_quality_view.py`(**신규37**), `docs/103_PROVIDER_GATE_QUALITY_LOCAL_WEB.md`. 전체 **1599/1599 pytest PASS(exit0)** (기존1562+37), handoff 30 ID/40파일 PASS, Python compile/공개 SHA 검증, Mac 합성 KR/US CLI 연구 WATCH 각1 / API0·공식 leader0, 충돌 자료 품질 HTML에서 blocker 보임/신규WATCH0, derived-only ZIP SHA/새 위치 복구, HTTP 200. 원본 provider/시장 SQLite SHA 불변. 실전 precision N/A.
+- Public Git 안전검사 staged5 `suspicious=0`, 코드/main commit+push **`15d119ffc2d43f1f812906ebb6249c63e9dceb62`**, local/remote equal/code 직후 clean. 최신 STATE/START docs 후속 SHA는 실제 git 먼저 확인.
+- **NEXT** 2_2/2_5 공인 KRX/DART/SEC issuer·security-class/공시 최초 이용 시점·거래소 역사 종목군·상폐 cash/기업행동 PIT 증거, 5_5 실제 초기 WATCH/Top-K 장기 미래 outcome/오탐·lead days. 이후 로컬 6_2 증빙상태 스냅샷 변동 추적 고려. D-017 외부 API 후순위, D-021 실제 SSD 분리·재연결/재부팅 마지막. **API 제외 진행률 약95%(추정)**, 실전 예측 정확도 N/A. 정상 코드 REWRITE 금지.

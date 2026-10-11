@@ -17,6 +17,9 @@ from .offline_pit import OfflineLedger,verify_stored_pit_record
 from .provider_pit_adapter import (
     audit_registered_provider_asof,_now,SHA
 )
+from .provider_pair_original_pins import (
+    validate_original_sources, corroborate_pinned_original_sources,
+)
 
 STATUS_CONSISTENT="LOCAL_TWO_DECLARED_PIT_SOURCES_CONCORDANT_NOT_CERTIFIED"
 STATUS_BLOCKED="BLOCKED_CONFLICTING_DECLARED_PIT_SOURCES"
@@ -103,6 +106,8 @@ def _events(rows:list,issues):
 def audit_provider_source_pair(
     ledger_a:Path,bundle_a:str,ledger_b:Path,bundle_b:str,*,
     decision_at:str,clock:datetime|None=None,sample_limit:int=40,
+    require_original_pins:bool=False,
+    original_sources:tuple[tuple[Path,Path],tuple[Path,Path]]|None=None,
 ) -> dict:
     """Record *local* semantic agreement and conflicts at one decision cut.
 
@@ -112,6 +117,10 @@ def audit_provider_source_pair(
     """
     if type(sample_limit) is not int or not 1<=sample_limit<=200:
         raise ValueError("Invalid provider dual-source sample limit")
+    original_paths=validate_original_sources(
+        require_original_pins=require_original_pins,
+        original_sources=original_sources,
+    )
     now=_now(clock)
     cutoff=_stamp(decision_at)
     if cutoff>now:
@@ -140,6 +149,19 @@ def audit_provider_source_pair(
                ==right["publisher_id_claimed"].strip().casefold()):
         raise ValueError("Two distinct claimed publisher and source identities required")
     market=left["market"]
+    pinned_evidence={
+        "original_source_pair_witness_sha256":None,
+        "source_a_original_first_pin_matched":False,
+        "source_b_original_first_pin_matched":False,
+        "original_first_ingest_pins_locally_consistent":False,
+        "independent_original_publisher_and_timestamp_verified":False,
+    }
+    if original_paths is not None:
+        pinned_evidence=corroborate_pinned_original_sources(
+            source_paths=original_paths, ledgers=(paths[0],paths[1]),
+            bundle_hashes=(bundle_a,bundle_b), receipts=sources,
+            decision_at=cutoff.isoformat(),clock=now,
+        )
     day=cutoff.astimezone(ZONES[market]).date().isoformat()
     counters=Counter()
     observed=[]
@@ -168,6 +190,8 @@ def audit_provider_source_pair(
             "source_b_retrieval_claimed_by_decision":
                 _stamp(right["retrieved_at_claimed_utc"])<=cutoff,
             "distinct_claimed_publishers":2,
+            "local_original_first_ingest_pins_required":require_original_pins,
+            **pinned_evidence,
             "locally_eligible_contemporaneous_provider_pair":
                 left["eligible_for_contemporaneous_research"]
                 and right["eligible_for_contemporaneous_research"],
@@ -293,6 +317,14 @@ def audit_provider_source_pair(
     ]
     if rechecked!=sources:
         raise RuntimeError("PIT provider receipt revised during source comparison")
+    if original_paths is not None:
+        second=corroborate_pinned_original_sources(
+            source_paths=original_paths,ledgers=(paths[0],paths[1]),
+            bundle_hashes=(bundle_a,bundle_b), receipts=sources,
+            decision_at=cutoff.isoformat(),clock=now,
+        )
+        if second!=pinned_evidence:
+            raise RuntimeError("Original provider first-ingest PIN witnesses revised during pair comparison")
     result=root_report(STATUS_BLOCKED if counters else STATUS_CONSISTENT)
     result.update({
         "matched_known_issuer_count":matched_known,

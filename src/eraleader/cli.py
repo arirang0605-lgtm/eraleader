@@ -189,6 +189,22 @@ def execute_rank_feature_inputs(args) -> dict:
                                                        if args.price_cache_root else None),
                                      price_cache_days=args.cache_days)
 
+def _original_pin_cli_options(args, *, prefix: str = ""):
+    """Require both staged and normalized manifests for BOTH suppliers."""
+    required=getattr(args,"require_"+prefix+"original_pins",False)
+    names=(
+        prefix+"staged_manifest_a", prefix+"normalized_manifest_a",
+        prefix+"staged_manifest_b", prefix+"normalized_manifest_b",
+    )
+    values=[getattr(args,key,None) for key in names]
+    if any(values) and not (required and all(values)):
+        raise ValueError("All four original source manifest flags AND --require-original-pins must be supplied")
+    if required and not all(values):
+        raise ValueError("Strict original first-ingest PIN mode requires all four original source manifest flags")
+    return required, ((Path(values[0]),Path(values[1])),
+                      (Path(values[2]),Path(values[3]))) if required else None
+
+
 def execute_integrated(args) -> dict:
     # An explicitly selected two-provider PIT check must be complete. Never
     # fall back to the old ungated integration because one flag was omitted.
@@ -198,6 +214,9 @@ def execute_integrated(args) -> dict:
     if any(supplied) and not all(supplied):
         raise ValueError("All four provider PIT flags are required together")
     pair=supplied if all(supplied) else None
+    strict_pins,original_sources=_original_pin_cli_options(args,prefix="provider_")
+    if strict_pins and pair is None:
+        raise ValueError("Strict original PIN research requires all four provider ledger/bundle inputs")
     offline_path=Path(args.out)/"offline.sqlite"
     source=(OfflineLedger.open_readonly(offline_path) if pair
             else OfflineLedger(offline_path))
@@ -214,7 +233,9 @@ def execute_integrated(args) -> dict:
                 candidate_facts=offline["fundamentals"],
                 candidate_industry=offline["industry"],
                 candidate_actions=(offline["actions"]+
-                                   offline["announced_future_actions"]))
+                                   offline["announced_future_actions"]),
+                require_original_pins=strict_pins,
+                original_sources=original_sources)
     finally:
         source.close()
     if gate is not None:
@@ -446,15 +467,19 @@ def execute_staged_source_lineage(args) -> dict:
 
 
 def execute_provider_source_pair(args) -> dict:
+    strict,original_sources=_original_pin_cli_options(args)
     result=audit_provider_source_pair(
         Path(args.ledger_a),args.bundle_a,Path(args.ledger_b),args.bundle_b,
-        decision_at=args.decision_at,sample_limit=args.sample_limit)
+        decision_at=args.decision_at,sample_limit=args.sample_limit,
+        require_original_pins=strict,original_sources=original_sources)
     path=Path(args.out)/"provider_source_pair_research.json"
     write_json(path,result)
     return {"status":result["status"],"path":str(path),
             "blocker_counts":result["blocker_counts"],
             "matched_active_issuer_count":result["matched_active_issuer_count"],
             "problem_count":result["problem_count"],
+            "original_first_ingest_pins_locally_consistent":
+                result["original_first_ingest_pins_locally_consistent"],
             "historic_pit_certified":False,"official_leader_promotions":0}
 
 
@@ -944,6 +969,11 @@ def main(argv=None):
     join.add_argument('--provider-bundle-a',help='First previously registered provider bundle SHA256')
     join.add_argument('--provider-ledger-b',help='Optional second independent claimed PIT source ledger')
     join.add_argument('--provider-bundle-b',help='Second previously registered provider bundle SHA256')
+    join.add_argument('--require-provider-original-pins',action='store_true',
+                      help='Fail closed unless BOTH suppliers have original raw-doc first-ingest SHA pins')
+    for suffix in ('staged-manifest-a','normalized-manifest-a',
+                   'staged-manifest-b','normalized-manifest-b'):
+        join.add_argument('--provider-'+suffix,help='One of four original PIN source manifest paths')
     evaluate=sub.add_parser("validate-discovery",help="Post hoc early detection quality, research only")
     evaluate.add_argument("--signals",required=True)
     evaluate.add_argument("--outcomes",required=True)
@@ -1007,6 +1037,11 @@ def main(argv=None):
     dp.add_argument("--bundle-b",required=True)
     dp.add_argument("--decision-at",required=True)
     dp.add_argument("--sample-limit",type=int,default=40)
+    dp.add_argument("--require-original-pins",action="store_true",
+                    help="Require both source raw/witness SHA pins from ORIGINAL local first ingest")
+    for suffix in ("staged-manifest-a","normalized-manifest-a",
+                   "staged-manifest-b","normalized-manifest-b"):
+        dp.add_argument("--"+suffix,help="Original PIN source manifest path; all four are required")
     dp.add_argument("--out",default=str(OUT))
     lineage=sub.add_parser("audit-provider-staged-lineage",
                           help="Recheck original staged source lines/doc IDs -> normalized bytes -> optional first PIT ingest")

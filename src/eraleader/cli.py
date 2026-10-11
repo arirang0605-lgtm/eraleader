@@ -47,6 +47,7 @@ from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
 from .watch_progression import audit_watch_progression
 from .watch_rotation import audit_watch_rotation
+from .peer_score_series import record_peer_score_series, audit_peer_score_advantage
 from .delivery import write_watch_rotation_dashboard
 from .pit_publication import verify_pit_publication
 from .local_backup import create_backup, verify_backup, restore_backup
@@ -527,6 +528,24 @@ def execute_watch_rotation(args) -> dict:
             "official_leader_replacements":0,
             "historic_pit_certified":False}
 
+def execute_record_peer_scores(args) -> dict:
+    return record_peer_score_series(
+        Path(args.score_history),Path(args.watch_ledger),Path(args.feature_root),
+        market=args.market,model_version=args.model_version)
+
+def execute_audit_peer_score_rotation(args) -> dict:
+    result=audit_peer_score_advantage(
+        Path(args.watch_ledger),Path(args.score_history),Path(args.feature_root),
+        market=args.market,model_version=args.model_version,
+        evaluated_at=args.evaluated_at,sample_limit=args.sample_limit)
+    dest=Path(args.out)/f"peer_score_rotation_{args.market.lower()}_research.json"
+    write_json(dest,result)
+    return {"status":result["status"],"path":str(dest),
+            "rotation_hypotheses":result["rotation_hypothesis_count"],
+            "locally_two_session_score_correlated":result["locally_two_session_score_correlated"],
+            "official_leader_replacements":0,
+            "rank_scores_independently_authenticated":False}
+
 def execute_register_rank_scores(args) -> dict:
     return register_rank_scores(Path(args.score_ledger),Path(args.watch_ledger),
                                 Path(args.features_dir),Path(args.scores),
@@ -905,6 +924,23 @@ def main(argv=None):
     wr.add_argument("--evaluated-at",required=True,help="Timezone-aware as-of cutoff")
     wr.add_argument("--sample-limit",type=int,default=100)
     wr.add_argument("--out",default=str(OUT))
+    ps=sub.add_parser("record-peer-scores",
+                      help="Append fixed-formula daily peer scores to separate prospective SQLite history")
+    ps.add_argument("--watch-ledger",required=True)
+    ps.add_argument("--score-history",required=True)
+    ps.add_argument("--feature-root",required=True)
+    ps.add_argument("--market",choices=["KR","US"],required=True)
+    ps.add_argument("--model-version",required=True)
+    asr=sub.add_parser("audit-peer-score-rotation",
+                       help="Read-only two-session peer score corroboration, never official leaders")
+    asr.add_argument("--watch-ledger",required=True)
+    asr.add_argument("--score-history",required=True)
+    asr.add_argument("--feature-root",required=True)
+    asr.add_argument("--market",choices=["KR","US"],required=True)
+    asr.add_argument("--model-version",required=True)
+    asr.add_argument("--evaluated-at",required=True)
+    asr.add_argument("--sample-limit",type=int,default=100)
+    asr.add_argument("--out",default=str(OUT))
     pv=sub.add_parser("verify-pit-publication",
                       help="Verify current immutable KR+US PIT research generation, never official leader data")
     pv.add_argument("--out",required=True)
@@ -939,6 +975,8 @@ def main(argv=None):
         elif args.command=="audit-evidence-gate":result=execute_evidence_gate(args)
         elif args.command=="audit-watch-progression":result=execute_watch_progression(args)
         elif args.command=="audit-watch-rotation":result=execute_watch_rotation(args)
+        elif args.command=="record-peer-scores":result=execute_record_peer_scores(args)
+        elif args.command=="audit-peer-score-rotation":result=execute_audit_peer_score_rotation(args)
         elif args.command=="verify-pit-publication":result=execute_publication_verify(args)
         elif args.command=="audit-holdout-maturity":result=execute_holdout_maturity(args)
         elif args.command=="reconcile-holdout-outcomes":result=execute_holdout_reconciliation(args)

@@ -15,18 +15,32 @@ def main(argv=None) -> int:
     reg.add_argument("--spec",type=Path,required=True)
     reg.add_argument("--registry-dir",type=Path,required=True)
     reg.add_argument("--name",required=True,help="Unique census_*.json O_EXCL basename")
+    reg.add_argument("--receipt-index",action="store_true",
+                     help="Strict local SHA-chain first-write receipts (opt-in)")
     audit=subs.add_parser("audit",help="Audit ALL on-disk census registries, no subsets")
     audit.add_argument("--registry-dir",type=Path,required=True)
     audit.add_argument("--evaluated-at",required=True)
+    audit.add_argument("--receipt-index",action="store_true",
+                       help="Require complete indexed first-write receipts")
     audit.add_argument("--out",type=Path,required=True,
                        help="Derived directory for sanitized prospective_census_research.json")
     args=parser.parse_args(argv)
     sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
     from eraleader.prospective_census import register_census, audit_all_registered_censuses
+    from eraleader.prospective_census_seal import _index_path
+    index = _index_path(args.registry_dir)
+    if not args.receipt_index and (index.exists() or index.is_symlink()):
+        raise ValueError("An indexed census requires --receipt-index; refusing unsafe downgrade")
+    if args.receipt_index:
+        from eraleader.prospective_census_seal import indexed_register_census, indexed_audit_censuses
     if args.command=="register":
-        result=register_census(args.spec,args.registry_dir,args.name)
+        result=(indexed_register_census(args.spec,args.registry_dir,args.name)
+                if args.receipt_index else
+                register_census(args.spec,args.registry_dir,args.name))
     else:
-        result=audit_all_registered_censuses(args.registry_dir,evaluated_at=args.evaluated_at)
+        result=(indexed_audit_censuses(args.registry_dir,evaluated_at=args.evaluated_at)
+                if args.receipt_index else
+                audit_all_registered_censuses(args.registry_dir,evaluated_at=args.evaluated_at))
         dest=args.out/"prospective_census_research.json"
         from eraleader.watch_operating_reports import _atomic_text
         if args.out.is_symlink() or args.out.parent.is_symlink():

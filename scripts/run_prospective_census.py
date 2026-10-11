@@ -17,11 +17,15 @@ def main(argv=None) -> int:
     reg.add_argument("--name",required=True,help="Unique census_*.json O_EXCL basename")
     reg.add_argument("--receipt-index",action="store_true",
                      help="Strict local SHA-chain first-write receipts (opt-in)")
+    reg.add_argument("--native-evidence-config",type=Path,
+                     help="Require original native WATCH+score+formula provenance before first census write")
     audit=subs.add_parser("audit",help="Audit ALL on-disk census registries, no subsets")
     audit.add_argument("--registry-dir",type=Path,required=True)
     audit.add_argument("--evaluated-at",required=True)
     audit.add_argument("--receipt-index",action="store_true",
                        help="Require complete indexed first-write receipts")
+    audit.add_argument("--native-evidence-config",type=Path,
+                       help="Recheck every original WATCH score and feature formula of indexed cohorts")
     audit.add_argument("--out",type=Path,required=True,
                        help="Derived directory for sanitized prospective_census_research.json")
     args=parser.parse_args(argv)
@@ -31,14 +35,29 @@ def main(argv=None) -> int:
     index = _index_path(args.registry_dir)
     if not args.receipt_index and (index.exists() or index.is_symlink()):
         raise ValueError("An indexed census requires --receipt-index; refusing unsafe downgrade")
+    from eraleader.native_census_gate import native_gate_marker
+    native_required = native_gate_marker(args.registry_dir)
+    if (native_required.exists() or native_required.is_symlink()) and args.native_evidence_config is None:
+        raise ValueError("This prospective census requires --native-evidence-config; unsafe downgrade")
+    if args.native_evidence_config is not None and not args.receipt_index:
+        raise ValueError("Native provenance requires the first-write --receipt-index")
     if args.receipt_index:
         from eraleader.prospective_census_seal import indexed_register_census, indexed_audit_censuses
+    if args.native_evidence_config is not None:
+        from eraleader.native_census_gate import register_native_census, audit_native_census
     if args.command=="register":
-        result=(indexed_register_census(args.spec,args.registry_dir,args.name)
+        result=(register_native_census(args.spec,args.registry_dir,args.name,
+                                      native_config=args.native_evidence_config)
+                if args.native_evidence_config is not None else
+                indexed_register_census(args.spec,args.registry_dir,args.name)
                 if args.receipt_index else
                 register_census(args.spec,args.registry_dir,args.name))
     else:
-        result=(indexed_audit_censuses(args.registry_dir,evaluated_at=args.evaluated_at)
+        result=(audit_native_census(args.registry_dir,
+                                   native_config=args.native_evidence_config,
+                                   evaluated_at=args.evaluated_at)
+                if args.native_evidence_config is not None else
+                indexed_audit_censuses(args.registry_dir,evaluated_at=args.evaluated_at)
                 if args.receipt_index else
                 audit_all_registered_censuses(args.registry_dir,evaluated_at=args.evaluated_at))
         dest=args.out/"prospective_census_research.json"

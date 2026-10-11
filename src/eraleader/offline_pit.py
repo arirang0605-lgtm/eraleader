@@ -282,15 +282,56 @@ class OfflineLedger:
         # (and can hide KR listings for New York callers). DST is zone-aware.
         market_zone = ZoneInfo("Asia/Seoul" if market == "KR" else "America/New_York")
         day = datetime.fromisoformat(cutoff).astimezone(market_zone).date().isoformat()
-        rows = self.db.execute("""SELECT kind,record_key,available_at,source_id,
-                     provenance,payload,fingerprint FROM offline_records
-                 WHERE available_at<=? ORDER BY available_at,record_key""",(cutoff,)).fetchall()
+        receipt_tables={x[0] for x in self.db.execute(
+            """SELECT name FROM sqlite_master WHERE type='table'
+               AND name IN ('provider_ingest_receipts','provider_ingest_rows')"""
+        ).fetchall()}
+        if len(receipt_tables)==1:
+            raise ValueError("Incomplete prospective provider intake receipt schema")
+        if receipt_tables:
+            # One SQL statement gives a consistent offline-record and receipt
+            # snapshot. A row supplied years after the backtest decision MUST
+            # NOT be visible merely because the claimed known_at is old.
+            rows=self.db.execute("""
+                WITH first_intake AS (
+                    SELECT x.kind,x.record_key,
+                           MIN(p.first_registered_at_utc) AS first_registered_at,
+                           MIN(p.retrieved_at_claimed_utc) AS claimed_retrieved_at
+                    FROM provider_ingest_rows x
+                    JOIN provider_ingest_receipts p
+                         ON x.bundle_sha256=p.bundle_sha256
+                    GROUP BY x.kind,x.record_key
+                )
+                SELECT r.kind,r.record_key,r.available_at,r.source_id,
+                       r.provenance,r.payload,r.fingerprint,
+                       p.first_registered_at,p.claimed_retrieved_at
+                FROM offline_records r
+                LEFT JOIN first_intake p
+                     ON p.kind=r.kind AND p.record_key=r.record_key
+                WHERE r.available_at<=?
+                ORDER BY r.available_at,r.record_key
+            """,(cutoff,)).fetchall()
+        else:
+            rows=[(*row,None,None) for row in self.db.execute(
+                """SELECT kind,record_key,available_at,source_id,
+                          provenance,payload,fingerprint FROM offline_records
+                   WHERE available_at<=? ORDER BY available_at,record_key""",
+                (cutoff,)
+            ).fetchall()]
         categories = {k:[] for k in KINDS}
-        for stored in rows:
+        retrospective_provider_rows=0
+        for item in rows:
+            stored=item[:7]
+            first_registered,claimed_retrieved=item[7:]
             kind=stored[0]
             # Verify persisted content hash AND every indexed source/identity
             # column BEFORE a record can enter a historical research snapshot.
             r=verify_stored_pit_record(*stored)
+            if first_registered is not None:
+                if (iso_time(first_registered)>cutoff or
+                        iso_time(claimed_retrieved)>cutoff):
+                    retrospective_provider_rows+=1
+                    continue
             categories[kind].append(r)
         # Membership: latest *then-known* historical record per company.
         membership_latest: dict[str,dict] = {}
@@ -359,6 +400,8 @@ class OfflineLedger:
                 "historic_membership_pit_verified":False,
                 "corporate_actions_complete_verified":False,
                 "financial_pit_complete_verified":False,
+                "provider_rows_unavailable_at_decision_excluded":retrospective_provider_rows,
+                "provider_first_ingestion_clock_independently_attested":False,
                 "reason":"Input records are not proof of historic source completeness; certification pending",
             },
         }

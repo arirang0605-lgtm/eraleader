@@ -16,6 +16,7 @@ from .delivery import write_dashboard,make_report,write_integrated_dashboard,wri
 from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .pit_provider_readiness import audit_pit_provider_readiness
+from .provider_pit_adapter import import_provider_bundle, audit_registered_provider_asof
 from .offline_features import financial_snapshot
 from .peer_normalization import normalize_peer_file
 from .rank_feature_bridge import build_rank_feature_inputs
@@ -356,6 +357,30 @@ def execute_return_crosscheck(args) -> dict:
     return {"status":result["status"],"path":str(target),
             "intervals_outside_tolerance":result["intervals_outside_tolerance"],
             "historic_price_actions_pit_certified":False}
+
+def execute_provider_pit_import(args) -> dict:
+    audit=import_provider_bundle(Path(args.manifest),Path(args.ledger))
+    path=Path(args.out)/"provider_pit_import_research.json"
+    write_json(path,audit)
+    return {"status":audit["status"],"path":str(path),
+            "bundle_sha256":audit["bundle_sha256"],
+            "rows_received":audit["rows_received"],
+            "rows_inserted":audit["rows_inserted"],
+            "historic_pit_certified":False,
+            "official_leader_promotions":0}
+
+
+def execute_provider_pit_asof(args) -> dict:
+    audit=audit_registered_provider_asof(
+        Path(args.ledger),args.bundle_sha256,decision_at=args.decision_at)
+    path=Path(args.out)/"provider_pit_asof_research.json"
+    write_json(path,audit)
+    return {"status":audit["status"],"path":str(path),
+            "bundle_sha256":audit["bundle_sha256"],
+            "eligible_for_contemporaneous_research":
+                audit["eligible_for_contemporaneous_research"],
+            "official_leader_promotions":0}
+
 
 def execute_pit_provider_readiness(args) -> dict:
     result=audit_pit_provider_readiness(
@@ -844,6 +869,18 @@ def main(argv=None):
     check.add_argument("--session-clock",help="Optional local pre-decision declared close-time manifest")
     check.add_argument("--exchange-calendar",help="Optional separate claimed calendar with per-session closes")
     check.add_argument("--out",default=str(OUT))
+    pi=sub.add_parser("import-provider-pit",
+                      help="Opt-in atomic, first-clock receipt import for normalized offline source JSONL")
+    pi.add_argument("--manifest",required=True,
+                    help="Existing JSON manifest with SHA of local normalized source JSONL")
+    pi.add_argument("--ledger",required=True,help="Local PIT SQLite target; raw sources not copied")
+    pi.add_argument("--out",default=str(OUT))
+    pa=sub.add_parser("audit-provider-pit-asof",
+                      help="Reject post-decision ingestion as historical PIT evidence")
+    pa.add_argument("--ledger",required=True)
+    pa.add_argument("--bundle-sha256",required=True)
+    pa.add_argument("--decision-at",required=True)
+    pa.add_argument("--out",default=str(OUT))
     readiness=sub.add_parser("audit-pit-provider-readiness",
                        help="Read real local KR/US price cache and offline PIT coverage without promoting leaders")
     readiness.add_argument("--cache-root",default=str(LEGACY_DEFAULT))
@@ -1110,6 +1147,8 @@ def main(argv=None):
         elif args.command=="audit-rotation-pair-sources":result=execute_rotation_pair_sources(args)
         elif args.command=="freeze-holdout":result=execute_freeze_holdout(args)
         elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
+        elif args.command=="import-provider-pit":result=execute_provider_pit_import(args)
+        elif args.command=="audit-provider-pit-asof":result=execute_provider_pit_asof(args)
         elif args.command=="audit-pit-provider-readiness":result=execute_pit_provider_readiness(args)
         elif args.command=="audit-source-vintage":result=execute_source_vintage(args)
         elif args.command in ("backup-local","verify-backup","restore-backup"):

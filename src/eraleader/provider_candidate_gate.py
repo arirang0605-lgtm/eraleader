@@ -11,9 +11,14 @@ from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 import json
+import re
 
 from .frozen_holdout import _stamp
 from .issuer_candidate_evidence import audit_candidate_issuer_class
+from .exchange_roster_crosscheck import (
+    audit_declared_exchange_roster, _read_roster,
+    MATCH as EXCHANGE_ROSTER_MATCH,
+)
 from .provider_dual_source_audit import (
     STATUS_CONSISTENT,_full_receipt_source,_membership_asof,_latest,
     audit_provider_source_pair,ZONES,
@@ -32,6 +37,8 @@ def audit_candidate_provider_gate(
     require_original_pins:bool=False,
     original_sources:tuple[tuple[Path,Path],tuple[Path,Path]]|None=None,
     issuer_lineage_file:Path|None=None,
+    exchange_roster_file:Path|None=None,
+    exchange_roster_sha256:str|None=None,
 ) -> dict:
     """Gate a concrete set of then-visible candidate issuer memberships.
 
@@ -41,6 +48,21 @@ def audit_candidate_provider_gate(
     """
     if issuer_lineage_file is not None and (not require_original_pins or original_sources is None):
         raise ValueError('Issuer-class candidate gate requires both original first-ingest PINs')
+    # The third source must be bound to the very same pinned original A that
+    # the provider+issuer candidate gate already accepted, never a parallel
+    # self-declared summary that could silently weaken WATCH proof.
+    if (exchange_roster_file is None)!=(exchange_roster_sha256 is None):
+        raise ValueError("Exchange roster and its raw SHA256 pin are required together")
+    if exchange_roster_file is not None:
+        if (not require_original_pins or original_sources is None or
+                issuer_lineage_file is None):
+            raise ValueError("Exchange roster needs strict original first-ingest PINs and issuer-class lineage")
+        if (type(exchange_roster_sha256) is not str or
+                not re.fullmatch(r"[0-9a-f]{64}",exchange_roster_sha256)):
+            raise ValueError("Invalid pinned exchange roster SHA256")
+        _,observed_pin=_read_roster(Path(exchange_roster_file))
+        if observed_pin!=exchange_roster_sha256:
+            raise ValueError("Exchange roster raw SHA256 does not match first-pinned evidence")
     if market not in ZONES:
         raise ValueError("Candidate evidence market must be KR/US")
     if not isinstance(candidate_members,dict):
@@ -192,6 +214,7 @@ def audit_candidate_provider_gate(
                         != (b.get("ratio"),b.get("cash_amount"))):
                     issues["CANDIDATE_ACTION_SOURCE_MISMATCH"]+=1
     issuer_class=None
+    exchange_roster=None
     if issuer_lineage_file is not None and eligible:
         issuer_class=audit_candidate_issuer_class(
             Path(original_sources[0][0]),Path(issuer_lineage_file),
@@ -199,6 +222,19 @@ def audit_candidate_provider_gate(
             candidate_members=candidate_members,clock=clock)
         issues.update({'ISSUER_CLASS_'+key:value
                        for key,value in issuer_class['blocker_counts'].items()})
+    if exchange_roster_file is not None and eligible:
+        exchange_roster=audit_declared_exchange_roster(
+            Path(original_sources[0][0]),Path(issuer_lineage_file),
+            Path(exchange_roster_file),decision_at=cutoff.isoformat(),clock=clock)
+        if exchange_roster["declared_exchange_roster_sha256"]!=exchange_roster_sha256:
+            raise ValueError("Exchange roster first-pinned raw SHA256 revised during audit")
+        if exchange_roster["market"]!=market:
+            raise ValueError("Exchange roster market differs from candidates")
+        if exchange_roster["status"]!=EXCHANGE_ROSTER_MATCH:
+            issues.update({"EXCHANGE_ROSTER_"+key:value for key,value in
+                           exchange_roster["blocker_counts"].items()})
+            if not exchange_roster["blocker_counts"]:
+                issues["EXCHANGE_ROSTER_NOT_CORROBORATED"]+=1
     # A pair can change between the comparison and membership reads. Reuse
     # original receipt audit to fail-closed against detected revisions.
     if eligible:
@@ -216,6 +252,16 @@ def audit_candidate_provider_gate(
                 candidate_members=candidate_members,clock=clock)
             if rechecked!=issuer_class:
                 raise RuntimeError('Issuer class evidence revised before WATCH publication')
+        if exchange_roster is not None:
+            rechecked_roster=audit_declared_exchange_roster(
+                Path(original_sources[0][0]),Path(issuer_lineage_file),
+                Path(exchange_roster_file),decision_at=cutoff.isoformat(),clock=clock)
+            if rechecked_roster!=exchange_roster:
+                raise RuntimeError("Exchange roster evidence revised before WATCH publication")
+    if exchange_roster_file is not None:
+        _,last_pin=_read_roster(Path(exchange_roster_file))
+        if last_pin!=exchange_roster_sha256:
+            raise ValueError("Exchange roster SHA256 revised before WATCH publication")
     allowed=bool(eligible and not issues and matching==len(candidate_members))
     provenance={
         "market":market,"decision_at":cutoff.isoformat(),
@@ -230,6 +276,11 @@ def audit_candidate_provider_gate(
         provenance['issuer_class_evidence_sha256']=(
             issuer_class['candidate_class_evidence_sha256'] if issuer_class is not None
             else 'PAIR_BLOCKED')
+    if exchange_roster_file is not None:
+        provenance["exchange_roster_raw_sha256"]=exchange_roster_sha256
+        provenance["exchange_roster_audit_sha256"]=(
+            exchange_roster["research_three_way_evidence_sha256"] if exchange_roster
+            else "PAIR_BLOCKED")
     canonical=json.dumps(provenance,ensure_ascii=False,sort_keys=True,
                          separators=(",",":"),allow_nan=False)
     return {
@@ -269,6 +320,20 @@ def audit_candidate_provider_gate(
         "official_candidate_promotion_allowed":False,
         "leader_accuracy_certified":False,
         "official_leader_promotions":0,
+        **({
+            "exchange_roster_required":True,
+            "exchange_roster_sha256":exchange_roster_sha256,
+            "exchange_roster_status":(
+                exchange_roster["status"] if exchange_roster is not None
+                else "NOT_EVALUATED_PAIR_BLOCKED"),
+            "exchange_roster_evidence_sha256":(
+                exchange_roster["research_three_way_evidence_sha256"]
+                if exchange_roster is not None else None),
+            "exchange_roster_locally_matched_classes":(
+                exchange_roster["locally_matched_full_scope_classes"]
+                if exchange_roster is not None else 0),
+            "exchange_roster_historical_pit_certified":False,
+        } if exchange_roster_file is not None else {}),
         "warning":(
             "A matched pair of claimed source identifiers is not official PIT "
             "proof. Local research WATCH may be generated only for exactly "

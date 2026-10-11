@@ -230,6 +230,13 @@ def execute_integrated(args) -> dict:
     if (bool(require_issuer)!=bool(issuer_file) or
             (require_issuer and (not strict_pins or pair is None))):
         raise ValueError('Issuer-class lineage option requires --require-provider-issuer-class-lineage, --provider-issuer-lineage and strict paired first-ingest PINs')
+    require_exchange=getattr(args,'require_provider_exchange_roster',False)
+    roster_file=getattr(args,'provider_exchange_roster',None)
+    roster_sha=getattr(args,'provider_exchange_roster_sha256',None)
+    if (require_exchange != bool(roster_file) or
+            require_exchange != bool(roster_sha) or
+            (require_exchange and (not require_issuer or not strict_pins or pair is None))):
+        raise ValueError('Strict exchange roster requires --require-provider-exchange-roster, --provider-exchange-roster, --provider-exchange-roster-sha256 and pinned issuer-class provider inputs')
     offline_path=Path(args.out)/"offline.sqlite"
     source=(OfflineLedger.open_readonly(offline_path) if pair
             else OfflineLedger(offline_path))
@@ -251,7 +258,9 @@ def execute_integrated(args) -> dict:
                                    offline["announced_future_actions"]),
                 require_original_pins=strict_pins,
                 original_sources=original_sources,
-                issuer_lineage_file=Path(issuer_file) if require_issuer else None)
+                issuer_lineage_file=Path(issuer_file) if require_issuer else None,
+                exchange_roster_file=Path(roster_file) if require_exchange else None,
+                exchange_roster_sha256=roster_sha if require_exchange else None)
     finally:
         source.close()
     if gate is not None:
@@ -1039,6 +1048,12 @@ def main(argv=None):
                       help='Additional local pre-WATCH legal issuer/stock class crosscheck; strict original PINs required')
     join.add_argument('--provider-issuer-lineage',
                       help='Separate local declared issuer lineage JSON; never official PIT certification')
+    join.add_argument('--require-provider-exchange-roster',action='store_true',
+                      help='Enforce third declared whole-exchange share-class inventory BEFORE research WATCH; needs original pins and issuer-class lineage')
+    join.add_argument('--provider-exchange-roster',
+                      help='Local declared whole exchange class roster JSON, NOT an official PIT listing')
+    join.add_argument('--provider-exchange-roster-sha256',
+                      help='Exact previously pinned raw SHA256 of third roster; locally pinned hash not a publisher signature')
     join.add_argument('--show-provider-gate-quality',action='store_true',
                       help='Opt-in local HTML quality view even when WATCH is blocked; requires two providers')
     join.add_argument('--record-provider-quality-history',action='store_true',

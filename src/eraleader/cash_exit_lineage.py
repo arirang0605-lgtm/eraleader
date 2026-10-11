@@ -274,8 +274,29 @@ def audit_dual_vintage_cash_exit(
             Path(settlement_receipt_file), terms, security_id=security_id,
             market=market, evaluated_at=evaluated_at,
             issuer_source_id=after["source_id"],
+            issuer_publisher_id_claimed=after["publisher_id_claimed"],
         )
         reasons.update(receipt_audit["blockers"])
+    # Fail closed on revisions while issuer, settlement and payout files are
+    # being compared. First-pass source hashes alone could otherwise certify
+    # a now-modified set of local research inputs on report publication.
+    for source_file, first_hash in (
+        (cash_file, cash_hash),
+        (decision_lineage_file, before_hash),
+        (evaluation_lineage_file, after_hash),
+    ):
+        _, second_hash = _read(Path(source_file))
+        if second_hash != first_hash:
+            raise ValueError("Original cash/issuer research source revised during audit")
+    if receipt_audit is not None:
+        refreshed_receipt = audit_declared_cash_payment_receipt(
+            Path(settlement_receipt_file), terms, security_id=security_id,
+            market=market, evaluated_at=evaluated_at,
+            issuer_source_id=after["source_id"],
+            issuer_publisher_id_claimed=after["publisher_id_claimed"],
+        )
+        if refreshed_receipt != receipt_audit:
+            raise ValueError("Cash payment document or receipt revised during audit")
     blocks = sorted(reasons)
     status = STATUS_BLOCKED if blocks else STATUS_MATCH
     return {

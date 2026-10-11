@@ -274,3 +274,96 @@ def test_document_paid_at_equivalent_utc_instant_is_consistent_across_dst(tmp_pa
     result=run(scenario,files,manifest)
     assert result["cash_exit_total_return"]==.05
     assert result["settlement_receipt_claims_consistent"] is True
+
+
+
+def test_cash_receipt_same_claimed_publisher_as_issuer_blocks_second_source(tmp_path):
+    scenario, files, manifest, _ = inputs(tmp_path)
+    content=json.loads(manifest.read_text())
+    assert content["source_id_claimed"] != "SYN-ISSUER-VINTAGE"
+    content["publisher_id_claimed"]="SYNTHETIC_ONLY"
+    manifest.write_text(json.dumps(content))
+    report=run(scenario,files,manifest,required=True)
+    assert report["status"]==STATUS_BLOCKED
+    assert report["cash_exit_total_return"] is None
+    assert "RECEIPT_NOT_A_DISTINCT_DECLARED_PUBLISHER" in report["blocking_reasons"]
+    assert report["settlement_receipt_claims_consistent"] is False
+
+
+@pytest.mark.parametrize("alias",["synthetic_only", "  Synthetic_Only  "])
+def test_cash_receipt_issuer_publisher_casefold_or_spacing_alias_fails_closed(tmp_path,alias):
+    scenario, files, manifest, _ = inputs(tmp_path)
+    data=json.loads(manifest.read_text())
+    data["publisher_id_claimed"]=alias
+    manifest.write_text(json.dumps(data))
+    report=run(scenario,files,manifest,required=True)
+    assert report["status"]==STATUS_BLOCKED
+    assert "RECEIPT_NOT_A_DISTINCT_DECLARED_PUBLISHER" in report["blocking_reasons"]
+
+
+def test_cash_receipt_variant_issuer_source_name_cannot_bypass_distinct_source_gate(tmp_path):
+    scenario, files, manifest, document=inputs(tmp_path)
+    data=json.loads(manifest.read_text())
+    data["source_id_claimed"]="  syn-issuer-vintage  "
+    obj=json.loads(document.read_text())
+    obj["source_id"]=data["source_id_claimed"]
+    raw=json.dumps(obj,sort_keys=True).encode()
+    document.write_bytes(raw)
+    data["sha256"]=sha256(raw).hexdigest()
+    manifest.write_text(json.dumps(data))
+    report=run(scenario,files,manifest,required=True)
+    assert report["status"]==STATUS_BLOCKED
+    assert "RECEIPT_NOT_A_DISTINCT_DECLARED_SOURCE" in report["blocking_reasons"]
+
+
+def test_cash_receipt_standalone_claimed_publisher_gate_does_not_certify_publisher(tmp_path):
+    scenario, files, manifest, _=inputs(tmp_path)
+    receipt=json.loads(manifest.read_text())
+    receipt["publisher_id_claimed"]="SYNTHETIC_ONLY"
+    manifest.write_text(json.dumps(receipt))
+    kwargs=dict(security_id=scenario["price"]["settlement"]["security_id"],
+                market=scenario["identity"]["market"],
+                evaluated_at=scenario["evaluation"],
+                issuer_source_id="SYN-ISSUER-VINTAGE",
+                issuer_publisher_id_claimed="SYNTHETIC_ONLY")
+    result=audit_declared_cash_payment_receipt(
+        manifest,scenario["price"]["settlement"],**kwargs)
+    assert result["status"]=="CENSORED_PAYMENT_RECEIPT_CLAIMS_INCONSISTENT"
+    assert "RECEIPT_NOT_A_DISTINCT_DECLARED_PUBLISHER" in result["blockers"]
+    assert result["cash_payment_independently_authenticated"] is False
+
+
+def test_cash_receipt_different_publishers_keep_existing_uncertified_research_path(tmp_path):
+    scenario, files, manifest, _=inputs(tmp_path)
+    report=run(scenario,files,manifest,required=True)
+    assert report["status"]==STATUS_MATCH
+    assert report["cash_exit_total_return"] == .1
+    assert report["settlement_receipt_claims_consistent"] is True
+    assert report["settlement_receipt_independently_authenticated"] is False
+    assert report["historical_universe_pit_certified"] is False
+
+
+@pytest.mark.parametrize("changed_input",[
+    "cash","decision_issuer","evaluation_issuer","payment_manifest","payment_document",
+])
+def test_cash_exit_source_revision_during_receipt_verification_cannot_publish_old_payoff(
+    tmp_path,monkeypatch,changed_input
+):
+    """A payout once computed from source A cannot be published after the
+    issuer vintage, cash source or receipt bytes are revised mid-audit."""
+    from eraleader import cash_exit_lineage as module
+    scenario,files,manifest,document=inputs(tmp_path)
+    originals={
+        "cash":files[0],"decision_issuer":files[1],
+        "evaluation_issuer":files[2],"payment_manifest":manifest,
+        "payment_document":document,
+    }
+    target=originals[changed_input]
+    original=module.audit_declared_cash_payment_receipt
+    def revise_after_first_receipt(*args,**kwargs):
+        checked=original(*args,**kwargs)
+        target.write_bytes(target.read_bytes()+b" ")
+        return checked
+    monkeypatch.setattr(module,"audit_declared_cash_payment_receipt",revise_after_first_receipt)
+    with pytest.raises((ValueError,RuntimeError),match="changed|revised|revision|source|receipt|original|evidence|SHA"):
+        run(scenario,files,manifest,required=True)

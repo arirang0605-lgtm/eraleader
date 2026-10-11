@@ -77,6 +77,7 @@ def audit_declared_cash_payment_receipt(
     manifest_file: Path, settlement: dict, *,
     security_id: str, market: str, evaluated_at: str,
     issuer_source_id: str | None = None,
+    issuer_publisher_id_claimed: str | None = None,
 ) -> dict:
     """Corroborate byte integrity and self-declared cash payment identity.
 
@@ -119,9 +120,20 @@ def audit_declared_cash_payment_receipt(
         raise ValueError("Missing declared source identity")
     if not isinstance(publisher, str) or not publisher.strip():
         raise ValueError("Missing declared publisher identity")
-    if source == settlement.get("source_id") or (
-            issuer_source_id is not None and source == issuer_source_id):
+    # Two different source IDs from the SAME self-claimed publisher are not
+    # even a distinct declared provider corroboration. Neither a distinct
+    # source nor a distinct claimed publisher independently authenticates it.
+    def comparable(value: object) -> str | None:
+        return value.strip().casefold() if isinstance(value, str) and value.strip() else None
+
+    issuer_publisher = comparable(issuer_publisher_id_claimed)
+    if issuer_publisher_id_claimed is not None and issuer_publisher is None:
+        raise ValueError("Invalid claimed issuer publisher identity")
+    if comparable(source) in (comparable(settlement.get("source_id")),
+                              comparable(issuer_source_id)):
         problems.add("RECEIPT_NOT_A_DISTINCT_DECLARED_SOURCE")
+    if issuer_publisher is not None and comparable(publisher) == issuer_publisher:
+        problems.add("RECEIPT_NOT_A_DISTINCT_DECLARED_PUBLISHER")
 
     published = _timestamp_or_none(manifest.get("published_at"))
     retrieved = _timestamp_or_none(manifest.get("retrieved_at"))

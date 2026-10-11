@@ -217,6 +217,9 @@ def execute_integrated(args) -> dict:
         raise ValueError("All four provider PIT flags are required together")
     pair=supplied if all(supplied) else None
     show_quality=getattr(args,'show_provider_gate_quality',False)
+    history_enabled=getattr(args,'record_provider_quality_history',False)
+    if history_enabled and (not show_quality or pair is None):
+        raise ValueError('Provider quality history needs a paired source and --show-provider-gate-quality')
     if show_quality and pair is None:
         raise ValueError('Provider gate quality view requires all four provider source inputs')
     strict_pins,original_sources=_original_pin_cli_options(args,prefix="provider_")
@@ -232,6 +235,7 @@ def execute_integrated(args) -> dict:
             else OfflineLedger(offline_path))
     gate=None
     quality_page=None
+    quality_history=None
     try:
         offline=source.snapshot(args.as_of,market=args.market)
         price=json.loads(Path(args.price_json).read_text(encoding="utf-8")) if args.price_json else None
@@ -254,12 +258,20 @@ def execute_integrated(args) -> dict:
         gate_file=Path(args.out)/"provider_candidate_gate_research.json"
         # The gate is evaluated on actual source receipts and source rows, not
         # just a separately supplied self-declared summary report.
+        # Opt-in first-write observation of the REAL in-process gate,
+        # not a reread of a mutable public JSON summary. Fail closed before
+        # creating the research run or changing the WATCH/state ledgers.
+        if history_enabled:
+            from .provider_quality_history import record_quality_snapshot
+            quality_history=record_quality_snapshot(Path(args.out),gate)
         write_json(gate_file,gate)
         if show_quality:
             # Never render a self-declared report file; use the just-audited
             # in-memory candidate/source result, also for a blocked WATCH.
             from .provider_gate_quality_view import write_provider_gate_quality
-            quality_page=write_provider_gate_quality(gate,Path(args.out)/'site')
+            quality_page=write_provider_gate_quality(
+                gate,Path(args.out)/'site',
+                show_history=quality_history is not None)
         if not gate["research_watch_allowed"]:
             blocked={"status":"BLOCKED_PROVIDER_PIT_CANDIDATE_RESEARCH",
                     "gate_path":str(gate_file),
@@ -269,6 +281,8 @@ def execute_integrated(args) -> dict:
                     "provider_research_watch_allowed":False}
             if quality_page is not None:
                 blocked['provider_quality_dashboard']=str(quality_page)
+            if quality_history is not None:
+                blocked['provider_quality_history']=quality_history
             return blocked
         # Existing rank/WATCH source_run_id must remain immutable when the
         # provenance pair changes even if offline candidate numbers do not.
@@ -316,6 +330,8 @@ def execute_integrated(args) -> dict:
             "provider_research_watch_allowed": bool(gate and gate["research_watch_allowed"])}
     if quality_page is not None:
         response['provider_quality_dashboard']=str(quality_page)
+    if quality_history is not None:
+        response['provider_quality_history']=quality_history
     return response
 
 def execute_validation(args) -> dict:
@@ -1025,6 +1041,8 @@ def main(argv=None):
                       help='Separate local declared issuer lineage JSON; never official PIT certification')
     join.add_argument('--show-provider-gate-quality',action='store_true',
                       help='Opt-in local HTML quality view even when WATCH is blocked; requires two providers')
+    join.add_argument('--record-provider-quality-history',action='store_true',
+                      help='Opt-in first-write local SHA history of in-process quality gate; also requires --show-provider-gate-quality')
     for suffix in ('staged-manifest-a','normalized-manifest-a',
                    'staged-manifest-b','normalized-manifest-b'):
         join.add_argument('--provider-'+suffix,help='One of four original PIN source manifest paths')

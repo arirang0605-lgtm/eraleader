@@ -135,7 +135,7 @@ def _validate(gate: dict) -> tuple[str, bool, dict[str, int]]:
     return market, allowed, dict(sorted(blockers.items()))
 
 
-def render_provider_gate_quality(gate: dict) -> str:
+def render_provider_gate_quality(gate: dict, *, show_history: bool = False) -> str:
     """Render the ACTUAL original-receipt/candidate gate verdict as sanitized HTML."""
     market, allowed, blockers = _validate(gate)
     def safe(value: object) -> str:
@@ -163,13 +163,15 @@ def render_provider_gate_quality(gate: dict) -> str:
     ) or '<tr><td colspan="2">로컬 게이트 차단 0건 · 공식 원천 PIT 인증은 별도 필요</td></tr>'
     link = (f'<a href="research_{market.lower()}.html">통합 연구 화면</a>'
             if allowed else "후보 연구 화면 발행 보류")
+    history_link=(f'<a href="provider_quality_history_{market.lower()}.html">과거 원천 검증 변화 이력</a>'
+                  if show_history else "")
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EraLeader {safe(market)} 원천 검증 품질 (로컬)</title>
 <style>{BASE_CSS}</style></head><body>
 <header><h1>EraLeader · 후보 원천 검증</h1>
 <div>{safe(market)} 시장 · 결정시각 {safe(gate["decision_at_utc"])}</div>
-<nav>{link}</nav></header><main>
+<nav>{link} {history_link}</nav></header><main>
 <div class="note"><strong>{verdict}</strong><p>
 이 페이지는 로컬 입력 자료 간의 일치·보류 사유를 보여주는 연구 진단입니다.
 거래소·공시 원천 발행자와 최초 수신시각을 독립 공증한 것이 아닙니다.
@@ -198,9 +200,9 @@ def total_value(gate: dict, key: str) -> str:
     return str(gate[key])
 
 
-def write_provider_gate_quality(gate: dict, site_dir: Path) -> Path:
+def write_provider_gate_quality(gate: dict, site_dir: Path, *, show_history: bool = False) -> Path:
     """Prevalidate then atomically publish only sanitized, market-scoped HTML."""
-    html = render_provider_gate_quality(gate)
+    html = render_provider_gate_quality(gate,show_history=show_history)
     market = gate["market"]
     folder = Path(site_dir)
     target = folder / f"provider_quality_{market.lower()}.html"

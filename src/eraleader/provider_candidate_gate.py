@@ -13,6 +13,7 @@ from pathlib import Path
 import json
 
 from .frozen_holdout import _stamp
+from .issuer_candidate_evidence import audit_candidate_issuer_class
 from .provider_dual_source_audit import (
     STATUS_CONSISTENT,_full_receipt_source,_membership_asof,_latest,
     audit_provider_source_pair,ZONES,
@@ -30,6 +31,7 @@ def audit_candidate_provider_gate(
     clock:datetime|None=None,
     require_original_pins:bool=False,
     original_sources:tuple[tuple[Path,Path],tuple[Path,Path]]|None=None,
+    issuer_lineage_file:Path|None=None,
 ) -> dict:
     """Gate a concrete set of then-visible candidate issuer memberships.
 
@@ -37,6 +39,8 @@ def audit_candidate_provider_gate(
     ticker, industry and as-of listing interval must match both source
     membership sets. Missing/bad sources lead to a block, not zero failures.
     """
+    if issuer_lineage_file is not None and (not require_original_pins or original_sources is None):
+        raise ValueError('Issuer-class candidate gate requires both original first-ingest PINs')
     if market not in ZONES:
         raise ValueError("Candidate evidence market must be KR/US")
     if not isinstance(candidate_members,dict):
@@ -187,6 +191,14 @@ def audit_candidate_provider_gate(
                         (row.get("ratio"),row.get("cash_amount"))
                         != (b.get("ratio"),b.get("cash_amount"))):
                     issues["CANDIDATE_ACTION_SOURCE_MISMATCH"]+=1
+    issuer_class=None
+    if issuer_lineage_file is not None and eligible:
+        issuer_class=audit_candidate_issuer_class(
+            Path(original_sources[0][0]),Path(issuer_lineage_file),
+            market=market,decision_at=cutoff.isoformat(),
+            candidate_members=candidate_members,clock=clock)
+        issues.update({'ISSUER_CLASS_'+key:value
+                       for key,value in issuer_class['blocker_counts'].items()})
     # A pair can change between the comparison and membership reads. Reuse
     # original receipt audit to fail-closed against detected revisions.
     if eligible:
@@ -197,6 +209,13 @@ def audit_candidate_provider_gate(
             original_sources=original_sources)
         if refreshed!=paired:
             raise RuntimeError("Provider pair revised during candidate PIT gate")
+        if issuer_class is not None:
+            rechecked=audit_candidate_issuer_class(
+                Path(original_sources[0][0]),Path(issuer_lineage_file),
+                market=market,decision_at=cutoff.isoformat(),
+                candidate_members=candidate_members,clock=clock)
+            if rechecked!=issuer_class:
+                raise RuntimeError('Issuer class evidence revised before WATCH publication')
     allowed=bool(eligible and not issues and matching==len(candidate_members))
     provenance={
         "market":market,"decision_at":cutoff.isoformat(),
@@ -207,6 +226,10 @@ def audit_candidate_provider_gate(
     }
     if require_original_pins:
         provenance["original_pin_pair_sha256"]=paired["original_source_pair_witness_sha256"]
+    if issuer_lineage_file is not None:
+        provenance['issuer_class_evidence_sha256']=(
+            issuer_class['candidate_class_evidence_sha256'] if issuer_class is not None
+            else 'PAIR_BLOCKED')
     canonical=json.dumps(provenance,ensure_ascii=False,sort_keys=True,
                          separators=(",",":"),allow_nan=False)
     return {
@@ -220,6 +243,14 @@ def audit_candidate_provider_gate(
         "source_pair_original_pin_sha256":
             paired["original_source_pair_witness_sha256"],
         "require_original_first_ingest_pins":require_original_pins,
+        "issuer_class_bridge_required":issuer_lineage_file is not None,
+        "issuer_class_bridge_status":(
+            issuer_class['status'] if issuer_class is not None else
+            ('NOT_EVALUATED_PAIR_BLOCKED' if issuer_lineage_file is not None else None)),
+        "issuer_class_evidence_sha256":(
+            issuer_class['candidate_class_evidence_sha256'] if issuer_class else None),
+        "issuer_class_matched_candidates":(
+            issuer_class['candidate_class_match_count'] if issuer_class else 0),
         "source_pair_digest_sha256":sha256(canonical.encode()).hexdigest(),
         "candidate_issuer_count":len(candidate_members),
         "locally_correlated_candidate_issuer_count":matching,

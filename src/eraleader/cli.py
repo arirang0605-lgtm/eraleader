@@ -219,6 +219,11 @@ def execute_integrated(args) -> dict:
     strict_pins,original_sources=_original_pin_cli_options(args,prefix="provider_")
     if strict_pins and pair is None:
         raise ValueError("Strict original PIN research requires all four provider ledger/bundle inputs")
+    require_issuer=getattr(args,'require_provider_issuer_class_lineage',False)
+    issuer_file=getattr(args,'provider_issuer_lineage',None)
+    if (bool(require_issuer)!=bool(issuer_file) or
+            (require_issuer and (not strict_pins or pair is None))):
+        raise ValueError('Issuer-class lineage option requires --require-provider-issuer-class-lineage, --provider-issuer-lineage and strict paired first-ingest PINs')
     offline_path=Path(args.out)/"offline.sqlite"
     source=(OfflineLedger.open_readonly(offline_path) if pair
             else OfflineLedger(offline_path))
@@ -237,7 +242,8 @@ def execute_integrated(args) -> dict:
                 candidate_actions=(offline["actions"]+
                                    offline["announced_future_actions"]),
                 require_original_pins=strict_pins,
-                original_sources=original_sources)
+                original_sources=original_sources,
+                issuer_lineage_file=Path(issuer_file) if require_issuer else None)
     finally:
         source.close()
     if gate is not None:
@@ -997,6 +1003,10 @@ def main(argv=None):
     join.add_argument('--provider-bundle-b',help='Second previously registered provider bundle SHA256')
     join.add_argument('--require-provider-original-pins',action='store_true',
                       help='Fail closed unless BOTH suppliers have original raw-doc first-ingest SHA pins')
+    join.add_argument('--require-provider-issuer-class-lineage',action='store_true',
+                      help='Additional local pre-WATCH legal issuer/stock class crosscheck; strict original PINs required')
+    join.add_argument('--provider-issuer-lineage',
+                      help='Separate local declared issuer lineage JSON; never official PIT certification')
     for suffix in ('staged-manifest-a','normalized-manifest-a',
                    'staged-manifest-b','normalized-manifest-b'):
         join.add_argument('--provider-'+suffix,help='One of four original PIN source manifest paths')

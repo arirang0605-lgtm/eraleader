@@ -8,6 +8,7 @@ from __future__ import annotations
 from argparse import Namespace
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
+from zipfile import BadZipFile
 from pathlib import Path
 import fcntl
 import json
@@ -23,6 +24,10 @@ from .local_backup import create_backup, verify_backup
 from .scheduled_watch_bridge import (
     read_watch_schedule_config, audit_watch_schedule_sources,
     publish_watch_schedule_reports,
+)
+from .scheduled_maturity_bridge import (
+    read_maturity_schedule_config, audit_maturity_schedule_sources,
+    publish_scheduled_maturity_reports,
 )
 
 def active_cache_files(root: Path, *, kr_as_of: date | None = None,
@@ -336,7 +341,9 @@ def write_launch_agent(path: Path, *, python: Path, project: Path,
                        bootstrap_path: Path | None = None,
                        watch_research_config: Path | None = None,
                        watch_max_age_days: int = 7,
-                       watch_only: bool = False) -> Path:
+                       watch_only: bool = False,
+                       maturity_only: bool = False,
+                       ranked_maturity_config: Path | None = None) -> Path:
     """Generate a user-level launchd definition and SSD-safe home bootstrap.
 
     Does not install/load the agent. The stable home bootstrap can exit 0
@@ -346,13 +353,19 @@ def write_launch_agent(path: Path, *, python: Path, project: Path,
         raise ValueError("Invalid local schedule time")
     if type(watch_only) is not bool or (watch_only and watch_research_config is None):
         raise ValueError("WATCH-only launch agent requires explicit research config")
+    if (type(maturity_only) is not bool or
+        (maturity_only and (watch_only or watch_research_config is not None or
+                            ranked_maturity_config is None)) or
+        (ranked_maturity_config is not None and not maturity_only)):
+        raise ValueError("Maturity-only launch agent requires its own explicit KR/US config")
     script = project / "scripts" / "run_local_scheduled.py"
     if not script.is_file():
         raise FileNotFoundError(script)
     # launchd launches this small durable shell script from the home volume.
     # A missing external volume is not a fatal agent configuration error.
     helper = (Path(bootstrap_path) if bootstrap_path is not None else
-              Path.home() / "Library" / "Application Support" / "EraLeader" / "offline-launcher.sh")
+              Path.home() / "Library" / "Application Support" / "EraLeader" /
+              ("ranked-maturity-launcher.sh" if maturity_only else "offline-launcher.sh"))
     if helper.is_symlink() or helper.parent.is_symlink():
         raise ValueError("Symlink launcher paths are not allowed")
     helper.parent.mkdir(parents=True, exist_ok=True)
@@ -373,7 +386,16 @@ def write_launch_agent(path: Path, *, python: Path, project: Path,
             " --watch-research-config "+shlex.quote(str(watch_path))
             +" --watch-max-age-days "+str(watch_max_age_days)
         )
-    if watch_only:
+    if maturity_only:
+        maturity_path=Path(ranked_maturity_config)
+        if not maturity_path.is_absolute():
+            raise ValueError("Maturity-only config must be an absolute path")
+        read_maturity_schedule_config(maturity_path)
+        quoted_maturity=shlex.quote(str(maturity_path))
+        ready_gate=f"if [ ! -f {quoted_script} ] || [ ! -f {quoted_maturity} ]; then"
+        watch_options=(" --maturity-only --ranked-maturity-config "
+                       +quoted_maturity)
+    elif watch_only:
         quoted_watch = shlex.quote(str(Path(watch_research_config)))
         ready_gate=f"if [ ! -f {quoted_script} ] || [ ! -f {quoted_watch} ]; then"
         watch_options+=" --watch-only"
@@ -398,18 +420,152 @@ def write_launch_agent(path: Path, *, python: Path, project: Path,
     logs = Path.home() / "Library" / "Logs" / "EraLeader"
     logs.mkdir(parents=True, exist_ok=True)
     document = {
-        "Label": "org.eraleader.offline-research",
+        "Label": ("org.eraleader.ranked-maturity-research" if maturity_only
+                  else "org.eraleader.offline-research"),
         "ProgramArguments": ["/bin/sh", str(helper)],
         "StartInterval": 3600,
         "StartCalendarInterval": [{"Weekday": day, "Hour": hour, "Minute": minute}
                                   for day in range(2, 7)],
         "RunAtLoad": True,
         "WorkingDirectory": str(Path.home()),
-        "StandardOutPath": str(logs / "scheduled.log"),
-        "StandardErrorPath": str(logs / "scheduled_error.log"),
+        "StandardOutPath": str(logs / ("ranked_maturity.log" if maturity_only
+                                         else "scheduled.log")),
+        "StandardErrorPath": str(logs / ("ranked_maturity_error.log" if maturity_only
+                                          else "scheduled_error.log")),
         "EnvironmentVariables": {"PYTHONPATH": str(project / "src")},
         "ProcessType": "Background",
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(plistlib.dumps(document, sort_keys=True))
     return path
+
+
+def run_scheduled_maturity_only(
+    *, out: Path, control: Path, backups: Path,
+    ranked_maturity_config: Path, sample_limit: int = 100,
+) -> dict:
+    """Opt-in KR+US Top-K maturity briefs, regardless of old price/WATCH age.
+
+    Only local native first-write/frozen evidence is read. Never materialize
+    labels, run the normal price batch, install launchd or send notifications.
+    The verified checkpoint records the maturity state as well as the market
+    day, so a full-horizon transition on that SAME market day is not skipped.
+    """
+    if ranked_maturity_config is None:
+        raise ValueError("Maturity-only scheduling requires an explicit KR/US config")
+    if type(sample_limit) is not int or not 1<=sample_limit<=1000:
+        raise ValueError("Invalid maturity-only sample limit")
+    for path in (Path(out),Path(control),Path(backups)):
+        if path.is_symlink() or path.parent.is_symlink():
+            raise ValueError("Linked maturity-only scheduled output forbidden")
+    config=Path(ranked_maturity_config)
+    pinned=read_maturity_schedule_config(config)
+    config_hash=sha256(config.read_bytes()).hexdigest()
+    control.mkdir(parents=True,exist_ok=True)
+    with (control/"batch.lock").open("a+b") as lock:
+        try:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:
+            return {"status":"SKIPPED_ALREADY_RUNNING","messages_sent":0,
+                    "price_batch_runs":0}
+        first=audit_maturity_schedule_sources(
+            pinned,clock=datetime.now(timezone.utc),sample_limit=sample_limit,
+        )
+        fingerprint=first["maturity_market_fingerprints"]
+
+        def recheck():
+            # A mutated config or any original frozen/score/feature/WATCH
+            # source invalidates the checkpoint, including while skipping.
+            refreshed=read_maturity_schedule_config(config)
+            if sha256(config.read_bytes()).hexdigest()!=config_hash or refreshed!=pinned:
+                raise RuntimeError("Maturity-only source config revised during scheduled run")
+            now=audit_maturity_schedule_sources(
+                pinned,clock=datetime.now(timezone.utc),
+                sample_limit=sample_limit,
+            )
+            if now["maturity_market_fingerprints"]!=fingerprint:
+                raise RuntimeError("Native Top-K maturity source or deadline state revised during run")
+
+        marker=control/"last_verified_ranked_maturity_only.json"
+        if marker.is_symlink():
+            raise ValueError("Unsafe linked maturity checkpoint")
+        if marker.exists():
+            previous=json.loads(marker.read_text(encoding="utf-8"))
+            if (previous.get("ranked_maturity_config_sha256")==config_hash and
+                previous.get("ranked_maturity_fingerprints")==fingerprint and
+                previous.get("sample_limit")==sample_limit):
+                old_archive=Path(str(previous.get("archive") or ""))
+                if old_archive.is_file():
+                    try:
+                        verify_backup(old_archive)
+                    except (OSError,ValueError,BadZipFile):
+                        pass
+                    else:
+                        # Never claim an unchanged *published* report when
+                        # someone deleted the dashboard after the ZIP.
+                        expected=[
+                            Path(out)/f"ranked_maturity_{m.lower()}_research.json"
+                            for m in ("KR","US")
+                        ]
+                        expected += [
+                            Path(out)/"site"/f"ranked_maturity_{m.lower()}.html"
+                            for m in ("KR","US")
+                        ]
+                        expected += [
+                            Path(out)/folder/f"ranked_maturity_{period}_{m.lower()}.{ext}"
+                            for m in ("KR","US")
+                            for period in ("daily","weekly","monthly")
+                            for folder,ext in (("site","html"),("reports","md"))
+                        ]
+                        if all(p.is_file() and not p.is_symlink() for p in expected):
+                            recheck()
+                            return {
+                                "status":"SKIPPED_UNCHANGED_RANKED_MATURITY_EVIDENCE",
+                                "last_archive":str(old_archive),
+                                "messages_sent":0,"external_api_calls":0,
+                                "price_batch_runs":0,
+                                "official_leaders_confirmed":0,
+                            }
+        recheck()
+        pages=publish_scheduled_maturity_reports(first,Path(out))
+        if pages["ranked_maturity_report_pages"]!=16:
+            raise RuntimeError("Incomplete two-market daily/weekly/monthly maturity research briefs")
+        recheck()
+        backups.mkdir(parents=True,exist_ok=True)
+        archive=backups/(
+            "ranked_maturity_only_"+datetime.now(timezone.utc).strftime(
+                "%Y%m%dT%H%M%S%f")+"_"+uuid.uuid4().hex[:8]+".zip"
+        )
+        create_backup(Path(out),archive)
+        verified=verify_backup(archive)
+        if verified.get("status")!="LOCAL_BACKUP_VERIFIED":
+            raise RuntimeError("Scheduled maturity derived archive could not be verified")
+        recheck()
+        result={
+            "status":"RANKED_MATURITY_ONLY_RESEARCH_VERIFIED_BACKUP",
+            "run_finished_utc":datetime.now(timezone.utc).isoformat(),
+            "ranked_maturity_research_enabled":True,
+            "ranked_maturity_config_sha256":config_hash,
+            "ranked_maturity_fingerprints":fingerprint,
+            "ranked_market_run_ids":pages["ranked_market_run_ids"],
+            "ranked_maturity_report_pages":pages["ranked_maturity_report_pages"],
+            "sample_limit":sample_limit,
+            "archive":str(archive),
+            "watch_operating_report_pages":0,
+            "price_batch_runs":0,"messages_sent":0,"external_api_calls":0,
+            "official_leaders_confirmed":0,
+            "independent_market_pit_certified":False,
+            "actual_future_leader_skill_certified":False,
+            "outcome_labels_read":False,
+            "dry_run_only":True,
+        }
+        scratch=control/f".ranked_maturity_checkpoint_{uuid.uuid4().hex}.tmp"
+        try:
+            with scratch.open("x",encoding="utf-8") as stream:
+                json.dump(result,stream,ensure_ascii=False,sort_keys=True,indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(scratch,marker)
+        finally:
+            scratch.unlink(missing_ok=True)
+        return result

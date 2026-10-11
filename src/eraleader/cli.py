@@ -15,6 +15,7 @@ from .pit import LocalStore
 from .delivery import write_dashboard,make_report,write_integrated_dashboard,write_prospective_dashboard,write_evidence_gate_dashboard,write_watch_progression_dashboard
 from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
+from .pit_provider_readiness import audit_pit_provider_readiness
 from .offline_features import financial_snapshot
 from .peer_normalization import normalize_peer_file
 from .rank_feature_bridge import build_rank_feature_inputs
@@ -355,6 +356,21 @@ def execute_return_crosscheck(args) -> dict:
     return {"status":result["status"],"path":str(target),
             "intervals_outside_tolerance":result["intervals_outside_tolerance"],
             "historic_price_actions_pit_certified":False}
+
+def execute_pit_provider_readiness(args) -> dict:
+    result=audit_pit_provider_readiness(
+        Path(args.cache_root),evaluated_at=args.evaluated_at,
+        kr_ledger=Path(args.kr_ledger) if args.kr_ledger else None,
+        us_ledger=Path(args.us_ledger) if args.us_ledger else None,
+        max_price_age_days=args.max_price_age_days,
+    )
+    path=Path(args.out)/"pit_provider_readiness_research.json"
+    write_json(path,result)
+    return {"status":result["status"],"path":str(path),
+            "blocker_count":result["blocker_count"],
+            "official_leader_promotions":0,
+            "independent_pit_verified":False}
+
 
 def execute_source_vintage(args) -> dict:
     audit=audit_source_vintages(Path(args.manifest),decision_at=args.decision_at)
@@ -828,6 +844,14 @@ def main(argv=None):
     check.add_argument("--session-clock",help="Optional local pre-decision declared close-time manifest")
     check.add_argument("--exchange-calendar",help="Optional separate claimed calendar with per-session closes")
     check.add_argument("--out",default=str(OUT))
+    readiness=sub.add_parser("audit-pit-provider-readiness",
+                       help="Read real local KR/US price cache and offline PIT coverage without promoting leaders")
+    readiness.add_argument("--cache-root",default=str(LEGACY_DEFAULT))
+    readiness.add_argument("--kr-ledger",help="Optional existing KR PIT SQLite")
+    readiness.add_argument("--us-ledger",help="Optional existing US PIT SQLite")
+    readiness.add_argument("--evaluated-at",required=True)
+    readiness.add_argument("--max-price-age-days",type=int,default=7)
+    readiness.add_argument("--out",default=str(OUT))
     provenance=sub.add_parser("audit-source-vintage",help="Hash and as-of audit local source vintages without PIT certification")
     provenance.add_argument("--manifest",required=True,help="Local source_vintage_manifest_v1 JSON")
     provenance.add_argument("--decision-at",required=True,help="Timezone-aware as-of cutoff")
@@ -1086,6 +1110,7 @@ def main(argv=None):
         elif args.command=="audit-rotation-pair-sources":result=execute_rotation_pair_sources(args)
         elif args.command=="freeze-holdout":result=execute_freeze_holdout(args)
         elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
+        elif args.command=="audit-pit-provider-readiness":result=execute_pit_provider_readiness(args)
         elif args.command=="audit-source-vintage":result=execute_source_vintage(args)
         elif args.command in ("backup-local","verify-backup","restore-backup"):
             result=execute_backup(args)

@@ -19,6 +19,7 @@ KINDS = ("membership", "actions", "fundamentals", "industry")
 METRICS = ("revenue", "operating_income", "cashflow_operations", "capex",
            "net_income", "assets", "debt", "eps_estimate")
 EVENTS = ("split", "dividend", "delist", "merger", "ticker_change")
+PROVENANCES = ("synthetic_fixture", "external_public_file", "user_supplied")
 
 def iso_day(value: str) -> str:
     if not isinstance(value, str):
@@ -53,7 +54,16 @@ def normalize(kind: str, row: dict) -> dict:
             raise ValueError(f"Missing {key} for {kind}")
     if not isinstance(x["source_id"], str) or not x["source_id"].strip():
         raise ValueError("Missing source_id provenance")
-    x["revision"] = int(x["revision"])
+    revision = x["revision"]
+    # CSV rows contain decimal integer strings. Refuse float/boolean
+    # coercion: int(True) and int(1.9) silently create false PIT revisions.
+    if type(revision) is int:
+        pass
+    elif isinstance(revision,str) and revision.isdecimal():
+        revision = int(revision)
+    else:
+        raise ValueError("Revision must be a positive integer or decimal text")
+    x["revision"] = revision
     if x["revision"] < 1:
         raise ValueError("Revision must be positive")
     if kind == "membership":
@@ -120,6 +130,54 @@ def natural_key(kind: str, row: dict) -> str:
         base += [row["industry_id"], row["metric"], row["period_end"]]
     return "|".join(base + [str(row["revision"])])
 
+def _no_duplicate_keys(pairs: list[tuple[str,Any]]) -> dict:
+    result = {}
+    for key,value in pairs:
+        if key in result:
+            raise ValueError("duplicate stored PIT JSON key")
+        result[key] = value
+    return result
+
+
+def verify_stored_pit_record(
+    kind: str, record_key: str, available_at: str, source_id: str,
+    provenance: str, payload: str, fingerprint: str,
+) -> dict:
+    """Prove *internal* first-import integrity before any source can affect PIT.
+
+    It is not a proof that the supplied publisher or acquisition timestamp
+    is real. Cross-check each persisted index column against the original
+    immutable canonical payload instead of trusting rewritten SQLite cells.
+    """
+    if kind not in KINDS or provenance not in PROVENANCES:
+        raise ValueError("Invalid stored PIT kind or provenance")
+    if not isinstance(payload,str) or not isinstance(fingerprint,str):
+        raise ValueError("PIT source fingerprint/payload type invalid")
+    if sha256(payload.encode("utf-8")).hexdigest() != fingerprint:
+        raise ValueError("PIT source fingerprint integrity mismatch")
+    try:
+        decoded = json.loads(payload,object_pairs_hook=_no_duplicate_keys)
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError("Invalid stored PIT source JSON") from exc
+    if not isinstance(decoded,dict):
+        raise ValueError("Stored PIT source is not an object")
+    expected = json.dumps(decoded,sort_keys=True,ensure_ascii=False,separators=(",",":"))
+    if payload != expected:
+        raise ValueError("Stored PIT source payload is not canonical")
+    normalized=normalize(kind,decoded)
+    if decoded != normalized:
+        raise ValueError("Stored PIT source is not normalized")
+    if not isinstance(source_id,str) or source_id != normalized["source_id"]:
+        raise ValueError("Stored PIT source ID and payload identity mismatch")
+    if not isinstance(record_key,str) or record_key != natural_key(kind,normalized):
+        raise ValueError("Stored PIT natural record_key/identity mismatch")
+    timestamp = normalized.get("available_at",normalized.get("known_at"))
+    if not isinstance(available_at,str) or timestamp != available_at:
+        raise ValueError("Stored PIT availability timestamp mismatch")
+    decoded["provenance"]=provenance
+    return decoded
+
+
 class OfflineLedger:
     """Append-only PIT ledger. All operations local to the EraLeader SQLite file."""
     def __init__(self, path: Path):
@@ -152,7 +210,7 @@ class OfflineLedger:
     def _apply_rows(self, kind: str, rows: list[dict], provenance: str) -> dict:
         if kind not in KINDS:
             raise ValueError(f"Unknown offline record kind: {kind}")
-        if provenance not in ("synthetic_fixture", "external_public_file", "user_supplied"):
+        if provenance not in PROVENANCES:
             raise ValueError("Explicit provenance required")
         if not isinstance(rows, list):
             raise ValueError("rows must be a list")
@@ -224,12 +282,15 @@ class OfflineLedger:
         # (and can hide KR listings for New York callers). DST is zone-aware.
         market_zone = ZoneInfo("Asia/Seoul" if market == "KR" else "America/New_York")
         day = datetime.fromisoformat(cutoff).astimezone(market_zone).date().isoformat()
-        rows = self.db.execute("""SELECT kind,payload,provenance FROM offline_records
+        rows = self.db.execute("""SELECT kind,record_key,available_at,source_id,
+                     provenance,payload,fingerprint FROM offline_records
                  WHERE available_at<=? ORDER BY available_at,record_key""",(cutoff,)).fetchall()
         categories = {k:[] for k in KINDS}
-        for kind, value, p in rows:
-            r = json.loads(value)
-            r["provenance"] = p
+        for stored in rows:
+            kind=stored[0]
+            # Verify persisted content hash AND every indexed source/identity
+            # column BEFORE a record can enter a historical research snapshot.
+            r=verify_stored_pit_record(*stored)
             categories[kind].append(r)
         # Membership: latest *then-known* historical record per company.
         membership_latest: dict[str,dict] = {}

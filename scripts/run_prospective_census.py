@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+"""EraLeader 5_5 first-write Top-K cohort census (offline, no future outcome import)."""
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+import sys
+
+
+def main(argv=None) -> int:
+    parser=argparse.ArgumentParser(description="Local prospective Top-K cohort census")
+    subs=parser.add_subparsers(dest="command",required=True)
+    reg=subs.add_parser("register",help="First-write a prospective, pre-result census")
+    reg.add_argument("--spec",type=Path,required=True)
+    reg.add_argument("--registry-dir",type=Path,required=True)
+    reg.add_argument("--name",required=True,help="Unique census_*.json O_EXCL basename")
+    audit=subs.add_parser("audit",help="Audit ALL on-disk census registries, no subsets")
+    audit.add_argument("--registry-dir",type=Path,required=True)
+    audit.add_argument("--evaluated-at",required=True)
+    audit.add_argument("--out",type=Path,required=True,
+                       help="Derived directory for sanitized prospective_census_research.json")
+    args=parser.parse_args(argv)
+    sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
+    from eraleader.prospective_census import register_census, audit_all_registered_censuses
+    if args.command=="register":
+        result=register_census(args.spec,args.registry_dir,args.name)
+    else:
+        result=audit_all_registered_censuses(args.registry_dir,evaluated_at=args.evaluated_at)
+        dest=args.out/"prospective_census_research.json"
+        from eraleader.watch_operating_reports import _atomic_text
+        if args.out.is_symlink() or args.out.parent.is_symlink():
+            raise ValueError("Unsafe prospective census derived output directory")
+        _atomic_text(dest,json.dumps(result,sort_keys=True,ensure_ascii=False,indent=2)+"\n")
+    print(json.dumps(result,ensure_ascii=False,sort_keys=True,indent=2))
+    return 0
+
+
+if __name__=="__main__":
+    try:
+        raise SystemExit(main())
+    except (ValueError,OSError,RuntimeError,KeyError,TypeError) as error:
+        print("EraLeader prospective census error: "+str(error),file=sys.stderr)
+        raise SystemExit(2) from error

@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from html import escape
 from pathlib import Path
+from zipfile import ZipFile
 import json
 
 from .ranked_maturity import audit_ranked_maturity, STATUS as MATURITY_STATUS
@@ -23,6 +24,46 @@ KEYS={"freeze","definition_file","score_ledger","watch_ledger","features_dir"}
 MAX_CONFIG_BYTES=14000
 VERIFIED_STATUS="LOCAL_RANKED_MATURITY_INVENTORY_NOT_CERTIFIED"
 PERIOD_NAMES={"daily":"일간","weekly":"주간","monthly":"월간"}
+
+
+def published_maturity_pages_match_verified_backup(output:Path, archive:Path) -> bool:
+    """Compare all 16 live derived files with the already-verified ZIP hashes.
+
+    verify_backup() authenticates ZIP's *internal* integrity only. It says
+    nothing about later edits to a still-existing local web/JSON/MD file.
+    Return False and let the scheduler regenerate; never claim unchanged.
+    This is local integrity checking, NOT external source attestation.
+    """
+    root=Path(output)
+    zip_path=Path(archive)
+    if root.is_symlink() or zip_path.is_symlink():
+        return False
+    expected=set()
+    for market in ("kr","us"):
+        expected.add(f"ranked_maturity_{market}_research.json")
+        expected.add(f"site/ranked_maturity_{market}.html")
+        for period in PERIODS:
+            expected.add(f"reports/ranked_maturity_{period}_{market}.md")
+            expected.add(f"site/ranked_maturity_{period}_{market}.html")
+    if len(expected)!=16:
+        raise RuntimeError("Incomplete maturity derived inventory")
+    with ZipFile(zip_path) as saved:
+        manifest=json.loads(saved.read("MANIFEST.json"))
+        entries={item["path"]:item for item in manifest["files"]}
+        if not expected.issubset(entries):
+            return False
+        for relative in expected:
+            live=root/relative
+            if (live.is_symlink() or live.parent.is_symlink() or
+                not live.is_file() or live.stat().st_size!=entries[relative]["bytes"]):
+                return False
+            digest=sha256()
+            with live.open("rb") as source:
+                for chunk in iter(lambda: source.read(1024*1024), b""):
+                    digest.update(chunk)
+            if digest.hexdigest()!=entries[relative]["sha256"]:
+                return False
+    return True
 
 
 def read_maturity_schedule_config(file:Path) -> dict:

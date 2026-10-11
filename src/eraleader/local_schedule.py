@@ -28,6 +28,7 @@ from .scheduled_watch_bridge import (
 from .scheduled_maturity_bridge import (
     read_maturity_schedule_config, audit_maturity_schedule_sources,
     publish_scheduled_maturity_reports,
+    published_maturity_pages_match_verified_backup,
 )
 
 def active_cache_files(root: Path, *, kr_as_of: date | None = None,
@@ -495,37 +496,33 @@ def run_scheduled_maturity_only(
                 previous.get("ranked_maturity_fingerprints")==fingerprint and
                 previous.get("sample_limit")==sample_limit):
                 old_archive=Path(str(previous.get("archive") or ""))
-                if old_archive.is_file():
+                archive_dir=Path(backups)
+                # A locally edited checkpoint must not redirect trust to a
+                # valid but unrelated ZIP elsewhere on the filesystem.
+                eligible=(old_archive.parent==archive_dir and
+                          old_archive.name.startswith("ranked_maturity_only_") and
+                          old_archive.suffix==".zip" and
+                          not old_archive.is_symlink() and
+                          not archive_dir.is_symlink() and
+                          old_archive.is_file())
+                if eligible:
                     try:
                         verify_backup(old_archive)
-                    except (OSError,ValueError,BadZipFile):
-                        pass
-                    else:
-                        # Never claim an unchanged *published* report when
-                        # someone deleted the dashboard after the ZIP.
-                        expected=[
-                            Path(out)/f"ranked_maturity_{m.lower()}_research.json"
-                            for m in ("KR","US")
-                        ]
-                        expected += [
-                            Path(out)/"site"/f"ranked_maturity_{m.lower()}.html"
-                            for m in ("KR","US")
-                        ]
-                        expected += [
-                            Path(out)/folder/f"ranked_maturity_{period}_{m.lower()}.{ext}"
-                            for m in ("KR","US")
-                            for period in ("daily","weekly","monthly")
-                            for folder,ext in (("site","html"),("reports","md"))
-                        ]
-                        if all(p.is_file() and not p.is_symlink() for p in expected):
-                            recheck()
-                            return {
-                                "status":"SKIPPED_UNCHANGED_RANKED_MATURITY_EVIDENCE",
-                                "last_archive":str(old_archive),
-                                "messages_sent":0,"external_api_calls":0,
-                                "price_batch_runs":0,
-                                "official_leaders_confirmed":0,
-                            }
+                        current=published_maturity_pages_match_verified_backup(
+                            Path(out),old_archive)
+                    except (OSError,ValueError,BadZipFile,KeyError,TypeError):
+                        current=False
+                    if current:
+                        # Recheck first-registration/frozen source evidence
+                        # again, even on a proven unchanged publish.
+                        recheck()
+                        return {
+                            "status":"SKIPPED_UNCHANGED_RANKED_MATURITY_EVIDENCE",
+                            "last_archive":str(old_archive),
+                            "messages_sent":0,"external_api_calls":0,
+                            "price_batch_runs":0,
+                            "official_leaders_confirmed":0,
+                        }
         recheck()
         pages=publish_scheduled_maturity_reports(first,Path(out))
         if pages["ranked_maturity_report_pages"]!=16:

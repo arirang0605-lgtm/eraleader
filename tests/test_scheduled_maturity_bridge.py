@@ -391,3 +391,55 @@ def test_replaced_archive_page_triggers_retry_not_unverified_skip(tmp_path):
     assert Path(second["archive"]).is_file()
     assert (tmp_path/"derived"/"site"/"ranked_maturity_us.html").is_file()
     assert first["archive"]!=second["archive"]
+
+
+@pytest.mark.parametrize("relative_page", [
+    "site/ranked_maturity_us.html",
+    "site/ranked_maturity_monthly_kr.html",
+    "reports/ranked_maturity_weekly_us.md",
+    "ranked_maturity_kr_research.json",
+])
+def test_existing_report_tamper_forces_verified_republication(tmp_path, relative_page):
+    """An existing but altered report must never count as verified just by existence."""
+    config,_=make_config(tmp_path)
+    previous=run(tmp_path,config)
+    report=tmp_path/"derived"/relative_page
+    report.write_bytes(report.read_bytes()+b"\nFORGED_SUCCESS_100")
+    new=run(tmp_path,config)
+    assert new["status"]=="RANKED_MATURITY_ONLY_RESEARCH_VERIFIED_BACKUP"
+    assert new["archive"]!=previous["archive"]
+    assert b"FORGED_SUCCESS_100" not in report.read_bytes()
+    assert verify_backup(Path(new["archive"]))["status"]=="LOCAL_BACKUP_VERIFIED"
+
+
+def test_unchanged_evidence_cannot_reuse_unrelated_archive(tmp_path):
+    """A modified local checkpoint archive pointer cannot silently certify other backups."""
+    config,_=make_config(tmp_path)
+    first=run(tmp_path,config)
+    checkpoint_path=tmp_path/"control"/"last_verified_ranked_maturity_only.json"
+    previous=json.loads(checkpoint_path.read_text())
+    previous["archive"]=str(tmp_path/"unrelated"/"ranked_maturity_only_rogue.zip")
+    unrelated=Path(previous["archive"])
+    unrelated.parent.mkdir()
+    unrelated.write_bytes(Path(first["archive"]).read_bytes())
+    checkpoint_path.write_text(json.dumps(previous))
+    new=run(tmp_path,config)
+    assert new["status"]=="RANKED_MATURITY_ONLY_RESEARCH_VERIFIED_BACKUP"
+    assert new["archive"]!=str(unrelated)
+    assert Path(new["archive"]).parent==(tmp_path/"backups")
+
+
+def test_same_byte_length_edited_maturity_html_is_not_a_verified_report(tmp_path):
+    """Digest match is mandatory: file size and existence are insufficient."""
+    config,_=make_config(tmp_path)
+    initial=run(tmp_path,config)
+    page=tmp_path/"derived"/"site"/"ranked_maturity_daily_us.html"
+    before=page.read_bytes()
+    assert b"N/A" in before
+    page.write_bytes(before.replace(b"N/A",b"100",1))
+    assert len(page.read_bytes())==len(before)
+    after=run(tmp_path,config)
+    assert after["status"]=="RANKED_MATURITY_ONLY_RESEARCH_VERIFIED_BACKUP"
+    assert after["archive"]!=initial["archive"]
+    assert b"100" not in page.read_bytes()[:50]
+    assert verify_backup(Path(after["archive"]))["status"]=="LOCAL_BACKUP_VERIFIED"

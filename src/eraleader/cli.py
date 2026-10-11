@@ -46,6 +46,7 @@ from .evidence_gate import evaluate_local_evidence
 from .pit_coverage import reconcile_membership_to_prices
 from .prospective import ProspectiveRegistry
 from .watch_progression import audit_watch_progression
+from .watch_operating_reports import compile_watch_operating_report, write_watch_operating_reports
 from .watch_rotation import audit_watch_rotation
 from .peer_score_series import record_peer_score_series, audit_peer_score_advantage
 from .rotation_holdout import freeze_rotation_pairs, audit_rotation_pair_outcomes
@@ -541,6 +542,16 @@ def execute_evidence_gate(args) -> dict:
             "blocker_count":report["blocker_count"],
             "official_promotion_allowed":False}
 
+def execute_watch_operating_reports(args) -> dict:
+    brief=compile_watch_operating_report(
+        Path(args.watch_ledger),market=args.market,
+        model_version=args.model_version,evaluated_at=args.evaluated_at,
+        max_age_days=args.max_age_days,sample_limit=args.sample_limit,
+        score_ledger=Path(args.score_history) if args.score_history else None,
+        feature_root=Path(args.feature_root) if args.feature_root else None,
+    )
+    return write_watch_operating_reports(brief,Path(args.out))
+
 def execute_watch_progression(args) -> dict:
     result=audit_watch_progression(Path(args.ledger),market=args.market,
                                    model_version=args.model_version,
@@ -978,6 +989,17 @@ def main(argv=None):
     eg.add_argument("--decision-at",required=True)
     eg.add_argument("--input-root",required=True,help="Existing local derived audit JSON directory")
     eg.add_argument("--out",default=str(OUT))
+    wo=sub.add_parser("report-watch-operations",
+                      help="As-of daily/weekly/monthly research WATCH operating briefs; never official leaders")
+    wo.add_argument("--watch-ledger",required=True)
+    wo.add_argument("--market",choices=["KR","US"],required=True)
+    wo.add_argument("--model-version",required=True)
+    wo.add_argument("--evaluated-at",required=True,help="Timezone-aware as-of cutoff, not future")
+    wo.add_argument("--max-age-days",type=int,default=7)
+    wo.add_argument("--sample-limit",type=int,default=50)
+    wo.add_argument("--score-history",help="Optional existing peer-score SQLite; also requires --feature-root")
+    wo.add_argument("--feature-root",help="Optional local historical feature directory, never uploaded")
+    wo.add_argument("--out",default=str(OUT))
     wp=sub.add_parser("audit-watch-progression",help="Explicit research WATCH hits, weakness and re-entry, never official leaders")
     wp.add_argument("--ledger",required=True)
     wp.add_argument("--market",choices=["KR","US"],required=True)
@@ -1041,6 +1063,7 @@ def main(argv=None):
         elif args.command=="audit-cash-delist":result=execute_cash_delist(args)
         elif args.command=="audit-issuer-lineage":result=execute_issuer_lineage(args)
         elif args.command=="audit-evidence-gate":result=execute_evidence_gate(args)
+        elif args.command=="report-watch-operations":result=execute_watch_operating_reports(args)
         elif args.command=="audit-watch-progression":result=execute_watch_progression(args)
         elif args.command=="audit-watch-rotation":result=execute_watch_rotation(args)
         elif args.command=="record-peer-scores":result=execute_record_peer_scores(args)

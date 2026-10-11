@@ -216,6 +216,9 @@ def execute_integrated(args) -> dict:
     if any(supplied) and not all(supplied):
         raise ValueError("All four provider PIT flags are required together")
     pair=supplied if all(supplied) else None
+    show_quality=getattr(args,'show_provider_gate_quality',False)
+    if show_quality and pair is None:
+        raise ValueError('Provider gate quality view requires all four provider source inputs')
     strict_pins,original_sources=_original_pin_cli_options(args,prefix="provider_")
     if strict_pins and pair is None:
         raise ValueError("Strict original PIN research requires all four provider ledger/bundle inputs")
@@ -228,6 +231,7 @@ def execute_integrated(args) -> dict:
     source=(OfflineLedger.open_readonly(offline_path) if pair
             else OfflineLedger(offline_path))
     gate=None
+    quality_page=None
     try:
         offline=source.snapshot(args.as_of,market=args.market)
         price=json.loads(Path(args.price_json).read_text(encoding="utf-8")) if args.price_json else None
@@ -251,13 +255,21 @@ def execute_integrated(args) -> dict:
         # The gate is evaluated on actual source receipts and source rows, not
         # just a separately supplied self-declared summary report.
         write_json(gate_file,gate)
+        if show_quality:
+            # Never render a self-declared report file; use the just-audited
+            # in-memory candidate/source result, also for a blocked WATCH.
+            from .provider_gate_quality_view import write_provider_gate_quality
+            quality_page=write_provider_gate_quality(gate,Path(args.out)/'site')
         if not gate["research_watch_allowed"]:
-            return {"status":"BLOCKED_PROVIDER_PIT_CANDIDATE_RESEARCH",
+            blocked={"status":"BLOCKED_PROVIDER_PIT_CANDIDATE_RESEARCH",
                     "gate_path":str(gate_file),
                     "blocker_counts":gate["blocker_counts"],
                     "new_prospective_research_signals":0,
                     "official_leaders":0,"pit_certified":False,
                     "provider_research_watch_allowed":False}
+            if quality_page is not None:
+                blocked['provider_quality_dashboard']=str(quality_page)
+            return blocked
         # Existing rank/WATCH source_run_id must remain immutable when the
         # provenance pair changes even if offline candidate numbers do not.
         result["provider_pair_gate"]=gate
@@ -273,7 +285,8 @@ def execute_integrated(args) -> dict:
             raise ValueError("Existing immutable run differs from candidate")
     else:
         write_json(target,result)
-    page=write_integrated_dashboard(result,Path(args.out)/'site')
+    page=write_integrated_dashboard(result,Path(args.out)/'site',
+                                    show_provider_quality=quality_page is not None)
     ledger=StateHistory(Path(args.out)/'state_history.sqlite')
     try:
         observations=[{"security_id":row["security_id"],"components":{},
@@ -292,7 +305,7 @@ def execute_integrated(args) -> dict:
     finally:
         registry.close()
     prospective_page=write_prospective_dashboard(prospective_report,Path(args.out)/"site")
-    return {"status":"OFFLINE_INTEGRATION_RESEARCH_ONLY",
+    response={"status":"OFFLINE_INTEGRATION_RESEARCH_ONLY",
             "prospective_dashboard":str(prospective_page),
             "state_events":len(tracked["new_state_events"]),"dashboard":str(page),
             "new_prospective_research_signals":registration["new_records"],
@@ -301,6 +314,9 @@ def execute_integrated(args) -> dict:
             "deferred_research_screens":result["research_screen_deferred_count"],
             "official_leaders":0,"pit_certified":False,
             "provider_research_watch_allowed": bool(gate and gate["research_watch_allowed"])}
+    if quality_page is not None:
+        response['provider_quality_dashboard']=str(quality_page)
+    return response
 
 def execute_validation(args) -> dict:
     signals=json.loads(Path(args.signals).read_text(encoding="utf-8"))
@@ -1007,6 +1023,8 @@ def main(argv=None):
                       help='Additional local pre-WATCH legal issuer/stock class crosscheck; strict original PINs required')
     join.add_argument('--provider-issuer-lineage',
                       help='Separate local declared issuer lineage JSON; never official PIT certification')
+    join.add_argument('--show-provider-gate-quality',action='store_true',
+                      help='Opt-in local HTML quality view even when WATCH is blocked; requires two providers')
     for suffix in ('staged-manifest-a','normalized-manifest-a',
                    'staged-manifest-b','normalized-manifest-b'):
         join.add_argument('--provider-'+suffix,help='One of four original PIN source manifest paths')

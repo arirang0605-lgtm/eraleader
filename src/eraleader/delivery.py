@@ -94,7 +94,7 @@ def make_report(snapshot: dict, period: str, target: Path) -> Path:
     return target
 
 
-def render_integrated_dashboard(result: dict) -> str:
+def render_integrated_dashboard(result: dict, *, show_provider_quality: bool = False) -> str:
     """Show PIT research with unmissable provenance and missing-value warnings."""
     from html import escape as esc
     if result.get("confirmed_leaders",0) or result.get("potential_leaders",0):
@@ -112,12 +112,14 @@ def render_integrated_dashboard(result: dict) -> str:
             item["momentum_6m"],item["state"],
             ",".join(item["missing_factors"]+item.get("quality_flags",[]))))+"</tr>")
     trusted="검증 완료" if result.get("pit_certified") else "미검증 / 관찰·연구용"
+    quality_nav=(f'<a href="provider_quality_{result["market"].lower()}.html" style="color:white">원천 검증 품질·보류 사유</a>'
+                 if show_provider_quality and result.get('market') in ('KR','US') else '')
     quality=esc(", ".join(result.get("quality",{}).get("provenances",[])) or "원천 미상")
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>EraLeader 시점별 통합 분석</title><style>{BASE_CSS}</style></head><body>
 <header><h1>EraLeader · 산업·실적·가격 통합 연구</h1>
-<a href="index.html" style="color:white">처음으로</a></header><main>
+<a href="index.html" style="color:white">처음으로</a> {quality_nav}</header><main>
 <h2>기준시각: {esc(result["as_of"])} · {esc(result["market"])}</h2>
 <div class="note"><strong>연구용: {trusted}</strong><br>
 합성 자료 또는 불완전한 과거 원본이면 대장주 승격 금지.
@@ -135,10 +137,10 @@ def render_integrated_dashboard(result: dict) -> str:
 <p><small>완전한 과거 시점 데이터·미래 발굴 성능 인증 전 투자 추천 아님.</small></p>
 </main></body></html>"""
 
-def write_integrated_dashboard(result: dict, site_dir: Path) -> Path:
+def write_integrated_dashboard(result: dict, site_dir: Path, *, show_provider_quality: bool = False) -> Path:
     site_dir.mkdir(parents=True,exist_ok=True)
     path=site_dir/f"research_{result['market'].lower()}.html"
-    path.write_text(render_integrated_dashboard(result),encoding="utf-8")
+    path.write_text(render_integrated_dashboard(result,show_provider_quality=show_provider_quality),encoding="utf-8")
     return path
 
 def render_prospective_dashboard(report: dict) -> str:

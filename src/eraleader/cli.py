@@ -17,6 +17,7 @@ from .backtest import delayed_momentum_baseline
 from .offline_pit import OfflineLedger
 from .pit_provider_readiness import audit_pit_provider_readiness
 from .provider_pit_adapter import import_provider_bundle, audit_registered_provider_asof
+from .provider_export_normalizer import normalize_provider_export
 from .offline_features import financial_snapshot
 from .peer_normalization import normalize_peer_file
 from .rank_feature_bridge import build_rank_feature_inputs
@@ -357,6 +358,16 @@ def execute_return_crosscheck(args) -> dict:
     return {"status":result["status"],"path":str(target),
             "intervals_outside_tolerance":result["intervals_outside_tolerance"],
             "historic_price_actions_pit_certified":False}
+
+def execute_normalize_provider_export(args) -> dict:
+    report=normalize_provider_export(Path(args.manifest),Path(args.stage_dir))
+    dest=Path(args.out)/"provider_stage_normalization_research.json"
+    write_json(dest,report)
+    return {"status":report["status"],"path":str(dest),
+            "normalized_manifest":report["normalized_manifest"],
+            "normalized_row_count":report["normalized_row_count"],
+            "historic_pit_certified":False,"official_leader_promotions":0}
+
 
 def execute_provider_pit_import(args) -> dict:
     audit=import_provider_bundle(Path(args.manifest),Path(args.ledger))
@@ -869,6 +880,11 @@ def main(argv=None):
     check.add_argument("--session-clock",help="Optional local pre-decision declared close-time manifest")
     check.add_argument("--exchange-calendar",help="Optional separate claimed calendar with per-session closes")
     check.add_argument("--out",default=str(OUT))
+    pe=sub.add_parser("normalize-provider-export",
+                      help="Offline staged KRX/DART or SEC/exchange declared exports into provider-neutral JSONL")
+    pe.add_argument("--manifest",required=True,help="Raw staged export SHA/record-count manifest")
+    pe.add_argument("--stage-dir",required=True,help="NEW empty path for generated normalized bundle")
+    pe.add_argument("--out",default=str(OUT),help="Derived summary only; original/staged JSONL stay local")
     pi=sub.add_parser("import-provider-pit",
                       help="Opt-in atomic, first-clock receipt import for normalized offline source JSONL")
     pi.add_argument("--manifest",required=True,
@@ -1147,6 +1163,7 @@ def main(argv=None):
         elif args.command=="audit-rotation-pair-sources":result=execute_rotation_pair_sources(args)
         elif args.command=="freeze-holdout":result=execute_freeze_holdout(args)
         elif args.command=="evaluate-holdout":result=execute_evaluate_holdout(args)
+        elif args.command=="normalize-provider-export":result=execute_normalize_provider_export(args)
         elif args.command=="import-provider-pit":result=execute_provider_pit_import(args)
         elif args.command=="audit-provider-pit-asof":result=execute_provider_pit_asof(args)
         elif args.command=="audit-pit-provider-readiness":result=execute_pit_provider_readiness(args)

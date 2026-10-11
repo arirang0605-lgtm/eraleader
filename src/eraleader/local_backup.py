@@ -44,7 +44,8 @@ JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "rotation_pair_source_claims_research.json",
             "watch_operating_kr_research.json","watch_operating_us_research.json",
             "pit_provider_readiness_research.json",
-            "provider_pit_import_research.json","provider_pit_asof_research.json"}
+            "provider_pit_import_research.json","provider_pit_asof_research.json",
+            "provider_stage_normalization_research.json"}
 FOLDERS={"site":{".html"},"reports":{".md"},"runs":{".json"}}
 MAX_FILES=400
 MAX_FILE_BYTES=40*1024*1024

@@ -20,6 +20,10 @@ import uuid
 from .data import LEGACY_DEFAULT
 from .batch import execute_local_batch
 from .local_backup import create_backup, verify_backup
+from .scheduled_watch_bridge import (
+    read_watch_schedule_config, audit_watch_schedule_sources,
+    publish_watch_schedule_reports,
+)
 
 def active_cache_files(root: Path, *, kr_as_of: date | None = None,
                        lookback_days: int = 550) -> dict[str, Path]:
@@ -69,7 +73,9 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
                   control: Path, backups: Path, today: date | None = None,
                   max_age_days: int = 10, allow_stale_research: bool = False,
                   sessions: dict[str, date] | None = None,
-                  input_fingerprints: dict[str, str] | None = None) -> dict:
+                  input_fingerprints: dict[str, str] | None = None,
+                  watch_research_config: Path | None = None,
+                  watch_max_age_days: int = 7) -> dict:
     """Run at most once per cache vintage, retry on failure, verify backup.
 
     All paths are local. A process lock is held across analysis and backup.
@@ -111,11 +117,44 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
                     any(c not in "0123456789abcdef" for c in v)
                     for v in fingerprints.values())):
             raise ValueError("KR/US immutable SHA256 source fingerprints required")
+        # Entirely optional: existing price-only scheduled research is
+        # unchanged without an explicit local WATCH config file.
+        watch_sources = watch_preflight = watch_fingerprint = watch_config_digest = None
+        if watch_research_config is not None:
+            watch_sources = read_watch_schedule_config(Path(watch_research_config))
+            watch_config_digest = sha256(Path(watch_research_config).read_bytes()).hexdigest()
+            watch_preflight = audit_watch_schedule_sources(
+                watch_sources,clock=datetime.now(timezone.utc),
+                max_age_days=watch_max_age_days,
+            )
+            if not watch_preflight["all_markets_recent"]:
+                return {
+                    "status":"SKIPPED_WATCH_RESEARCH_NOT_CURRENT",
+                    "observations":dates,
+                    "watch_freshness_status":watch_preflight["watch_freshness_status"],
+                    "no_live_notifications":True,
+                    "official_leaders_confirmed":0,
+                }
+            watch_fingerprint = watch_preflight["watch_research_sha256"]
+        def check_watch_still_stable():
+            if watch_sources is None:
+                return
+            check = audit_watch_schedule_sources(
+                watch_sources,clock=datetime.now(timezone.utc),
+                max_age_days=watch_max_age_days,
+            )
+            if (not check["all_markets_recent"] or
+                    check["watch_research_sha256"] != watch_fingerprint or
+                    sha256(Path(watch_research_config).read_bytes()).hexdigest()
+                        != watch_config_digest):
+                raise RuntimeError("WATCH source revised during scheduled run")
         marker = control / "last_verified_batch.json"
         if marker.exists():
             previous = json.loads(marker.read_text(encoding="utf-8"))
             if (previous.get("observations") == dates and
-                    previous.get("cache_sha256") == fingerprints):
+                    previous.get("cache_sha256") == fingerprints and
+                    previous.get("watch_research_sha256") == watch_fingerprint and
+                    previous.get("watch_research_config_sha256") == watch_config_digest):
                 prior_archive = Path(str(previous.get("archive") or ""))
                 # A successful analysis without a surviving *verified* backup
                 # is not a complete scheduled cycle. Re-run and repair.
@@ -125,6 +164,7 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
                     except (OSError, ValueError):
                         pass
                     else:
+                        check_watch_still_stable()
                         return {"status": "SKIPPED_UNCHANGED_CACHE", "observations": dates,
                                 "last_archive": str(prior_archive)}
         result = execute_local_batch(Namespace(
@@ -132,6 +172,14 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
             legacy=str(legacy), out=str(out)))
         if result.get("market_count") != 2 or result.get("reports_created") != 6:
             raise RuntimeError("Incomplete KR/US batch")
+        # A price-only cache vintage can remain unchanged while the WATCH
+        # source changes. Preflight both markets AGAIN before publication.
+        check_watch_still_stable()
+        watch_pages = None
+        if watch_preflight is not None:
+            watch_pages=publish_watch_schedule_reports(watch_preflight,Path(out))
+            if watch_pages["research_report_pages"]!=14:
+                raise RuntimeError("Incomplete KR/US scheduled WATCH reports")
         # A file revision DURING a long analysis may mix two cache vintages.
         # Do not create a trusted checkpoint/backup in that case.
         if live_files and (latest_cached_sessions(legacy) != seen or
@@ -141,6 +189,8 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
         archive = backups / f"eraleader_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}_{uuid.uuid4().hex[:8]}.zip"
         create_backup(out, archive)
         verify_backup(archive)
+        # The source must still be stable after creating/verifying the ZIP.
+        check_watch_still_stable()
         # A correction during ZIP creation must not be marked as a stable
         # source vintage either. The archive may remain for investigation,
         # but the successful checkpoint is never advanced.
@@ -154,6 +204,13 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
             "source_files_verified_during_run": live_files,
             "run_finished_utc": datetime.now(timezone.utc).isoformat(),
             "archive": str(archive), "dry_run_only": True,
+            "watch_research_enabled":watch_research_config is not None,
+            "watch_research_config_sha256":watch_config_digest,
+            "watch_research_sha256":watch_fingerprint,
+            "watch_operating_report_pages":(
+                watch_pages["research_report_pages"] if watch_pages else 0),
+            "watch_market_run_ids":(
+                watch_pages["watch_market_run_ids"] if watch_pages else None),
             "used_stale_override": allow_stale_research and any(v > max_age_days for v in age.values()),
             "external_api_calls": 0, "messages_sent": 0,
         }
@@ -165,9 +222,121 @@ def run_scheduled(*, legacy: Path = LEGACY_DEFAULT, out: Path,
             tmp.unlink(missing_ok=True)
         return record
 
+def run_scheduled_watch_only(*, out: Path, control: Path, backups: Path,
+                             watch_research_config: Path,
+                             watch_max_age_days: int = 7) -> dict:
+    """Independent local WATCH research when cached prices are old or absent.
+
+    Reuses the existing scheduler lock but NEVER invokes the price backtest
+    batch, price cache, an actual scheduler installation or external messages.
+    The WATCH-only checkpoint is distinct from last_verified_batch.json.
+    """
+    if watch_research_config is None:
+        raise ValueError("WATCH-only operation requires explicit local config")
+    path=Path(watch_research_config)
+    if out.is_symlink() or out.parent.is_symlink():
+        raise ValueError("Symlink WATCH-only report target not allowed")
+    config=read_watch_schedule_config(path)
+    config_hash=sha256(path.read_bytes()).hexdigest()
+    control.mkdir(parents=True,exist_ok=True)
+    with (control/"batch.lock").open("a+b") as lock:
+        try:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:
+            return {"status":"SKIPPED_ALREADY_RUNNING","messages_sent":0}
+        first=audit_watch_schedule_sources(
+            config,clock=datetime.now(timezone.utc),
+            max_age_days=watch_max_age_days,
+        )
+        if not first["all_markets_recent"]:
+            return {
+                "status":"SKIPPED_WATCH_RESEARCH_NOT_CURRENT",
+                "watch_freshness_status":first["watch_freshness_status"],
+                "price_batch_runs":0,
+                "messages_sent":0,
+                "official_leaders_confirmed":0,
+            }
+        fingerprints=first["watch_research_sha256"]
+        def check_stable():
+            read_watch_schedule_config(path)
+            if sha256(path.read_bytes()).hexdigest()!=config_hash:
+                raise RuntimeError("WATCH-only config revised during scheduled run")
+            later=audit_watch_schedule_sources(
+                config,clock=datetime.now(timezone.utc),
+                max_age_days=watch_max_age_days,
+            )
+            if (not later["all_markets_recent"] or
+                    later["watch_research_sha256"]!=fingerprints):
+                raise RuntimeError("WATCH source revised during scheduled run")
+
+        marker=control/"last_verified_watch_only.json"
+        if marker.exists():
+            previous=json.loads(marker.read_text(encoding="utf-8"))
+            if (previous.get("watch_research_config_sha256")==config_hash and
+                    previous.get("watch_research_sha256")==fingerprints):
+                arch=Path(str(previous.get("archive") or ""))
+                if arch.is_file():
+                    try:
+                        verify_backup(arch)
+                    except (ValueError,OSError):
+                        pass
+                    else:
+                        check_stable()
+                        return {
+                            "status":"SKIPPED_UNCHANGED_WATCH_EVIDENCE",
+                            "watch_freshness_status":first["watch_freshness_status"],
+                            "last_archive":str(arch),
+                            "messages_sent":0,
+                            "price_batch_runs":0,
+                        }
+        check_stable()
+        pages=publish_watch_schedule_reports(first,Path(out))
+        if pages["research_report_pages"]!=14:
+            raise RuntimeError("WATCH-only KR/US research report incomplete")
+        check_stable()
+        backups.mkdir(parents=True,exist_ok=True)
+        archive=backups/f"watch_only_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}_{uuid.uuid4().hex[:8]}.zip"
+        create_backup(Path(out),archive)
+        verified=verify_backup(archive)
+        if verified.get("status")!="LOCAL_BACKUP_VERIFIED":
+            raise RuntimeError("WATCH-only source report backup not fully verified")
+        check_stable()
+        result={
+            "status":"WATCH_ONLY_RESEARCH_VERIFIED_BACKUP",
+            "run_finished_utc":datetime.now(timezone.utc).isoformat(),
+            "watch_research_enabled":True,
+            "watch_research_config_sha256":config_hash,
+            "watch_research_sha256":fingerprints,
+            "watch_market_run_ids":pages["watch_market_run_ids"],
+            "watch_operating_report_pages":pages["research_report_pages"],
+            "watch_freshness_status":first["watch_freshness_status"],
+            "archive":str(archive),
+            "price_batch_runs":0,
+            "messages_sent":0,
+            "external_api_calls":0,
+            "official_leaders_confirmed":0,
+            "dry_run_only":True,
+            "independent_market_pit_certified":False,
+            "real_leader_prediction_certified":False,
+        }
+        temp=control/f".watch_checkpoint_{uuid.uuid4().hex}.tmp"
+        try:
+            with temp.open("x",encoding="utf-8") as output:
+                json.dump(result,output,ensure_ascii=False,sort_keys=True,indent=2)
+                output.flush()
+                os.fsync(output.fileno())
+            os.replace(temp,marker)
+        finally:
+            temp.unlink(missing_ok=True)
+        return result
+
+
 def write_launch_agent(path: Path, *, python: Path, project: Path,
                        hour: int = 18, minute: int = 10,
-                       bootstrap_path: Path | None = None) -> Path:
+                       bootstrap_path: Path | None = None,
+                       watch_research_config: Path | None = None,
+                       watch_max_age_days: int = 7,
+                       watch_only: bool = False) -> Path:
     """Generate a user-level launchd definition and SSD-safe home bootstrap.
 
     Does not install/load the agent. The stable home bootstrap can exit 0
@@ -175,6 +344,8 @@ def write_launch_agent(path: Path, *, python: Path, project: Path,
     """
     if not (0 <= hour <= 23 and 0 <= minute <= 59):
         raise ValueError("Invalid local schedule time")
+    if type(watch_only) is not bool or (watch_only and watch_research_config is None):
+        raise ValueError("WATCH-only launch agent requires explicit research config")
     script = project / "scripts" / "run_local_scheduled.py"
     if not script.is_file():
         raise FileNotFoundError(script)
@@ -190,13 +361,31 @@ def write_launch_agent(path: Path, *, python: Path, project: Path,
     quoted_project = shlex.quote(str(project))
     quoted_python = shlex.quote(str(python))
     quoted_cache = shlex.quote(str(LEGACY_DEFAULT))
+    watch_options=""
+    if watch_research_config is not None:
+        watch_path=Path(watch_research_config)
+        if not watch_path.is_absolute():
+            raise ValueError("Scheduled WATCH config must use an absolute path")
+        read_watch_schedule_config(watch_path)
+        if type(watch_max_age_days) is not int or not 0<=watch_max_age_days<=365:
+            raise ValueError("Invalid WATCH research freshness day limit")
+        watch_options=(
+            " --watch-research-config "+shlex.quote(str(watch_path))
+            +" --watch-max-age-days "+str(watch_max_age_days)
+        )
+    if watch_only:
+        quoted_watch = shlex.quote(str(Path(watch_research_config)))
+        ready_gate=f"if [ ! -f {quoted_script} ] || [ ! -f {quoted_watch} ]; then"
+        watch_options+=" --watch-only"
+    else:
+        ready_gate=f"if [ ! -f {quoted_script} ] || [ ! -d {quoted_cache} ]; then"
     bootstrap = chr(10).join([
         "#!/bin/sh",
-        f"if [ ! -f {quoted_script} ] || [ ! -d {quoted_cache} ]; then",
+        ready_gate,
         f"  echo {unavailable}",
         "  exit 0",
         "fi",
-        f"exec {quoted_python} {quoted_script} --project {quoted_project}",
+        f"exec {quoted_python} {quoted_script} --project {quoted_project}{watch_options}",
         ""
     ])
     temp = helper.with_name(f".{helper.name}.{uuid.uuid4().hex}.tmp")

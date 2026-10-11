@@ -18,7 +18,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 DB_NAMES={"state.sqlite","offline.sqlite","state_history.sqlite","prospective.sqlite",
           "peer_scores.sqlite","dry_run_alerts.sqlite",
-          "provider_quality_history.sqlite"}
+          "provider_quality_history.sqlite","provider_quality_watchdog.sqlite"}
 JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "baseline_research.json","alerts_preview.json","dry_run_alerts_research.json",
             "validation_research.json","walkforward_research.json",
@@ -56,7 +56,9 @@ JSON_NAMES={"kr_latest.json","us_latest.json","batch_manifest.json",
             "issuer_class_corroboration_research.json",
             "provider_quality_history_genesis.json",
             "provider_quality_history_kr_research.json",
-            "provider_quality_history_us_research.json"}
+            "provider_quality_history_us_research.json",
+            "provider_quality_watchdog_genesis.json",
+            "provider_quality_alerts_research.json"}
 FOLDERS={"site":{".html"},"reports":{".md"},"runs":{".json"}}
 MAX_FILES=400
 MAX_FILE_BYTES=40*1024*1024

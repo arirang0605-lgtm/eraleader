@@ -26,6 +26,8 @@ def main(argv=None):
                         help="Rows displayed, not the frozen Top-K denominator")
     parser.add_argument("--local-outbox-dry-run", action="store_true",
                         help="Opt-in after-run local evidence incidents; NEVER transmit or install")
+    parser.add_argument("--provider-quality-dry-run", action="store_true",
+                        help="Opt-in SHA/quality weakening watchdog; local preview only, never sent")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -49,39 +51,65 @@ def main(argv=None):
         raise ValueError("Maturity-only must not silently use unrelated WATCH-only config")
     if args.maturity_only and args.allow_stale_research:
         raise ValueError("Maturity-only never enables stale price-cache overrides")
-    if args.generate_plist and args.local_outbox_dry_run:
-        raise ValueError("Local outbox dry-run is not supported with --generate-plist")
+    if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run):
+        raise ValueError("Local outbox/quality dry-run is not supported with --generate-plist")
 
     def run_and_audit(job):
-        # Existing scheduler behavior is untouched unless explicitly opted in.
-        if not args.local_outbox_dry_run:
+        # Both dry-run observers are strictly opt-in and never schedule delivery.
+        if not (args.local_outbox_dry_run or args.provider_quality_dry_run):
             return job()
         from eraleader.local_failure_outbox import run_local_failure_outbox
+        from eraleader.provider_quality_watchdog import run_provider_quality_watchdog
+
+        def observers():
+            found = {}
+            if args.local_outbox_dry_run:
+                result = run_local_failure_outbox(project)
+                if (not isinstance(result, dict)
+                        or result.get("status") != "LOCAL_DRY_RUN_ALERTS_VERIFIED_BACKUP"
+                        or result.get("messages_sent") != 0
+                        or result.get("external_api_calls") != 0
+                        or result.get("official_leaders_confirmed") != 0
+                        or result.get("actual_future_leader_skill_certified") is not False
+                        or result.get("local_artifacts_only") is not True):
+                    raise RuntimeError("Local dry-run outbox verification unsafe or skipped")
+                found["local_failure_outbox"] = result
+            if args.provider_quality_dry_run:
+                result = run_provider_quality_watchdog(project)
+                if (not isinstance(result, dict)
+                        or result.get("status") != "LOCAL_PROVIDER_QUALITY_DRY_RUN_VERIFIED_BACKUP"
+                        or result.get("messages_sent") != 0
+                        or result.get("external_api_calls") != 0
+                        or result.get("official_leaders_confirmed") != 0
+                        or result.get("actual_future_leader_skill_certified") is not False
+                        or result.get("local_artifacts_only") is not True):
+                    raise RuntimeError("Local quality dry-run verification unsafe or skipped")
+                found["provider_quality_watchdog"] = result
+            return found
+
         try:
             scheduled = job()
         except Exception as primary_error:
-            # Read existing checkpoints even after a schedule exception, but
-            # never turn an unverified outbox result into scheduler success.
-            try:
-                run_local_failure_outbox(project)
-            except Exception as audit_error:
-                primary_error.add_note(f"Local outbox audit also failed: {audit_error}")
+            # Even if the main research schedule is blocked by stale caches,
+            # record local quality anomalies without masking that failure.
+            if args.local_outbox_dry_run:
+                try:
+                    run_local_failure_outbox(project)
+                except Exception as audit_error:
+                    primary_error.add_note(f"Local outbox audit also failed: {audit_error}")
+            if args.provider_quality_dry_run:
+                try:
+                    run_provider_quality_watchdog(project)
+                except Exception as audit_error:
+                    primary_error.add_note(f"Quality watchdog audit also failed: {audit_error}")
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"
                 or scheduled.get("messages_sent", 0) != 0
                 or scheduled.get("external_api_calls", 0) != 0):
             raise RuntimeError("Unsafe or concurrent scheduler result for local dry-run audit")
-        audit = run_local_failure_outbox(project)
-        if (not isinstance(audit, dict)
-                or audit.get("status") != "LOCAL_DRY_RUN_ALERTS_VERIFIED_BACKUP"
-                or audit.get("messages_sent") != 0
-                or audit.get("external_api_calls") != 0
-                or audit.get("official_leaders_confirmed") != 0
-                or audit.get("actual_future_leader_skill_certified") is not False
-                or audit.get("local_artifacts_only") is not True):
-            raise RuntimeError("Local dry-run outbox verification unsafe or skipped")
-        return {"schedule": scheduled, "local_failure_outbox": audit,
+        results = observers()
+        return {"schedule": scheduled, **results,
                 "messages_sent": 0, "external_api_calls": 0,
                 "official_leaders_confirmed": 0,
                 "actual_future_leader_skill_certified": False}

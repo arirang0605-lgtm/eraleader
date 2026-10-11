@@ -39,6 +39,8 @@ from .holdout_maturity import audit_holdout_maturity
 from .holdout_outcome_reconcile import reconcile_holdout_outcomes
 from .outcome_source_claims import audit_outcome_source_claims
 from .ranked_outcome_receipts import audit_ranked_outcome_receipts
+from .ranked_maturity import audit_ranked_maturity
+from .delivery import render_ranked_maturity_dashboard, write_ranked_maturity_dashboard
 from .pit_chain import audit_pit_to_outcome_chain
 from .ranked_registry import audit_ranked_watch_registry
 from .rank_score_ledger import register_rank_scores, audit_frozen_rank_scores
@@ -426,6 +428,30 @@ def execute_return_crosscheck(args) -> dict:
     return {"status":result["status"],"path":str(target),
             "intervals_outside_tolerance":result["intervals_outside_tolerance"],
             "historic_price_actions_pit_certified":False}
+
+def execute_ranked_maturity(args) -> dict:
+    research=audit_ranked_maturity(
+        Path(args.freeze),Path(args.definition_file),
+        Path(args.score_ledger),Path(args.watch_ledger),Path(args.features_dir),
+        as_of=args.as_of,sample_limit=args.sample_limit,
+    )
+    # Revalidate presentation claims before writing either derived artifact.
+    render_ranked_maturity_dashboard(research)
+    target=Path(args.out)
+    path=target/f"ranked_maturity_{research['market'].lower()}_research.json"
+    write_json(path,research)
+    html=write_ranked_maturity_dashboard(research,target/"site")
+    return {
+        "status":research["status"],"path":str(path),"dashboard":str(html),
+        "selected_top_k_count":research["selected_top_k_count"],
+        "full_horizon_pending_count":research["full_horizon_pending_count"],
+        "full_horizon_elapsed_count":research["full_horizon_elapsed_count"],
+        "awaiting_mature_outcome_evidence_count":research[
+            "awaiting_mature_outcome_evidence_count"],
+        "actual_future_leader_skill_certified":False,
+        "official_leader_promotions":0,
+    }
+
 
 def execute_ranked_outcome_receipts(args) -> dict:
     outcome=audit_ranked_outcome_receipts(
@@ -1140,6 +1166,16 @@ def main(argv=None):
     chain.add_argument("--outcomes",help="Optional separate outcome label JSON")
     chain.add_argument("--receipt-manifest",help="Required together with --outcomes")
     chain.add_argument("--out",default=str(OUT))
+    rank_maturity=sub.add_parser("report-ranked-maturity",
+                      help="Read-only maturity inventory for first-written native Top-K; no future labels")
+    rank_maturity.add_argument("--freeze",required=True)
+    rank_maturity.add_argument("--definition-file",required=True)
+    rank_maturity.add_argument("--score-ledger",required=True)
+    rank_maturity.add_argument("--watch-ledger",required=True)
+    rank_maturity.add_argument("--features-dir",required=True)
+    rank_maturity.add_argument("--as-of",required=True)
+    rank_maturity.add_argument("--sample-limit",type=int,default=100)
+    rank_maturity.add_argument("--out",default=str(OUT))
     rank_docs=sub.add_parser("audit-ranked-outcome-receipts",
                       help="Compare predeclared top-K ranked labels to dated local document receipts; NOT certified accuracy")
     rank_docs.add_argument("--freeze",required=True)
@@ -1346,6 +1382,7 @@ def main(argv=None):
         elif args.command=="audit-holdout-maturity":result=execute_holdout_maturity(args)
         elif args.command=="reconcile-holdout-outcomes":result=execute_holdout_reconciliation(args)
         elif args.command=="audit-ranked-outcome-receipts":result=execute_ranked_outcome_receipts(args)
+        elif args.command=="report-ranked-maturity":result=execute_ranked_maturity(args)
         elif args.command=="audit-outcome-source-claims":result=execute_outcome_source_claims(args)
         elif args.command=="audit-pit-chain":result=execute_pit_chain(args)
         elif args.command=="audit-ranked-registry":result=execute_ranked_registry(args)

@@ -539,3 +539,121 @@ def write_peer_score_rotation_dashboard(report: dict, site_dir: Path) -> Path:
     path=site_dir/f"peer_score_rotation_{report['market'].lower()}.html"
     path.write_text(html,encoding="utf-8")
     return path
+
+
+def render_ranked_maturity_dashboard(report: dict) -> str:
+    """Render only a strictly censored maturity schedule, never an outcome."""
+    from .ranked_maturity import STATUS
+    if not isinstance(report,dict) or report.get("status")!=STATUS:
+        raise ValueError("Invalid native ranked maturity research status")
+    for key in ("official_leader_promotions",):
+        if report.get(key)!=0 or type(report.get(key)) is not int:
+            raise ValueError("False official leader promotion prohibited")
+    for key in ("actual_future_leader_skill_certified",
+                "source_document_outcome_corroborated","outcome_labels_read"):
+        if report.get(key) is not False:
+            raise ValueError("Unverified outcome/leader certification forbidden")
+    for key in ("precision_at_k","recall_at_k",
+                "known_positive_leaders","known_failures"):
+        if report.get(key) is not None:
+            raise ValueError("Unverified future leader performance must be N/A")
+    if (report.get("local_native_provenance_rechecked") is not True or
+        report.get("predeclared_rule_sha256_verified") is not True or
+        report.get("market") not in ("KR","US") or
+        type(report.get("selected_top_k_count")) is not int or
+        report["selected_top_k_count"]<1):
+        raise ValueError("Missing local native proof or maturity cohort identity")
+    total=report["selected_top_k_count"]
+    elapsed=report.get("full_horizon_elapsed_count")
+    pending=report.get("full_horizon_pending_count")
+    waiting=report.get("awaiting_mature_outcome_evidence_count")
+    if (type(elapsed) is not int or type(pending) is not int or
+        type(waiting) is not int or elapsed<0 or pending<0 or
+        elapsed+pending!=total or waiting!=elapsed):
+        raise ValueError("Ranked maturity pending/elapsed count inconsistent")
+    if (report.get("retrospective_freeze") is True and
+        report.get("prospective_maturity_eligible") is not False):
+        raise ValueError("Retrospective rank cannot be presented as prospective")
+    candidates=report.get("selected_candidate_sample")
+    if (not isinstance(candidates,list) or len(candidates)>total or
+        report.get("sample_truncated") is not (len(candidates)<total)):
+        raise ValueError("Ranked maturity sample/count inconsistent")
+    rows=[]
+    statuses={
+        "HORIZON_PENDING":"만기 전 · 결과 미확인",
+        "HORIZON_ELAPSED_OUTCOME_UNKNOWN":"만기 경과 · 결과 원천 미확인",
+        "RETROSPECTIVE_SEAL_NOT_A_PREDICTION":"소급 동결 · 전향적 예측 아님",
+    }
+    for item in candidates:
+        if (not isinstance(item,dict) or item.get("status") not in statuses or
+            item.get("leader_outcome_known") is not False or
+            item.get("source_verified_future_leader_outcome") is not False or
+            type(item.get("rank")) is not int or
+            type(item.get("hours_until_horizon_end")) is not int or
+            item["hours_until_horizon_end"]<0):
+            raise ValueError("Invalid ranked maturity sample/outcome status")
+        if (report.get("retrospective_freeze") is True and
+            item["status"]!="RETROSPECTIVE_SEAL_NOT_A_PREDICTION"):
+            raise ValueError("Retrospective rank sample claims prospective status")
+        if (report.get("retrospective_freeze") is False and
+            item["status"] != ("HORIZON_PENDING" if pending else
+                               "HORIZON_ELAPSED_OUTCOME_UNKNOWN")):
+            raise ValueError("Invalid rank sample maturity state")
+        content=[
+            item["rank"],item.get("security_id"),item.get("first_native_score"),
+            item.get("native_score_first_written_utc"),
+            item.get("horizon_end_utc"),
+            statuses[item["status"]],
+        ]
+        rows.append("<tr>"+"".join(
+            "<td>"+escape(str(value))+"</td>" for value in content
+        )+"</tr>")
+    es=lambda value:escape(str(value))
+    future=es(report.get("next_horizon_end_utc") or "N/A · 모든 후보의 평가기간 경과")
+    retrospective=("소급 동결된 자료이므로 전향적 예측 기록이 아닙니다."
+                   if report.get("retrospective_freeze") is True else
+                   "사전 동결된 로컬 연구 후보로, 실제 성과 인증은 아닙니다.")
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EraLeader · Top-K 평가 만기 및 미확인 결과</title>
+<style>{BASE_CSS}</style></head><body>
+<header><h1>EraLeader · 미래 대장주 후보 만기 추적</h1>
+<nav><a href="index.html">처음으로</a></nav></header><main>
+<h2>{es(report["market"])} · Top-K 사전 동결 · {es(report["market_as_of_day"])}</h2>
+<div class="note"><strong>미검증 연구용 · 확정 대장주 0 · 실제 적중률 N/A</strong>
+<p>{retrospective} 평가기간이 지났어도 양성/음성 결과를 추정하지 않습니다.
+원본 결과 문서의 공개·수집시각과 독립 PIT 증빙이 필요합니다.</p></div>
+<div class="stats">
+<div class="stat">사전 고정 Top-K<br><strong>{total}</strong></div>
+<div class="stat">기간 경과 전<br><strong>{pending}</strong></div>
+<div class="stat">기간 경과 · 결과 미확인<br><strong>{waiting}</strong></div>
+<div class="stat">확정 대장주 0 · 실전 적중률<br><strong>N/A</strong></div>
+</div>
+<h2>평가 기준과 다음 만기</h2>
+<p>모델: {es(report["model_version"])} · 선동결 성공기준: {es(report["label_definition_id"])}
+· 고정 기간: {es(report["predeclared_horizon_days"])}일</p>
+<p>신호 스냅샷: {es(report["snapshot_at_utc"])} · 실제 동결:
+{es(report["frozen_at_utc"])} · 다음 평가기간 종료: {future}</p>
+<h2>사전등록 후보의 결과 대기 상태</h2>
+<div class="wrap"><table><thead><tr>
+<th>순위</th><th>연구 ID</th><th>첫 점수</th><th>점수 최초 저장 UTC</th>
+<th>평가기간 만기 UTC</th><th>결과 상태</th>
+</tr></thead><tbody>{''.join(rows)}</tbody></table></div>
+<p><small>표시 후보 {len(candidates)}/{total} · 점수 원장과 WATCH 근거는
+로컬 해시 재검증만 수행했습니다. 외부 API/시장 전체 PIT/공신력 있는
+결과 라벨 검증 전 실전 예측 성공·실패 또는 투자 권유가 아닙니다.</small></p>
+</main></body></html>"""
+
+
+def write_ranked_maturity_dashboard(report: dict, site_dir: Path) -> Path:
+    """Write a derived research-only HTML after every safety check passed."""
+    content=render_ranked_maturity_dashboard(report)
+    site_dir=Path(site_dir)
+    if site_dir.is_symlink():
+        raise ValueError("Linked ranked maturity output site directory forbidden")
+    site_dir.mkdir(parents=True,exist_ok=True)
+    dest=site_dir/f"ranked_maturity_{report['market'].lower()}.html"
+    if dest.is_symlink():
+        raise ValueError("Linked ranked maturity page forbidden")
+    dest.write_text(content,encoding="utf-8")
+    return dest

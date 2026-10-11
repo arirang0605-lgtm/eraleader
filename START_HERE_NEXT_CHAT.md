@@ -414,3 +414,10 @@
 - RED: 신규 모듈 최초 import 오류, 재해시된 봉인에 미래 라벨 키 삽입되는 보안 회귀 FAIL을 확인해 strict schema 차단. **신규 32개** KR/US DST/정확한 만기시각·현재 OS CLI 검증 포함, 전체 **908/908 pytest PASS/exit 0**, handoff 30작업 PASS, `py_compile` PASS. Public 안전검사 6파일 scanned=6 suspicious=0, 기존 데이터/키/시장 원시 자료 미업로드.
 - 정확한 6경로 GitHub Public main 릴리스 commit/push `407d8664322d3dbc9dbab7a877069b4175a336b2` local/remote SHA 일치, 코드 릴리스 직후 clean. 본 MD 후속 push 결과는 현재 Git 상태 우선.
 - NEXT: 이 Pair-level label 결과도 **공인 성과 아님**. 만기 라벨 출처 정규화/공식 원문 독립 타임스탬프와 2_2/2_5 법적 기업ID·업종/상폐/기업행동 PIT 공급자 증빙, 실제 사전 동결한 후보의 수개월 뒤 성숙 데이터·누락률 검증. 외부 API D-017 로컬 완성 후, 물리 SSD D-021 최종 단계. REWRITE 금지.
+
+## 2026-10-11 최신 5_5 — 동결 교체 쌍 미래 결과 원천문서/해시·공개시각 감사
+
+- Remote Mac/T5DATA online, 시작 Git `51d319c` clean. 신규 `rotation_pair_source_claims.py`/ `test_rotation_pair_source_claims.py`(30개), `docs/74_ROTATION_PAIR_SOURCE_DOCUMENT_CLAIMS.md`, 기존 `cli.py` 새 `audit-rotation-pair-sources`/ `local_backup.py` 파생 ZIP 허용만 확장. 기존 `rotation_holdout`, 양사 WATCH/점수 원장·첫 단일후보 outcome 증거 감사 보존. 단일후보용 5_5 증거를 교체 후보 쌍에 억지 연결하지 않고, 봉인 `content_sha256` + 결과라벨 bytes SHA256 + 두 회사의 각각 normalized JSON 원문/정확한 주장 양음·성숙·공개·취득시각을 필수 교차검사. 한쪽 문서 누락/다른 회사·라벨/사후수정이면 `locally_source_corroborated_pairs=0`으로 검열, 라벨이 아직 만기 전이면 결과를 생성하지 않음. 외부 진짜 발행자/시간 독립 인증 false, 공식 교체 0.
+- RED 모듈 없음 수집 오류·CLI 옵션 없음 1 FAIL을 재현한 후 구현. 집중 **109 PASS**, 전체 **938/938 pytest PASS/exit 0**(신규30), 30개 handoff 검사 PASS, pycompile PASS. 합성 CLI 시험: 문서 2개 일치 로컬 연구 쌍 1 → 문서 한 개 바이트 변조 0, 해당 blocker 검출, 원장/봉인 SHA 불변. 파생 요약 JSON 1개만 ZIP SHA 백업/복원 PASS; 원본 성숙 labels·공시 문서/시세·키 미업로드.
+- Public Git safety 5 staged suspicious=0 및 diff check PASS, 코드 commit `2242ad6d7f117152cbffb8e3d49099f7dd79f004` GitHub main push 성공, 로컬·원격 SHA 일치, 코드 릴리스 당시 clean. PROJECT_STATE 및 START 추가 갱신은 별도 문서 릴리스 여부 현재 Git 우선.
+- NEXT: 2_2/2_5 거래소·공시/영구 기업ID·기업행동/상폐 지급 실제 독립 PIT 자료 확보, 5_5 실전 첫 동결부터 만기까지의 검증된 outcome과 precision/오탐/선행기간. 로컬 데이터 자체 선언에 대한 해시만으로 공신력/진짜 미래 대장주 확정 인증하지 않음. API D-017 로컬 완성 뒤, 물리 SSD D-021 API 뒤 마지막 검수, REWRITE 금지.

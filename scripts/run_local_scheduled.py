@@ -24,6 +24,8 @@ def main(argv=None):
                         help="Run only sealed Top-K maturity daily/weekly/monthly research briefs")
     parser.add_argument("--maturity-sample-limit", type=int, default=100,
                         help="Rows displayed, not the frozen Top-K denominator")
+    parser.add_argument("--local-outbox-dry-run", action="store_true",
+                        help="Opt-in after-run local evidence incidents; NEVER transmit or install")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -47,6 +49,43 @@ def main(argv=None):
         raise ValueError("Maturity-only must not silently use unrelated WATCH-only config")
     if args.maturity_only and args.allow_stale_research:
         raise ValueError("Maturity-only never enables stale price-cache overrides")
+    if args.generate_plist and args.local_outbox_dry_run:
+        raise ValueError("Local outbox dry-run is not supported with --generate-plist")
+
+    def run_and_audit(job):
+        # Existing scheduler behavior is untouched unless explicitly opted in.
+        if not args.local_outbox_dry_run:
+            return job()
+        from eraleader.local_failure_outbox import run_local_failure_outbox
+        try:
+            scheduled = job()
+        except Exception as primary_error:
+            # Read existing checkpoints even after a schedule exception, but
+            # never turn an unverified outbox result into scheduler success.
+            try:
+                run_local_failure_outbox(project)
+            except Exception as audit_error:
+                primary_error.add_note(f"Local outbox audit also failed: {audit_error}")
+            raise
+        if (not isinstance(scheduled, dict)
+                or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"
+                or scheduled.get("messages_sent", 0) != 0
+                or scheduled.get("external_api_calls", 0) != 0):
+            raise RuntimeError("Unsafe or concurrent scheduler result for local dry-run audit")
+        audit = run_local_failure_outbox(project)
+        if (not isinstance(audit, dict)
+                or audit.get("status") != "LOCAL_DRY_RUN_ALERTS_VERIFIED_BACKUP"
+                or audit.get("messages_sent") != 0
+                or audit.get("external_api_calls") != 0
+                or audit.get("official_leaders_confirmed") != 0
+                or audit.get("actual_future_leader_skill_certified") is not False
+                or audit.get("local_artifacts_only") is not True):
+            raise RuntimeError("Local dry-run outbox verification unsafe or skipped")
+        return {"schedule": scheduled, "local_failure_outbox": audit,
+                "messages_sent": 0, "external_api_calls": 0,
+                "official_leaders_confirmed": 0,
+                "actual_future_leader_skill_certified": False}
+
     if args.generate_plist:
         path = write_launch_agent(args.generate_plist, python=Path(sys.executable),
                                   project=project, hour=args.hour, minute=args.minute,
@@ -57,30 +96,31 @@ def main(argv=None):
                                   ranked_maturity_config=args.ranked_maturity_config)
         result = {"status": "PLIST_GENERATED_NOT_INSTALLED", "path": str(path)}
     elif args.maturity_only:
-        result = run_scheduled_maturity_only(
+        result = run_and_audit(lambda: run_scheduled_maturity_only(
             out=project / "output" / "scheduled_maturity",
             control=project / "output" / "scheduler_maturity_control",
             backups=project / "output" / "scheduler_maturity_backups",
             ranked_maturity_config=args.ranked_maturity_config,
             sample_limit=args.maturity_sample_limit,
-        )
+        ))
     elif args.watch_only:
-        result = run_scheduled_watch_only(
+        result = run_and_audit(lambda: run_scheduled_watch_only(
             out=project / "output" / "scheduled_watch",
             control=project / "output" / "scheduler_watch_control",
             backups=project / "output" / "scheduler_watch_backups",
             watch_research_config=args.watch_research_config,
             watch_max_age_days=args.watch_max_age_days,
-        )
+        ))
     else:
-        result = run_scheduled(legacy=Path("/Volumes/T5DATA/CycleOS-Lab_BacktestEngine"),
+        result = run_and_audit(lambda: run_scheduled(
+                               legacy=Path("/Volumes/T5DATA/CycleOS-Lab_BacktestEngine"),
                                out=project / "output" / "scheduled",
                                control=project / "output" / "scheduler_control",
                                backups=project / "output" / "scheduler_backups",
                                max_age_days=args.max_age_days,
                                allow_stale_research=args.allow_stale_research,
                                watch_research_config=args.watch_research_config,
-                               watch_max_age_days=args.watch_max_age_days)
+                               watch_max_age_days=args.watch_max_age_days))
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

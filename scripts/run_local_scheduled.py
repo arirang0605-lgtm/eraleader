@@ -76,6 +76,12 @@ def main(argv=None):
                         help="Immutable maximum scan interval for original SHA PIN (1..720 hours)")
     parser.add_argument("--native-cold-allow-colocated-research-only", action="store_true",
                         help="Synthetic test-only, NEVER third-volume operational custody")
+    parser.add_argument("--native-cold-restore-scratch-root", type=Path,
+                        help="Opt-in key-free cold-package first-replay due gate using original 0700 scratch identity")
+    parser.add_argument("--native-cold-restore-due-days", type=int, default=30,
+                        help="Local cold native authenticated replay expires after this many days")
+    parser.add_argument("--native-cold-restore-warn-days", type=int, default=7,
+                        help="Days before replay due date to warn")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -148,6 +154,15 @@ def main(argv=None):
         raise ValueError("Cold custody scan policy requires --native-cold-pin-root")
     if args.native_cold_pin_root is not None and not 1 <= args.native_cold_max_gap_hours <= 720:
         raise ValueError("Encrypted custody scan max gap must be 1..720 hours")
+    if (args.native_cold_restore_due_days != 30 or
+            args.native_cold_restore_warn_days != 7) and args.native_cold_restore_scratch_root is None:
+        raise ValueError("Cold replay cadence policy requires --native-cold-restore-scratch-root")
+    if args.native_cold_restore_scratch_root is not None:
+        if args.native_cold_pin_root is None:
+            raise ValueError("Cold replay readiness requires --native-cold-pin-root and original SHA")
+        if (not 1 <= args.native_cold_restore_due_days <= 365 or
+                not 0 <= args.native_cold_restore_warn_days < args.native_cold_restore_due_days):
+            raise ValueError("Cold replay due policy requires 1..365 and warning < due")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
@@ -166,7 +181,8 @@ def main(argv=None):
                                 or args.native_recovery_check_key is not None
                                 or args.native_recovery_due
                                 or args.native_recovery_due_scratch_root is not None
-                                or args.native_cold_pin_root is not None):
+                                or args.native_cold_pin_root is not None
+                                or args.native_cold_restore_scratch_root is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
     if args.native_first_internal_witness_root is not None:
         # Fail BEFORE running market batch or writing any native first scores.
@@ -207,6 +223,14 @@ def main(argv=None):
         _configured(project, args.native_cold_pin_root, args.native_cold_max_gap_hours,
                     research=args.native_cold_allow_colocated_research_only)
 
+    if args.native_cold_restore_scratch_root is not None:
+        from eraleader.native_cold_restore_gate import _config
+        _config(project,args.native_cold_pin_root,
+                args.native_cold_restore_scratch_root,
+                args.native_cold_restore_due_days,args.native_cold_restore_warn_days,
+                args.native_cold_max_gap_hours,
+                args.native_cold_allow_colocated_research_only)
+
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
         if not (args.local_outbox_dry_run or args.provider_quality_dry_run or
@@ -233,6 +257,9 @@ def main(argv=None):
             run_recovery_due_watchdog, STATUS as RECOVERY_DUE_STATUS)
         from eraleader.native_cold_integrity import (
             scan_cold_integrity, STATUS as COLD_STATUS)
+
+        from eraleader.native_cold_restore_gate import (
+            run_cold_restore_gate, STATUS as COLD_RESTORE_STATUS)
 
         def capture():
             seen = set()
@@ -468,6 +495,25 @@ def main(argv=None):
                         cold.get("actual_future_leader_skill_certified") is not False):
                     raise RuntimeError("Unsafe scheduled cold custody SHA scan")
                 found["native_cold_integrity"]=cold
+            if args.native_cold_restore_scratch_root is not None:
+                restore=run_cold_restore_gate(
+                    project,args.native_cold_pin_root,
+                    args.native_cold_restore_scratch_root,
+                    due_days=args.native_cold_restore_due_days,
+                    warn_days=args.native_cold_restore_warn_days,
+                    max_gap_hours=args.native_cold_max_gap_hours,
+                    allow_colocated_research=args.native_cold_allow_colocated_research_only)
+                if (not isinstance(restore,dict) or
+                        restore.get("status")!=COLD_RESTORE_STATUS or
+                        restore.get("private_key_accessed") is not False or
+                        restore.get("plaintext_decrypted") is not False or
+                        restore.get("local_artifacts_only") is not True or
+                        restore.get("messages_sent")!=0 or
+                        restore.get("external_api_calls")!=0 or
+                        restore.get("official_leader_promotions")!=0 or
+                        restore.get("actual_future_leader_skill_certified") is not False):
+                    raise RuntimeError("Unsafe scheduled cold restore readiness")
+                found["native_cold_restore_gate"]=restore
             return found
 
         try:
@@ -549,6 +595,18 @@ def main(argv=None):
                         allow_colocated_research=args.native_cold_allow_colocated_research_only)
                 except Exception as audit_error:
                     primary_error.add_note("Cold SHA audit incomplete: "+type(audit_error).__name__)
+            if args.native_cold_restore_scratch_root is not None:
+                try:
+                    run_cold_restore_gate(
+                        project,args.native_cold_pin_root,
+                        args.native_cold_restore_scratch_root,
+                        due_days=args.native_cold_restore_due_days,
+                        warn_days=args.native_cold_restore_warn_days,
+                        max_gap_hours=args.native_cold_max_gap_hours,
+                        allow_colocated_research=args.native_cold_allow_colocated_research_only)
+                except Exception as audit_error:
+                    primary_error.add_note(
+                        "Cold replay gate also failed: "+type(audit_error).__name__)
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"

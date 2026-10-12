@@ -44,6 +44,10 @@ def main(argv=None):
                         help="Opt-in read-only multi-cohort original SHA monitor plan; repeat for each cohort")
     parser.add_argument("--native-sha-dry-run-witness-root", type=Path,
                         help="Separate-volume SHA-only original witness root for unsent dashboard audit")
+    parser.add_argument("--native-first-encrypted-vault-root", type=Path,
+                        help="Opt-in AES-256-GCM encrypted first native ZIP backup on a different local device")
+    parser.add_argument("--native-first-encryption-cert", type=Path,
+                        help="Public RSA-OAEP recipient certificate for opt-in encrypted source backup")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -76,6 +80,13 @@ def main(argv=None):
         raise ValueError("Separate internal SHA witness requires --native-first-private-archive")
     if bool(args.native_sha_dry_run_plan) != (args.native_sha_dry_run_witness_root is not None):
         raise ValueError("Native SHA DRY-RUN needs BOTH --native-sha-dry-run-plan and --native-sha-dry-run-witness-root")
+    if bool(args.native_first_encrypted_vault_root) != bool(args.native_first_encryption_cert):
+        raise ValueError("Encrypted original vault requires BOTH private destination root and public recipient cert")
+    if args.native_first_encrypted_vault_root is not None and (
+            args.native_first_capture_plan is None or
+            not args.native_first_private_archive or
+            args.native_first_internal_witness_root is None):
+        raise ValueError("Encrypted first-native vault requires private archive, capture plan and separate SHA witness")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
@@ -83,7 +94,9 @@ def main(argv=None):
                                 or args.native_first_private_archive
                                 or args.native_first_internal_witness_root is not None
                                 or args.native_sha_dry_run_plan is not None
-                                or args.native_sha_dry_run_witness_root is not None):
+                                or args.native_sha_dry_run_witness_root is not None
+                                or args.native_first_encrypted_vault_root is not None
+                                or args.native_first_encryption_cert is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
     if args.native_first_internal_witness_root is not None:
         # Fail BEFORE running market batch or writing any native first scores.
@@ -92,6 +105,14 @@ def main(argv=None):
     if args.native_sha_dry_run_witness_root is not None:
         from eraleader.native_sha_witness import validate_witness_destination
         validate_witness_destination(project,args.native_sha_dry_run_witness_root)
+    if args.native_first_encrypted_vault_root is not None:
+        from eraleader.native_sha_witness import validate_witness_destination
+        from eraleader.native_encrypted_vault import _cert
+        vault = validate_witness_destination(project,args.native_first_encrypted_vault_root)
+        witness = args.native_first_internal_witness_root.absolute()
+        if vault==witness or vault in witness.parents or witness in vault.parents:
+            raise ValueError("Encrypted vault must not overlap first SHA witness root")
+        _cert(args.native_first_encryption_cert)
 
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
@@ -109,6 +130,7 @@ def main(argv=None):
         from eraleader.scheduled_native_archive import archive_captured_native_plan
         from eraleader.native_sha_witness import record_native_sha_witness
         from eraleader.native_sha_watchdog import run_native_sha_watchdog
+        from eraleader.native_encrypted_vault import backup_encrypted_native_original
 
         def capture():
             seen = set()
@@ -185,6 +207,26 @@ def main(argv=None):
                                 separate.get("external_api_calls")!=0):
                             raise RuntimeError("Unsafe or skipped cross-volume first SHA witness")
                         first_archive={**first_archive,"separate_volume_sha_witness":separate}
+                    if (args.native_first_encrypted_vault_root is not None and
+                            expected is None):
+                        sealed=backup_encrypted_native_original(
+                            project,original_plan,
+                            project/"output"/"native_first_captures",
+                            args.native_first_internal_witness_root,
+                            args.native_first_encrypted_vault_root,
+                            args.native_first_encryption_cert)
+                        if (not isinstance(sealed,dict) or
+                                sealed.get("status") not in (
+                                    "FIRST_ENCRYPTED_NATIVE_BACKUP_CREATED",
+                                    "EXISTING_ENCRYPTED_NATIVE_BACKUP_VERIFIED") or
+                                sealed.get("archive_sha256")!=first_archive.get("archive_original_sha256") or
+                                sealed.get("ciphertext_verified") is not True or
+                                sealed.get("authenticated_plaintext_verified") is not False or
+                                sealed.get("real_future_leader_accuracy_certified") is not False or
+                                sealed.get("messages_sent")!=0 or sealed.get("external_api_calls")!=0 or
+                                sealed.get("official_leader_promotions")!=0):
+                            raise RuntimeError("Native original encrypted first backup missing or unsafe")
+                        first_archive={**first_archive,"encrypted_cross_volume_backup":sealed}
                     result={**result,"private_original_archive":first_archive}
                 all_results.append(result)
             if len(all_results)==1:

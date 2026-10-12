@@ -831,3 +831,6 @@
 ## 2026-10-12 최신 CONTINUE — 공식 API 사전 운영 결선 (코드 `0ce3aad`)
 - 기존 staged 20개 공식 KRX+DART 전체 페이지/corpCode/fnlttSinglAcntAll/SEC 재무 as-of/1회 일별 연구 WATCH 통합 코드·테스트·문서 완성. 구체 구현·실데이터 수신 근거 `docs/134_OFFICIAL_DART_SEC_PREOPERATIONS.md`, 최신 `PROJECT_STATE.md` 말미. 미완성 사이트 게시를 막는 원자 rename + 실패 주입 2건 추가. 한국 2026-10-08 2,765 KRX 행·992 DART 공시·현재 기업코드 2,651 단일매칭/114 미연결(인증된 역사적 PIT 아님), WATCH 20/보고서 3/DRY-RUN 20/실전발송0.
 - 이번 공식 모듈 영향 테스트 91 PASS, 원자 게시 영향 테스트 41 PASS(exit0), Public 보안검사 20파일 suspicious0. 전체 suite의 **완료/실패 여부는 최신 로그/PROJECT_STATE.md 갱신을 확인**(현재 문서만으로 PASS 간주 금지). `native_first_capture.py` unstaged 6+/1- 보존 필수. API 제외 추정99%, 통합 기능 추정95%, 역사 PIT·미래 성과는 아직 미인증. 다음은 매일 원시 증분·한미 전 종목 법인/주권·상폐/기업행동 PIT와 데이터 공급원 확장, 보수적 NO-LEADER 유지.
+
+## 2026-10-12 최신 전체 pytest 확정
+- 20파일 공식 KRX+DART 전체/법인코드/재무·SEC PIT 연구/실패시 원자 게시의 전체 `PYTHONPATH=src python3 -m pytest tests -q --tb=short` **2,450 PASS, 프로세스 EXIT=0, 마지막 100%**, 로그 `output/verification_logs/official_preoperations_full_20261012.txt`; 해당 전체 회귀는 실제 미래 선행 적중률/PIT 공식인증/20거래일 모의운용을 대체하지 못함. GitHub 최종 main/로컬 SHA 확인 후 CONTINUE; 네이티브 capture 미커밋 7줄 보존.

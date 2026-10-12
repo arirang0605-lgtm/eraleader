@@ -40,6 +40,10 @@ def main(argv=None):
                         help="Opt-in private original-source ZIP and separate first SHA receipt after native capture")
     parser.add_argument("--native-first-internal-witness-root", type=Path,
                         help="Opt-in hashed-only original ZIP SHA witness on a different filesystem; no raw market sources copied")
+    parser.add_argument("--native-sha-dry-run-plan", type=Path, action="append",
+                        help="Opt-in read-only multi-cohort original SHA monitor plan; repeat for each cohort")
+    parser.add_argument("--native-sha-dry-run-witness-root", type=Path,
+                        help="Separate-volume SHA-only original witness root for unsent dashboard audit")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -70,24 +74,32 @@ def main(argv=None):
     if (args.native_first_internal_witness_root is not None and
             not args.native_first_private_archive):
         raise ValueError("Separate internal SHA witness requires --native-first-private-archive")
+    if bool(args.native_sha_dry_run_plan) != (args.native_sha_dry_run_witness_root is not None):
+        raise ValueError("Native SHA DRY-RUN needs BOTH --native-sha-dry-run-plan and --native-sha-dry-run-witness-root")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
                                 or args.native_first_capture_plan is not None
                                 or args.native_first_private_archive
-                                or args.native_first_internal_witness_root is not None):
+                                or args.native_first_internal_witness_root is not None
+                                or args.native_sha_dry_run_plan is not None
+                                or args.native_sha_dry_run_witness_root is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
     if args.native_first_internal_witness_root is not None:
         # Fail BEFORE running market batch or writing any native first scores.
         from eraleader.native_sha_witness import validate_witness_destination
         validate_witness_destination(project,args.native_first_internal_witness_root)
+    if args.native_sha_dry_run_witness_root is not None:
+        from eraleader.native_sha_witness import validate_witness_destination
+        validate_witness_destination(project,args.native_sha_dry_run_witness_root)
 
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
         if not (args.local_outbox_dry_run or args.provider_quality_dry_run or
                 args.exchange_policy_out is not None or
                 args.prospective_due_registry is not None or
-                args.native_first_capture_plan is not None):
+                args.native_first_capture_plan is not None or
+                args.native_sha_dry_run_plan is not None):
             return job()
         from eraleader.local_failure_outbox import run_local_failure_outbox
         from eraleader.provider_quality_watchdog import run_provider_quality_watchdog
@@ -96,6 +108,7 @@ def main(argv=None):
         from eraleader.native_first_capture import capture_first_native_topk
         from eraleader.scheduled_native_archive import archive_captured_native_plan
         from eraleader.native_sha_witness import record_native_sha_witness
+        from eraleader.native_sha_watchdog import run_native_sha_watchdog
 
         def capture():
             seen = set()
@@ -235,6 +248,17 @@ def main(argv=None):
                 found["prospective_due_alerts"] = result
             if args.native_first_capture_plan is not None:
                 found["native_first_capture"] = capture()
+            if args.native_sha_dry_run_plan is not None:
+                scan = run_native_sha_watchdog(
+                    project,args.native_sha_dry_run_plan,args.native_sha_dry_run_witness_root)
+                if (not isinstance(scan,dict) or
+                        scan.get("status")!="LOCAL_NATIVE_SHA_DRY_RUN_RECORDED" or
+                        scan.get("local_artifacts_only") is not True or
+                        scan.get("messages_sent")!=0 or scan.get("external_api_calls")!=0 or
+                        scan.get("official_leader_promotions")!=0 or
+                        scan.get("actual_future_leader_skill_certified") is not False):
+                    raise RuntimeError("Native SHA DRY-RUN audit unsafe or incomplete")
+                found["native_sha_watchdog"]=scan
             return found
 
         try:
@@ -269,6 +293,12 @@ def main(argv=None):
                     capture()
                 except Exception as audit_error:
                     primary_error.add_note(f"Native first capture also failed: {audit_error}")
+            if args.native_sha_dry_run_plan is not None:
+                try:
+                    run_native_sha_watchdog(
+                        project,args.native_sha_dry_run_plan,args.native_sha_dry_run_witness_root)
+                except Exception as audit_error:
+                    primary_error.add_note(f"Native SHA monitor also failed: {audit_error}")
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"

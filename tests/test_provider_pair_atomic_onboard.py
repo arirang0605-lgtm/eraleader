@@ -64,7 +64,8 @@ def test_complete_two_provider_original_shas_registered_as_one_commit(tmp_path,m
     assert result["actual_future_leader_skill_certified"] is False
     assert result["external_api_calls"]==result["messages_sent"]==0
     assert target.is_dir()
-    assert sorted(x.name for x in target.iterdir())==["source_a","source_b"]
+    assert sorted(x.name for x in target.iterdir())==["first_pair_receipt.json","source_a","source_b"]
+    assert sha256((target/"first_pair_receipt.json").read_bytes()).hexdigest()==result["first_pair_receipt_sha256"]
     digests=[]
     for letter,source in (("a",a),("b",b)):
         path=target/("source_"+letter)

@@ -7,6 +7,9 @@ is published. This does not download data or certify claimed publishers/PIT.
 from __future__ import annotations
 
 from datetime import datetime
+from hashlib import sha256
+import json
+import uuid
 from pathlib import Path
 import os
 import shutil
@@ -29,6 +32,8 @@ from .provider_staged_lineage import (
 STATUS = "LOCAL_TWO_PROVIDER_ATOMIC_FIRST_INGEST_RESEARCH_ONLY"
 BLOCK = "BLOCKED_PROVIDER_PAIR_FIRST_INGEST_NOT_PUBLISHED"
 SUBDIRS = ("source_a", "source_b")
+RECEIPT_NAME = "first_pair_receipt.json"
+RECEIPT_SCHEMA = "eraleader.provider_pair_first_commit.v1"
 
 
 def _manifest_path(value):
@@ -141,6 +146,38 @@ def onboard_staged_provider_pair(staged_a, staged_b, target, *,
                 current["source_file_sha256"] != originally["source_file_sha256"]
             ):
                 raise ValueError("Original staged bytes changed during atomic paired import")
+        # Record the WHOLE frozen pair identity before the single publish.
+        # Relative DB/normalized paths remain stable across the final rename;
+        # the private original input paths never enter a public JSON report.
+        frozen_receipt = {
+            "schema": RECEIPT_SCHEMA,
+            "first_ingest_at_utc": now.isoformat(),
+            "nonce": uuid.uuid4().hex,
+            "market": a["market"],
+            "original_staged_manifests": [str(path) for path in original],
+            "original_manifest_sha256": [
+                value["source_raw_manifest_sha256"] for value in first],
+            "original_streams_sha256": [
+                value["source_file_sha256"] for value in first],
+            "normalized_manifest_sha256": list(digest),
+            "initial_matched_active_securities": check["matched_active_issuer_count"],
+            "initial_matched_actions": check["matched_corporate_event_count"],
+            "initial_matched_fundamentals": check["matched_fundamental_fact_count"],
+            "initial_matched_industry": check["matched_industry_fact_count"],
+            "original_pin_pair_locally_matched": True,
+            "official_source_pit_certified": False,
+        }
+        original_receipt = (json.dumps(
+            frozen_receipt, ensure_ascii=False, sort_keys=True,
+            separators=(",", ":"), allow_nan=False)+"\n").encode()
+        fd=os.open(temp/RECEIPT_NAME,
+                   os.O_WRONLY|os.O_CREAT|os.O_EXCL|
+                   getattr(os,"O_NOFOLLOW",0),0o600)
+        with os.fdopen(fd,"wb") as first_output:
+            first_output.write(original_receipt)
+            first_output.flush()
+            os.fsync(first_output.fileno())
+        receipt_sha = sha256(original_receipt).hexdigest()
         if destination.exists() or destination.is_symlink():
             raise ValueError("Atomic paired destination claimed by another process")
         os.rename(temp,destination)
@@ -158,6 +195,7 @@ def onboard_staged_provider_pair(staged_a, staged_b, target, *,
         "source_a_normalized_manifest_sha256": digest[0],
         "source_b_normalized_manifest_sha256": digest[1],
         "two_original_first_ingest_receipts_pinned": True,
+        "first_pair_receipt_sha256": receipt_sha,
         "two_provider_semantic_conflicts": 0,
         "all_or_nothing_published": True,
         "research_watch_requires_separate_candidate_gate": True,

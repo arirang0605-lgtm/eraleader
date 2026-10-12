@@ -32,6 +32,8 @@ def main(argv=None):
                         help="Opt-in first-write cohort index for local unsent due-evidence warnings")
     parser.add_argument("--prospective-due-native-config", type=Path,
                         help="Required when the original registry has a native WATCH evidence marker")
+    parser.add_argument("--native-first-capture-plan", type=Path, action="append",
+                        help="Opt-in local first-score Top-K+census; repeat for KR+US plans, never outcomes")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -58,17 +60,54 @@ def main(argv=None):
     if args.prospective_due_native_config is not None and args.prospective_due_registry is None:
         raise ValueError("Native due evidence needs an explicit prospective registry")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
-                                or args.prospective_due_registry is not None):
-        raise ValueError("Local outbox/quality/due dry-run is not supported with --generate-plist")
+                                or args.prospective_due_registry is not None
+                                or args.native_first_capture_plan is not None):
+        raise ValueError("Local observers/first native capture are not supported with --generate-plist")
 
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
         if not (args.local_outbox_dry_run or args.provider_quality_dry_run or
-                args.prospective_due_registry is not None):
+                args.prospective_due_registry is not None or
+                args.native_first_capture_plan is not None):
             return job()
         from eraleader.local_failure_outbox import run_local_failure_outbox
         from eraleader.provider_quality_watchdog import run_provider_quality_watchdog
         from eraleader.prospective_due_alerts import run_prospective_due_alerts
+        from eraleader.native_first_capture import capture_first_native_topk
+
+        def capture():
+            seen = set()
+            all_results = []
+            for original_plan in args.native_first_capture_plan:
+                # Do not credit the same input plan twice in one job. The
+                # underlying native capture also deduplicates market+model.
+                identity = str(original_plan.absolute())
+                if identity in seen:
+                    raise ValueError("Duplicate first-native capture plan supplied to scheduler")
+                seen.add(identity)
+                result=capture_first_native_topk(
+                    original_plan,project/"output"/"native_first_captures")
+                if (not isinstance(result,dict) or
+                        result.get("status") not in (
+                            "FIRST_NATIVE_TOPK_CAPTURED_AND_CENSUS_REGISTERED_NOT_CERTIFIED",
+                            "ALREADY_CAPTURED_FIRST_NATIVE_TOPK_RESEARCH_ONLY",
+                            "WAITING_FOR_NATIVE_FIRST_WRITE_EVIDENCE") or
+                        result.get("messages_sent") != 0 or
+                        result.get("external_api_calls") != 0 or
+                        result.get("real_future_leader_accuracy_certified") is not False or
+                        result.get("official_leader_promotions") != 0):
+                    raise RuntimeError("Unsafe or skipped first-native capture result")
+                all_results.append(result)
+            if len(all_results)==1:
+                return all_results[0]
+            return {
+                "status":"LOCAL_MULTI_NATIVE_CAPTURE_NOT_CERTIFIED",
+                "plan_count":len(all_results),
+                "cohorts":all_results,
+                "real_future_leader_accuracy_certified":False,
+                "official_leader_promotions":0,"messages_sent":0,
+                "external_api_calls":0,
+            }
 
         def observers():
             found = {}
@@ -107,6 +146,8 @@ def main(argv=None):
                         or result.get("local_artifacts_only") is not True):
                     raise RuntimeError("Prospective due dry-run verification unsafe or skipped")
                 found["prospective_due_alerts"] = result
+            if args.native_first_capture_plan is not None:
+                found["native_first_capture"] = capture()
             return found
 
         try:
@@ -131,6 +172,11 @@ def main(argv=None):
                         native_config=args.prospective_due_native_config)
                 except Exception as audit_error:
                     primary_error.add_note(f"Prospective due audit also failed: {audit_error}")
+            if args.native_first_capture_plan is not None:
+                try:
+                    capture()
+                except Exception as audit_error:
+                    primary_error.add_note(f"Native first capture also failed: {audit_error}")
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"

@@ -208,6 +208,28 @@ def _original_pin_cli_options(args, *, prefix: str = ""):
 
 
 def execute_integrated(args) -> dict:
+    """Apply per-market sticky source policy to ALL integrated callers/batch."""
+    from .exchange_roster_policy import guard_integrated_policy
+    strict=bool(getattr(args,"require_provider_exchange_roster",False))
+    if strict:
+        # Reject obviously incomplete opt-in before creating any policy
+        # control file; a typo must not enroll an unusable research root.
+        strict_flags=(
+            "provider_exchange_roster","provider_exchange_roster_sha256",
+            "provider_issuer_lineage","provider_ledger_a","provider_bundle_a",
+            "provider_ledger_b","provider_bundle_b",
+            "provider_staged_manifest_a","provider_normalized_manifest_a",
+            "provider_staged_manifest_b","provider_normalized_manifest_b",
+        )
+        if (not all(getattr(args,key,None) for key in strict_flags) or
+                not getattr(args,"require_provider_original_pins",False) or
+                not getattr(args,"require_provider_issuer_class_lineage",False)):
+            raise ValueError("Strict exchange roster policy requires complete pinned A/B and issuer-class source flags")
+    with guard_integrated_policy(Path(args.out),args.market,strict_mode=strict) as policy:
+        return _execute_integrated_inner(args,policy)
+
+
+def _execute_integrated_inner(args,policy) -> dict:
     # An explicitly selected two-provider PIT check must be complete. Never
     # fall back to the old ungated integration because one flag was omitted.
     fields=("provider_ledger_a","provider_bundle_a","provider_ledger_b",
@@ -237,6 +259,11 @@ def execute_integrated(args) -> dict:
             require_exchange != bool(roster_sha) or
             (require_exchange and (not require_issuer or not strict_pins or pair is None))):
         raise ValueError('Strict exchange roster requires --require-provider-exchange-roster, --provider-exchange-roster, --provider-exchange-roster-sha256 and pinned issuer-class provider inputs')
+    if require_exchange:
+        # First-write the minimum gate requirement BEFORE any attempt to
+        # publish a candidate or open mutable SQLite. A blocked first strict
+        # run stays strict on subsequent invocations: no silent opt-out.
+        policy.require_first_write(roster_sha)
     offline_path=Path(args.out)/"offline.sqlite"
     source=(OfflineLedger.open_readonly(offline_path) if pair
             else OfflineLedger(offline_path))
@@ -264,6 +291,7 @@ def execute_integrated(args) -> dict:
     finally:
         source.close()
     if gate is not None:
+        policy.assert_unchanged()
         gate_file=Path(args.out)/"provider_candidate_gate_research.json"
         # The gate is evaluated on actual source receipts and source rows, not
         # just a separately supplied self-declared summary report.
@@ -301,6 +329,7 @@ def execute_integrated(args) -> dict:
             "local_pair_digest":gate["source_pair_digest_sha256"]
         },ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
         result["run_id"]=sha256(stamp.encode()).hexdigest()[:20]
+    policy.assert_unchanged()
     target=Path(args.out)/"runs"/f"joined_{args.market.lower()}_{result['run_id']}.json"
     if target.exists():
         existing=json.loads(target.read_text(encoding="utf-8"))
@@ -321,6 +350,7 @@ def execute_integrated(args) -> dict:
         tracked=ledger.record(args.market,args.as_of,observations)
     finally:
         ledger.close()
+    policy.assert_unchanged()
     registry=ProspectiveRegistry(Path(args.out)/"prospective.sqlite")
     try:
         registration=registry.record_integrated(result)

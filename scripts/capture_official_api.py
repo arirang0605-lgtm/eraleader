@@ -25,10 +25,19 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     project = args.project.resolve(strict=True)
     sys.path.insert(0, str(project / "src"))
-    from eraleader.official_api_capture import SOURCES, credentials, _settings, capture_official_api
+    from eraleader.official_api_capture import SOURCES, KEYS, credentials, _settings, capture_official_api
+    import os
     if args.source not in SOURCES:
         raise ValueError("Unknown source")
-    values = credentials(args.credentials_file)
+    # The on-device browser setup stores keys outside the external SSD when
+    # that filesystem cannot enforce POSIX 0600 files. Use it by default,
+    # but explicit --credentials-file always takes precedence.
+    saved = (Path.home() / "Library" / "Application Support" /
+             "EraLeader" / "api-credentials" / "official_api.env")
+    selected = args.credentials_file
+    if selected is None and not any(os.environ.get(key) for key in KEYS) and saved.exists():
+        selected = saved
+    values = credentials(selected)
     if args.check_config:
         try:
             _settings(args.source, day=args.market_day, cik=args.cik, creds=values)

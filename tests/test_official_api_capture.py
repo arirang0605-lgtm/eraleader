@@ -251,8 +251,33 @@ def test_official_json_duplicate_keys_and_empty_body_rejected(root):
         assert not list(root.iterdir())
 
 
-def test_cli_check_has_no_network_and_never_displays_secrets(monkeypatch):
+def test_cli_auto_uses_local_secure_setup_without_exposing_agent(tmp_path):
+    saved = (tmp_path / "Library" / "Application Support" /
+             "EraLeader" / "api-credentials")
+    saved.mkdir(parents=True,mode=0o700)
+    saved.chmod(0o700)
+    secret = saved / "official_api.env"
+    secret.write_text("ERALEADER_SEC_USER_AGENT=EraLeader Research research@lab.org\\n")
+    secret.chmod(0o600)
     env = {k:v for k,v in os.environ.items() if not k.startswith("ERALEADER_")}
+    env["HOME"] = str(tmp_path)
+    call = subprocess.run(
+        [sys.executable,str(CLI),"--project",str(PROJ),
+         "--source","sec-submissions","--cik","320193","--check-config"],
+        capture_output=True,text=True,env=env,timeout=10)
+    assert call.returncode == 0
+    result = json.loads(call.stdout)
+    assert result["credentials_and_request_preflight_ready"] is True
+    assert result["first_received_data_available"] is False
+    assert result["external_api_calls"] == 0
+    assert "research@lab.org" not in call.stdout + call.stderr
+
+
+def test_cli_check_has_no_network_and_never_displays_secrets(monkeypatch,tmp_path):
+    env = {k:v for k,v in os.environ.items() if not k.startswith("ERALEADER_")}
+    # The live Mac may have an owner-only setup file. Test an isolated
+    # empty HOME instead of reading real credentials from this machine.
+    env["HOME"] = str(tmp_path)
     env.pop("KRX_AUTH_KEY",None)
     env.pop("DART_API_KEY",None)
     env.pop("SEC_USER_AGENT",None)

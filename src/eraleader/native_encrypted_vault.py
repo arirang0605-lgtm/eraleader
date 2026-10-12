@@ -174,11 +174,18 @@ def _openssl(args: list[str]):
     return process
 
 
-def _cert(path: Path):
+def _cert(path: Path, *, require_current: bool = True):
+    """Validate the exact original X509, without expiring old decrypt rights.
+
+    Only NEW encryption requires an unexpired certificate. Previously created
+    CMS ciphertext remains recoverable with its pinned original certificate
+    and correct private key even after certificate expiration.
+    """
     path = Path(path)
     sha, size = _file_sha(path, 64 * 1024)
+    args = (["-checkend", "0"] if require_current else ["-dates"])
     result = subprocess.run([shutil.which("openssl") or "openssl",
-                             "x509", "-in", str(path), "-noout", "-checkend", "0"],
+                             "x509", "-in", str(path), "-noout", *args],
                             capture_output=True, stdin=subprocess.DEVNULL, check=False)
     if result.returncode != 0:
         raise ValueError("Invalid/expired public encryption certificate")
@@ -252,7 +259,9 @@ def _verified_unlocked(cipher, first, guard, slot, witness_root, cert):
                              expected_sha=data["original_witness_sha256"])
     if anchor["witness_sha256"] != data["original_witness_sha256"]:
         raise ValueError("Original independent first SHA witness no longer matches backup")
-    if _cert(cert) != data["certificate_sha256"]:
+    # Historic ciphertext must NOT become unrecoverable at X509 expiration.
+    # Pin identical certificate BYTES; OpenSSL CMS/GCM authenticates plaintext.
+    if _cert(cert, require_current=False) != data["certificate_sha256"]:
         raise ValueError("Different encryption certificate from first backup")
     return data
 
@@ -285,7 +294,7 @@ def backup_encrypted_native_original(
     if (vault_root == witness_root or vault_root in witness_root.parents or
             witness_root in vault_root.parents):
         raise ValueError("Encrypted vault and first SHA witness roots must be distinct")
-    cert_sha = _cert(cert)
+    cert_sha = _cert(cert, require_current=False)
     plan, _, _ = read_capture_plan(Path(plan_file))
     slot = _slot(plan)
     local = verify_native_sha_witness(project, plan_file, capture_root, witness_root, clock=now)
@@ -295,6 +304,9 @@ def backup_encrypted_native_original(
         raise ValueError("Cannot copy native source without original cross-volume SHA")
     expected_sha = local["archive_sha256"]
     root, cipher, first, guard, lock = _paths(vault_root, slot)
+    if not any(p.exists() or p.is_symlink() for p in (cipher, first, guard, lock)):
+        # New issuance must require a current certificate BEFORE first lock.
+        _cert(cert, require_current=True)
     root.mkdir(parents=True, mode=0o700, exist_ok=True)
     validate_witness_destination(project, root)
     previous_lock = lock.exists()

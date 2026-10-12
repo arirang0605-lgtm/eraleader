@@ -56,6 +56,12 @@ def main(argv=None):
                         help="Original separate-device SHA-only witness directory for local dry-run")
     parser.add_argument("--native-encrypted-watch-cert", type=Path,
                         help="Original PUBLIC RSA recipient certificate for local dry-run (no private key)")
+    parser.add_argument("--native-recovery-readiness", action="store_true",
+                        help="Opt-in local first-backup certificate expiry/recovery key public-match audit")
+    parser.add_argument("--native-recovery-check-key", type=Path,
+                        help="Optional local mode600 restore key; only derive and compare PUBLIC key")
+    parser.add_argument("--native-recovery-warn-days", type=int, default=90,
+                        help="Certificate expiry warning horizon (1..365 days)")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -104,6 +110,13 @@ def main(argv=None):
             args.native_encrypted_watch_witness_root is not None,
             args.native_encrypted_watch_cert is not None)):
         raise ValueError("Encrypted native DRY-RUN requires --slot, vault, witness and PUBLIC cert")
+    if (args.native_recovery_check_key is not None or
+            args.native_recovery_warn_days != 90) and not args.native_recovery_readiness:
+        raise ValueError("Recovery-key/expiry settings require explicit --native-recovery-readiness")
+    if args.native_recovery_readiness and args.native_encrypted_watch_slot is None:
+        raise ValueError("Recovery readiness requires the original encrypted monitor slot/vault/witness/cert options")
+    if not 1 <= args.native_recovery_warn_days <= 365:
+        raise ValueError("Recovery warning horizon must be 1..365 days")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
@@ -117,7 +130,9 @@ def main(argv=None):
                                 or args.native_encrypted_watch_slot is not None
                                 or args.native_encrypted_watch_vault_root is not None
                                 or args.native_encrypted_watch_witness_root is not None
-                                or args.native_encrypted_watch_cert is not None):
+                                or args.native_encrypted_watch_cert is not None
+                                or args.native_recovery_readiness
+                                or args.native_recovery_check_key is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
     if args.native_first_internal_witness_root is not None:
         # Fail BEFORE running market batch or writing any native first scores.
@@ -162,6 +177,8 @@ def main(argv=None):
         from eraleader.native_sha_watchdog import run_native_sha_watchdog
         from eraleader.native_encrypted_vault import backup_encrypted_native_original
         from eraleader.native_encrypted_watchdog import run_native_encrypted_watchdog
+        from eraleader.native_recovery_readiness import (
+            inspect_native_recovery_readiness, STATUS as RECOVERY_STATUS)
 
         def capture():
             seen = set()
@@ -349,6 +366,22 @@ def main(argv=None):
                         audit.get("official_leader_promotions")!=0):
                     raise RuntimeError("Unsafe encrypted native dry-run monitor")
                 found["native_encrypted_watchdog"]=audit
+            if args.native_recovery_readiness:
+                ready=inspect_native_recovery_readiness(
+                    project,args.native_encrypted_watch_slot,
+                    args.native_encrypted_watch_vault_root,
+                    args.native_encrypted_watch_witness_root,
+                    args.native_encrypted_watch_cert,
+                    key=args.native_recovery_check_key,
+                    warning_days=args.native_recovery_warn_days)
+                if (not isinstance(ready,dict) or ready.get("status")!=RECOVERY_STATUS or
+                        ready.get("recovery_drill_executed") is not False or
+                        ready.get("local_artifacts_only") is not True or
+                        ready.get("messages_sent")!=0 or ready.get("external_api_calls")!=0 or
+                        ready.get("real_future_leader_accuracy_certified") is not False or
+                        ready.get("official_leader_promotions")!=0):
+                    raise RuntimeError("Unsafe recovery readiness evidence or claimed delivery")
+                found["native_recovery_readiness"]=ready
             return found
 
         try:
@@ -399,6 +432,17 @@ def main(argv=None):
                 except Exception as audit_error:
                     # No raw certificate/original source path in exception notes.
                     primary_error.add_note("Encrypted SHA observer incomplete: "+type(audit_error).__name__)
+            if args.native_recovery_readiness:
+                try:
+                    inspect_native_recovery_readiness(
+                        project,args.native_encrypted_watch_slot,
+                        args.native_encrypted_watch_vault_root,
+                        args.native_encrypted_watch_witness_root,
+                        args.native_encrypted_watch_cert,
+                        key=args.native_recovery_check_key,
+                        warning_days=args.native_recovery_warn_days)
+                except Exception as audit_error:
+                    primary_error.add_note("Recovery readiness incomplete: "+type(audit_error).__name__)
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"

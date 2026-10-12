@@ -30,6 +30,8 @@ def render_dashboard(snapshot: dict) -> str:
               f'{item["return_6m"]*100:.1f}%' if item["return_6m"] is not None else None,
               item["total_score_100"],cls))+
             "</tr>")
+    api_note=("공식 API 일봉 연결 · PIT/상장 이력 미인증"
+              if snapshot.get("official_api_evidence") else "API 미연결")
     warning=escape(snapshot["note"])
     source=escape(snapshot.get("data_source","unknown"))
     as_of=escape(snapshot["market_last_observation"])
@@ -51,7 +53,7 @@ def render_dashboard(snapshot: dict) -> str:
 <tbody>{''.join(rows)}</tbody></table></div>
 <p><small>데이터 출처: {source} · 자료의 과거 조정 및 종목군 완전성 검증 필요.</small></p>
 <p><small>현재 가격 관찰 순위는 투자 추천이나 확정 대장주 순위가 아닙니다.</small></p>
-</main><footer>EraLeader local-first · API 미연결 · 매매/자동 주문 기능 없음</footer></body></html>"""
+</main><footer>EraLeader local-first · {api_note} · 매매/자동 주문 기능 없음</footer></body></html>"""
 
 def write_dashboard(snapshot: dict, site_dir: Path) -> Path:
     site_dir.mkdir(parents=True,exist_ok=True)
@@ -61,7 +63,9 @@ def write_dashboard(snapshot: dict, site_dir: Path) -> Path:
     index.write_text("<!doctype html><html lang='ko'><meta charset='utf-8'>"
                      "<title>EraLeader</title><meta name='viewport' content='width=device-width, initial-scale=1'>"
                      "<body style='font:18px sans-serif;padding:36px'>"
-                     "<h1>EraLeader 로컬 화면</h1><p>API 연결 전 연구용 가격 관찰 화면입니다.</p>"
+                     "<h1>EraLeader 로컬 화면</h1><p>"+
+                     ("공식 API 가격 관찰, PIT 인증 전 연구용입니다." if snapshot.get("official_api_evidence")
+                      else "API 연결 전 연구용 가격 관찰 화면입니다.")+"</p>"
                      "<a href='kr.html'>한국 시장</a> | <a href='us.html'>미국 시장</a></body></html>",
                      encoding="utf-8")
     return path

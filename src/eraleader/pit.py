@@ -69,7 +69,8 @@ class LocalStore:
                 self.db.execute("""INSERT OR IGNORE INTO events
                     (event_id,run_id,security_id,kind,as_of,body)
                     VALUES (?,?,?,?,?,?)""",
-                    (ev["event_id"],run_id,ev["security_id"],ev["kind"],as_of,
+                    (ev["event_id"],run_id,ev["security_id"],ev["kind"],
+                     ev.get("recorded_at_date",as_of),
                      json.dumps(ev,ensure_ascii=False,sort_keys=True)))
                 self.db.execute("INSERT OR IGNORE INTO outbox(event_id) VALUES (?)",(ev["event_id"],))
         return self.db.total_changes > before

@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse
 from copy import deepcopy
-from datetime import date
+from datetime import date, datetime, timezone
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -99,6 +99,26 @@ def execute_run(args) -> dict:
     try:
         before=store.recent(args.market)
         events=detect_watch_changes(before,snap,rid)
+        if snap.get("official_api_evidence"):
+            # Official live observations may reference an older trading session.
+            # The EVENT must be dated at first prospective visibility, never
+            # at the historic KRX trading day (which would back-credit leadtime).
+            receipt=snap["official_api_evidence"]
+            first=max(x["first_local_received_at_utc"] for x in receipt["sources"])
+            registered=datetime.now(timezone.utc).isoformat()
+            for event in events:
+                event["kind"]="OFFICIAL_PRICE_WATCH_FIRST_RECEIVED_RESEARCH_ONLY"
+                event["observed_market_session"]=snap["market_last_observation"]
+                event["first_local_received_at_utc"]=first
+                event["recorded_at_utc"]=registered
+                event["recorded_at_date"]=args.as_of
+                event["as_of"]=args.as_of
+                event["historical_backfill"]=True
+                event["prospective_leadtime_eligible"]=False
+                event["message"]="최초 공식 API 확보 이후 기술적 WATCH 관찰 (과거 시세일 성과 소급 금지)"
+                event["event_id"]=sha256(
+                    (rid+"|"+event["security_id"]+"|"+args.as_of+"|official_api_research").encode()
+                ).hexdigest()[:24]
         store.save_snapshot(rid,args.market,snap["market_last_observation"],snap,events)
     finally:
         store.close()

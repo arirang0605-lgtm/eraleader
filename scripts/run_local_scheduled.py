@@ -48,6 +48,14 @@ def main(argv=None):
                         help="Opt-in AES-256-GCM encrypted first native ZIP backup on a different local device")
     parser.add_argument("--native-first-encryption-cert", type=Path,
                         help="Public RSA-OAEP recipient certificate for opt-in encrypted source backup")
+    parser.add_argument("--native-encrypted-watch-slot", action="append",
+                        help="Opt-in encrypted native first SHA DRY-RUN; repeat for KR/US slots")
+    parser.add_argument("--native-encrypted-watch-vault-root", type=Path,
+                        help="Original separate-device ciphertext backup directory for local dry-run")
+    parser.add_argument("--native-encrypted-watch-witness-root", type=Path,
+                        help="Original separate-device SHA-only witness directory for local dry-run")
+    parser.add_argument("--native-encrypted-watch-cert", type=Path,
+                        help="Original PUBLIC RSA recipient certificate for local dry-run (no private key)")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -87,6 +95,15 @@ def main(argv=None):
             not args.native_first_private_archive or
             args.native_first_internal_witness_root is None):
         raise ValueError("Encrypted first-native vault requires private archive, capture plan and separate SHA witness")
+    if any((args.native_encrypted_watch_slot is not None,
+            args.native_encrypted_watch_vault_root is not None,
+            args.native_encrypted_watch_witness_root is not None,
+            args.native_encrypted_watch_cert is not None)) and not all((
+            args.native_encrypted_watch_slot is not None,
+            args.native_encrypted_watch_vault_root is not None,
+            args.native_encrypted_watch_witness_root is not None,
+            args.native_encrypted_watch_cert is not None)):
+        raise ValueError("Encrypted native DRY-RUN requires --slot, vault, witness and PUBLIC cert")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
@@ -96,7 +113,11 @@ def main(argv=None):
                                 or args.native_sha_dry_run_plan is not None
                                 or args.native_sha_dry_run_witness_root is not None
                                 or args.native_first_encrypted_vault_root is not None
-                                or args.native_first_encryption_cert is not None):
+                                or args.native_first_encryption_cert is not None
+                                or args.native_encrypted_watch_slot is not None
+                                or args.native_encrypted_watch_vault_root is not None
+                                or args.native_encrypted_watch_witness_root is not None
+                                or args.native_encrypted_watch_cert is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
     if args.native_first_internal_witness_root is not None:
         # Fail BEFORE running market batch or writing any native first scores.
@@ -113,6 +134,14 @@ def main(argv=None):
         if vault==witness or vault in witness.parents or witness in vault.parents:
             raise ValueError("Encrypted vault must not overlap first SHA witness root")
         _cert(args.native_first_encryption_cert)
+    if args.native_encrypted_watch_slot is not None:
+        # Configuration validation is read-only; missing disk/cert is reported
+        # by the audit, not silently installed or reinitialized on T5DATA.
+        from eraleader.native_encrypted_watchdog import validate_monitor_inputs
+        validate_monitor_inputs(project,args.native_encrypted_watch_slot,
+                                args.native_encrypted_watch_vault_root,
+                                args.native_encrypted_watch_witness_root,
+                                args.native_encrypted_watch_cert)
 
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
@@ -120,7 +149,8 @@ def main(argv=None):
                 args.exchange_policy_out is not None or
                 args.prospective_due_registry is not None or
                 args.native_first_capture_plan is not None or
-                args.native_sha_dry_run_plan is not None):
+                args.native_sha_dry_run_plan is not None or
+                args.native_encrypted_watch_slot is not None):
             return job()
         from eraleader.local_failure_outbox import run_local_failure_outbox
         from eraleader.provider_quality_watchdog import run_provider_quality_watchdog
@@ -131,6 +161,7 @@ def main(argv=None):
         from eraleader.native_sha_witness import record_native_sha_witness
         from eraleader.native_sha_watchdog import run_native_sha_watchdog
         from eraleader.native_encrypted_vault import backup_encrypted_native_original
+        from eraleader.native_encrypted_watchdog import run_native_encrypted_watchdog
 
         def capture():
             seen = set()
@@ -301,6 +332,23 @@ def main(argv=None):
                         scan.get("actual_future_leader_skill_certified") is not False):
                     raise RuntimeError("Native SHA DRY-RUN audit unsafe or incomplete")
                 found["native_sha_watchdog"]=scan
+            if args.native_encrypted_watch_slot is not None:
+                audit=run_native_encrypted_watchdog(
+                    project,args.native_encrypted_watch_slot,
+                    args.native_encrypted_watch_vault_root,
+                    args.native_encrypted_watch_witness_root,
+                    args.native_encrypted_watch_cert)
+                if (not isinstance(audit,dict) or
+                        audit.get("status")!="LOCAL_ENCRYPTED_NATIVE_DRY_RUN_RECORDED" or
+                        audit.get("local_artifacts_only") is not True or
+                        audit.get("authenticated_plaintext_verified") is not False or
+                        audit.get("independent_market_pit_certified") is not False or
+                        audit.get("real_future_leader_accuracy_certified") is not False or
+                        audit.get("messages_sent")!=0 or
+                        audit.get("external_api_calls")!=0 or
+                        audit.get("official_leader_promotions")!=0):
+                    raise RuntimeError("Unsafe encrypted native dry-run monitor")
+                found["native_encrypted_watchdog"]=audit
             return found
 
         try:
@@ -341,6 +389,16 @@ def main(argv=None):
                         project,args.native_sha_dry_run_plan,args.native_sha_dry_run_witness_root)
                 except Exception as audit_error:
                     primary_error.add_note(f"Native SHA monitor also failed: {audit_error}")
+            if args.native_encrypted_watch_slot is not None:
+                try:
+                    run_native_encrypted_watchdog(
+                        project,args.native_encrypted_watch_slot,
+                        args.native_encrypted_watch_vault_root,
+                        args.native_encrypted_watch_witness_root,
+                        args.native_encrypted_watch_cert)
+                except Exception as audit_error:
+                    # No raw certificate/original source path in exception notes.
+                    primary_error.add_note("Encrypted SHA observer incomplete: "+type(audit_error).__name__)
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"

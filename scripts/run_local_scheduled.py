@@ -62,6 +62,14 @@ def main(argv=None):
                         help="Optional local mode600 restore key; only derive and compare PUBLIC key")
     parser.add_argument("--native-recovery-warn-days", type=int, default=90,
                         help="Certificate expiry warning horizon (1..365 days)")
+    parser.add_argument("--native-recovery-due", action="store_true",
+                        help="Opt-in key-free recovery drill interval SHA DRY-RUN monitor")
+    parser.add_argument("--native-recovery-due-scratch-root", type=Path,
+                        help="Original private 0700 Mac scratch root used for drill SHA identity")
+    parser.add_argument("--native-recovery-due-days", type=int, default=30,
+                        help="Local calendar days before successful recovery rehearsal is due")
+    parser.add_argument("--native-recovery-due-warn-days", type=int, default=7,
+                        help="Local early warning days before drill becomes overdue")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -117,6 +125,18 @@ def main(argv=None):
         raise ValueError("Recovery readiness requires the original encrypted monitor slot/vault/witness/cert options")
     if not 1 <= args.native_recovery_warn_days <= 365:
         raise ValueError("Recovery warning horizon must be 1..365 days")
+    if (args.native_recovery_due_scratch_root is not None or
+            args.native_recovery_due_days != 30 or
+            args.native_recovery_due_warn_days != 7) and not args.native_recovery_due:
+        raise ValueError("Recovery drill cadence options require --native-recovery-due")
+    if args.native_recovery_due and (
+            args.native_encrypted_watch_slot is None or
+            args.native_recovery_due_scratch_root is None):
+        raise ValueError("Recovery due observer needs original encrypted watcher and 0700 scratch path")
+    if args.native_recovery_due and not (
+            1 <= args.native_recovery_due_days <= 365 and
+            0 <= args.native_recovery_due_warn_days < args.native_recovery_due_days):
+        raise ValueError("Recovery drill cadence policy requires 1..365 due days and warning < due")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
@@ -132,7 +152,9 @@ def main(argv=None):
                                 or args.native_encrypted_watch_witness_root is not None
                                 or args.native_encrypted_watch_cert is not None
                                 or args.native_recovery_readiness
-                                or args.native_recovery_check_key is not None):
+                                or args.native_recovery_check_key is not None
+                                or args.native_recovery_due
+                                or args.native_recovery_due_scratch_root is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
     if args.native_first_internal_witness_root is not None:
         # Fail BEFORE running market batch or writing any native first scores.
@@ -157,6 +179,16 @@ def main(argv=None):
                                 args.native_encrypted_watch_vault_root,
                                 args.native_encrypted_watch_witness_root,
                                 args.native_encrypted_watch_cert)
+    if args.native_recovery_due:
+        from eraleader.native_recovery_due import _config
+        # Validate explicit scratch and immutable timing policy before market job.
+        _config(project,args.native_encrypted_watch_slot,
+                args.native_encrypted_watch_vault_root,
+                args.native_encrypted_watch_witness_root,
+                args.native_encrypted_watch_cert,
+                args.native_recovery_due_scratch_root,
+                args.native_recovery_due_days,
+                args.native_recovery_due_warn_days)
 
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
@@ -179,6 +211,8 @@ def main(argv=None):
         from eraleader.native_encrypted_watchdog import run_native_encrypted_watchdog
         from eraleader.native_recovery_readiness import (
             inspect_native_recovery_readiness, STATUS as RECOVERY_STATUS)
+        from eraleader.native_recovery_due import (
+            run_recovery_due_watchdog, STATUS as RECOVERY_DUE_STATUS)
 
         def capture():
             seen = set()
@@ -382,6 +416,23 @@ def main(argv=None):
                         ready.get("official_leader_promotions")!=0):
                     raise RuntimeError("Unsafe recovery readiness evidence or claimed delivery")
                 found["native_recovery_readiness"]=ready
+            if args.native_recovery_due:
+                due=run_recovery_due_watchdog(
+                    project,args.native_encrypted_watch_slot,
+                    args.native_encrypted_watch_vault_root,
+                    args.native_encrypted_watch_witness_root,
+                    args.native_encrypted_watch_cert,
+                    args.native_recovery_due_scratch_root,
+                    due_days=args.native_recovery_due_days,
+                    warn_days=args.native_recovery_due_warn_days)
+                if (not isinstance(due,dict) or due.get("status")!=RECOVERY_DUE_STATUS or
+                        due.get("local_artifacts_only") is not True or
+                        due.get("messages_sent")!=0 or due.get("external_api_calls")!=0 or
+                        due.get("official_leader_promotions")!=0 or
+                        due.get("actual_future_leader_skill_certified") is not False or
+                        due.get("independent_market_pit_certified") is not False):
+                    raise RuntimeError("Unsafe key-free recovery rehearsal due monitor")
+                found["native_recovery_due"]=due
             return found
 
         try:
@@ -443,6 +494,18 @@ def main(argv=None):
                         warning_days=args.native_recovery_warn_days)
                 except Exception as audit_error:
                     primary_error.add_note("Recovery readiness incomplete: "+type(audit_error).__name__)
+            if args.native_recovery_due:
+                try:
+                    run_recovery_due_watchdog(
+                        project,args.native_encrypted_watch_slot,
+                        args.native_encrypted_watch_vault_root,
+                        args.native_encrypted_watch_witness_root,
+                        args.native_encrypted_watch_cert,
+                        args.native_recovery_due_scratch_root,
+                        due_days=args.native_recovery_due_days,
+                        warn_days=args.native_recovery_due_warn_days)
+                except Exception as audit_error:
+                    primary_error.add_note("Recovery due observer incomplete: "+type(audit_error).__name__)
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"

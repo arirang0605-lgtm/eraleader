@@ -28,6 +28,8 @@ def main(argv=None):
                         help="Opt-in after-run local evidence incidents; NEVER transmit or install")
     parser.add_argument("--provider-quality-dry-run", action="store_true",
                         help="Opt-in SHA/quality weakening watchdog; local preview only, never sent")
+    parser.add_argument("--exchange-policy-out", type=Path,
+                        help="Opt-in original WATCH output for local strict roster policy SHA watchdog")
     parser.add_argument("--prospective-due-registry", type=Path,
                         help="Opt-in first-write cohort index for local unsent due-evidence warnings")
     parser.add_argument("--prospective-due-native-config", type=Path,
@@ -60,6 +62,7 @@ def main(argv=None):
     if args.prospective_due_native_config is not None and args.prospective_due_registry is None:
         raise ValueError("Native due evidence needs an explicit prospective registry")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
+                                or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
                                 or args.native_first_capture_plan is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
@@ -67,11 +70,13 @@ def main(argv=None):
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
         if not (args.local_outbox_dry_run or args.provider_quality_dry_run or
+                args.exchange_policy_out is not None or
                 args.prospective_due_registry is not None or
                 args.native_first_capture_plan is not None):
             return job()
         from eraleader.local_failure_outbox import run_local_failure_outbox
         from eraleader.provider_quality_watchdog import run_provider_quality_watchdog
+        from eraleader.exchange_policy_watchdog import run_exchange_policy_watchdog
         from eraleader.prospective_due_alerts import run_prospective_due_alerts
         from eraleader.native_first_capture import capture_first_native_topk
 
@@ -133,6 +138,17 @@ def main(argv=None):
                         or result.get("local_artifacts_only") is not True):
                     raise RuntimeError("Local quality dry-run verification unsafe or skipped")
                 found["provider_quality_watchdog"] = result
+            if args.exchange_policy_out is not None:
+                result = run_exchange_policy_watchdog(project,args.exchange_policy_out)
+                if (not isinstance(result,dict) or
+                        result.get("status")!="LOCAL_EXCHANGE_POLICY_DRY_RUN_RECORDED" or
+                        result.get("messages_sent")!=0 or
+                        result.get("external_api_calls")!=0 or
+                        result.get("official_leader_promotions")!=0 or
+                        result.get("actual_future_leader_skill_certified") is not False or
+                        result.get("local_artifacts_only") is not True):
+                    raise RuntimeError("Exchange policy watchdog did not safely record")
+                found["exchange_policy_watchdog"]=result
             if args.prospective_due_registry is not None:
                 result = run_prospective_due_alerts(
                     project,registry_dir=args.prospective_due_registry,
@@ -165,6 +181,11 @@ def main(argv=None):
                     run_provider_quality_watchdog(project)
                 except Exception as audit_error:
                     primary_error.add_note(f"Quality watchdog audit also failed: {audit_error}")
+            if args.exchange_policy_out is not None:
+                try:
+                    run_exchange_policy_watchdog(project,args.exchange_policy_out)
+                except Exception as audit_error:
+                    primary_error.add_note(f"Exchange roster policy watch also failed: {audit_error}")
             if args.prospective_due_registry is not None:
                 try:
                     run_prospective_due_alerts(

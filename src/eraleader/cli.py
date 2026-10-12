@@ -212,19 +212,30 @@ def execute_integrated(args) -> dict:
     from .exchange_roster_policy import guard_integrated_policy
     strict=bool(getattr(args,"require_provider_exchange_roster",False))
     if strict:
-        # Reject obviously incomplete opt-in before creating any policy
-        # control file; a typo must not enroll an unusable research root.
-        strict_flags=(
-            "provider_exchange_roster","provider_exchange_roster_sha256",
-            "provider_issuer_lineage","provider_ledger_a","provider_bundle_a",
-            "provider_ledger_b","provider_bundle_b",
-            "provider_staged_manifest_a","provider_normalized_manifest_a",
-            "provider_staged_manifest_b","provider_normalized_manifest_b",
-        )
-        if (not all(getattr(args,key,None) for key in strict_flags) or
-                not getattr(args,"require_provider_original_pins",False) or
-                not getattr(args,"require_provider_issuer_class_lineage",False)):
-            raise ValueError("Strict exchange roster policy requires complete pinned A/B and issuer-class source flags")
+        # Both the legacy manually specified A/B pins and the explicitly
+        # first-SHA-pinned atomic bundle must satisfy the same issuer/roster
+        # constraints. Do not silently fall back to an unpinned WATCH.
+        atomic_mode=bool(getattr(args,"provider_atomic_pair_root",None))
+        if atomic_mode:
+            strict_flags=(
+                "provider_exchange_roster","provider_exchange_roster_sha256",
+                "provider_issuer_lineage","provider_first_pair_sha256",
+            )
+            if (not all(getattr(args,key,None) for key in strict_flags) or
+                    not getattr(args,"require_provider_issuer_class_lineage",False)):
+                raise ValueError("Strict exchange roster requires atomic first receipt and issuer-class source flags")
+        else:
+            strict_flags=(
+                "provider_exchange_roster","provider_exchange_roster_sha256",
+                "provider_issuer_lineage","provider_ledger_a","provider_bundle_a",
+                "provider_ledger_b","provider_bundle_b",
+                "provider_staged_manifest_a","provider_normalized_manifest_a",
+                "provider_staged_manifest_b","provider_normalized_manifest_b",
+            )
+            if (not all(getattr(args,key,None) for key in strict_flags) or
+                    not getattr(args,"require_provider_original_pins",False) or
+                    not getattr(args,"require_provider_issuer_class_lineage",False)):
+                raise ValueError("Strict exchange roster policy requires complete pinned A/B and issuer-class source flags")
     with guard_integrated_policy(Path(args.out),args.market,strict_mode=strict) as policy:
         return _execute_integrated_inner(args,policy)
 
@@ -235,18 +246,43 @@ def _execute_integrated_inner(args,policy) -> dict:
     fields=("provider_ledger_a","provider_bundle_a","provider_ledger_b",
             "provider_bundle_b")
     supplied=[getattr(args,field,None) for field in fields]
+    atomic_root=getattr(args,"provider_atomic_pair_root",None)
+    atomic_sha=getattr(args,"provider_first_pair_sha256",None)
+    if bool(atomic_root)!=bool(atomic_sha):
+        raise ValueError("Atomic provider pair root and original first SHA are both mandatory")
+    manual_sources=(
+        "provider_staged_manifest_a","provider_normalized_manifest_a",
+        "provider_staged_manifest_b","provider_normalized_manifest_b",
+    )
+    if atomic_root and (
+            any(supplied) or
+            any(getattr(args,key,None) for key in manual_sources) or
+            getattr(args,"require_provider_original_pins",False)):
+        raise ValueError("Atomic provider pair cannot mix manual sources or re-pin first evidence")
     if any(supplied) and not all(supplied):
         raise ValueError("All four provider PIT flags are required together")
-    pair=supplied if all(supplied) else None
+    pinned=None
+    if atomic_root:
+        from .provider_pair_candidate_bridge import resolve_atomic_candidate_pair
+        pinned=resolve_atomic_candidate_pair(
+            Path(atomic_root),atomic_sha,market=args.market,
+            decision_at=args.as_of)
+        from .provider_pair_candidate_bridge import guard_atomic_pair_derived_output
+        guard_atomic_pair_derived_output(pinned,Path(atomic_root),Path(args.out))
+        pair=list(pinned.pair)
+        strict_pins=True
+        original_sources=pinned.originals
+    else:
+        pair=supplied if all(supplied) else None
+        strict_pins,original_sources=_original_pin_cli_options(args,prefix="provider_")
+        if strict_pins and pair is None:
+            raise ValueError("Strict original PIN research requires all four provider ledger/bundle inputs")
     show_quality=getattr(args,'show_provider_gate_quality',False)
     history_enabled=getattr(args,'record_provider_quality_history',False)
     if history_enabled and (not show_quality or pair is None):
         raise ValueError('Provider quality history needs a paired source and --show-provider-gate-quality')
     if show_quality and pair is None:
         raise ValueError('Provider gate quality view requires all four provider source inputs')
-    strict_pins,original_sources=_original_pin_cli_options(args,prefix="provider_")
-    if strict_pins and pair is None:
-        raise ValueError("Strict original PIN research requires all four provider ledger/bundle inputs")
     require_issuer=getattr(args,'require_provider_issuer_class_lineage',False)
     issuer_file=getattr(args,'provider_issuer_lineage',None)
     if (bool(require_issuer)!=bool(issuer_file) or
@@ -292,6 +328,14 @@ def _execute_integrated_inner(args,policy) -> dict:
         source.close()
     if gate is not None:
         policy.assert_unchanged()
+        if pinned is not None:
+            # Last read-only full original-as-of audit BEFORE any gate,
+            # quality history, state or prospective WATCH publication.
+            from .provider_pair_candidate_bridge import assert_atomic_candidate_pair_unchanged
+            assert_atomic_candidate_pair_unchanged(
+                pinned,Path(atomic_root),decision_at=args.as_of)
+            gate["atomic_first_pair_receipt_sha256"]=pinned.first_sha256
+            gate["atomic_first_pair_research_only"]=True
         gate_file=Path(args.out)/"provider_candidate_gate_research.json"
         # The gate is evaluated on actual source receipts and source rows, not
         # just a separately supplied self-declared summary report.
@@ -326,7 +370,9 @@ def _execute_integrated_inner(args,policy) -> dict:
         result["provider_pair_gate"]=gate
         stamp=json.dumps({
             "original_run_id":result["run_id"],
-            "local_pair_digest":gate["source_pair_digest_sha256"]
+            "local_pair_digest":gate["source_pair_digest_sha256"],
+            **({"atomic_first_pair_receipt_sha256":pinned.first_sha256}
+               if pinned is not None else {}),
         },ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
         result["run_id"]=sha256(stamp.encode()).hexdigest()[:20]
     policy.assert_unchanged()
@@ -1068,6 +1114,8 @@ def main(argv=None):
     join.add_argument('--as-of',required=True)
     join.add_argument('--price-json')
     join.add_argument('--out',default=str(OUT))
+    join.add_argument('--provider-atomic-pair-root',help='Existing private first-published 0700 pair root')
+    join.add_argument('--provider-first-pair-sha256',help='Separately retained original pair receipt SHA256')
     join.add_argument('--provider-ledger-a',help='Optional first local PIT source ledger; all four flags required')
     join.add_argument('--provider-bundle-a',help='First previously registered provider bundle SHA256')
     join.add_argument('--provider-ledger-b',help='Optional second independent claimed PIT source ledger')

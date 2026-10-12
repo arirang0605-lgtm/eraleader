@@ -70,6 +70,12 @@ def main(argv=None):
                         help="Local calendar days before successful recovery rehearsal is due")
     parser.add_argument("--native-recovery-due-warn-days", type=int, default=7,
                         help="Local early warning days before drill becomes overdue")
+    parser.add_argument("--native-cold-pin-root", type=Path,
+                        help="Opt-in periodic encrypted cold custody validation via independent first SHA root")
+    parser.add_argument("--native-cold-max-gap-hours", type=int, default=48,
+                        help="Immutable maximum scan interval for original SHA PIN (1..720 hours)")
+    parser.add_argument("--native-cold-allow-colocated-research-only", action="store_true",
+                        help="Synthetic test-only, NEVER third-volume operational custody")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -137,6 +143,11 @@ def main(argv=None):
             1 <= args.native_recovery_due_days <= 365 and
             0 <= args.native_recovery_due_warn_days < args.native_recovery_due_days):
         raise ValueError("Recovery drill cadence policy requires 1..365 due days and warning < due")
+    if (args.native_cold_max_gap_hours != 48 or
+            args.native_cold_allow_colocated_research_only) and args.native_cold_pin_root is None:
+        raise ValueError("Cold custody scan policy requires --native-cold-pin-root")
+    if args.native_cold_pin_root is not None and not 1 <= args.native_cold_max_gap_hours <= 720:
+        raise ValueError("Encrypted custody scan max gap must be 1..720 hours")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
@@ -154,7 +165,8 @@ def main(argv=None):
                                 or args.native_recovery_readiness
                                 or args.native_recovery_check_key is not None
                                 or args.native_recovery_due
-                                or args.native_recovery_due_scratch_root is not None):
+                                or args.native_recovery_due_scratch_root is not None
+                                or args.native_cold_pin_root is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
     if args.native_first_internal_witness_root is not None:
         # Fail BEFORE running market batch or writing any native first scores.
@@ -190,6 +202,11 @@ def main(argv=None):
                 args.native_recovery_due_days,
                 args.native_recovery_due_warn_days)
 
+    if args.native_cold_pin_root is not None:
+        from eraleader.native_cold_integrity import _configured
+        _configured(project, args.native_cold_pin_root, args.native_cold_max_gap_hours,
+                    research=args.native_cold_allow_colocated_research_only)
+
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
         if not (args.local_outbox_dry_run or args.provider_quality_dry_run or
@@ -197,7 +214,8 @@ def main(argv=None):
                 args.prospective_due_registry is not None or
                 args.native_first_capture_plan is not None or
                 args.native_sha_dry_run_plan is not None or
-                args.native_encrypted_watch_slot is not None):
+                args.native_encrypted_watch_slot is not None or
+                args.native_cold_pin_root is not None):
             return job()
         from eraleader.local_failure_outbox import run_local_failure_outbox
         from eraleader.provider_quality_watchdog import run_provider_quality_watchdog
@@ -213,6 +231,8 @@ def main(argv=None):
             inspect_native_recovery_readiness, STATUS as RECOVERY_STATUS)
         from eraleader.native_recovery_due import (
             run_recovery_due_watchdog, STATUS as RECOVERY_DUE_STATUS)
+        from eraleader.native_cold_integrity import (
+            scan_cold_integrity, STATUS as COLD_STATUS)
 
         def capture():
             seen = set()
@@ -433,6 +453,21 @@ def main(argv=None):
                         due.get("independent_market_pit_certified") is not False):
                     raise RuntimeError("Unsafe key-free recovery rehearsal due monitor")
                 found["native_recovery_due"]=due
+            if args.native_cold_pin_root is not None:
+                cold=scan_cold_integrity(
+                    project, args.native_cold_pin_root,
+                    max_gap_hours=args.native_cold_max_gap_hours,
+                    allow_colocated_research=args.native_cold_allow_colocated_research_only)
+                if (not isinstance(cold,dict) or cold.get("status")!=COLD_STATUS or
+                        cold.get("local_artifacts_only") is not True or
+                        cold.get("plaintext_decrypted") is not False or
+                        cold.get("private_key_accessed") is not False or
+                        cold.get("external_api_calls")!=0 or
+                        cold.get("messages_sent")!=0 or
+                        cold.get("official_leader_promotions")!=0 or
+                        cold.get("actual_future_leader_skill_certified") is not False):
+                    raise RuntimeError("Unsafe scheduled cold custody SHA scan")
+                found["native_cold_integrity"]=cold
             return found
 
         try:
@@ -506,6 +541,14 @@ def main(argv=None):
                         warn_days=args.native_recovery_due_warn_days)
                 except Exception as audit_error:
                     primary_error.add_note("Recovery due observer incomplete: "+type(audit_error).__name__)
+            if args.native_cold_pin_root is not None:
+                try:
+                    scan_cold_integrity(
+                        project,args.native_cold_pin_root,
+                        max_gap_hours=args.native_cold_max_gap_hours,
+                        allow_colocated_research=args.native_cold_allow_colocated_research_only)
+                except Exception as audit_error:
+                    primary_error.add_note("Cold SHA audit incomplete: "+type(audit_error).__name__)
             raise
         if (not isinstance(scheduled, dict)
                 or scheduled.get("status") == "SKIPPED_ALREADY_RUNNING"

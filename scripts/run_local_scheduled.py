@@ -38,6 +38,8 @@ def main(argv=None):
                         help="Opt-in local first-score Top-K+census; repeat for KR+US plans, never outcomes")
     parser.add_argument("--native-first-private-archive", action="store_true",
                         help="Opt-in private original-source ZIP and separate first SHA receipt after native capture")
+    parser.add_argument("--native-first-internal-witness-root", type=Path,
+                        help="Opt-in hashed-only original ZIP SHA witness on a different filesystem; no raw market sources copied")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -65,12 +67,20 @@ def main(argv=None):
         raise ValueError("Native due evidence needs an explicit prospective registry")
     if args.native_first_private_archive and not args.native_first_capture_plan:
         raise ValueError("Private first-native archive requires --native-first-capture-plan")
+    if (args.native_first_internal_witness_root is not None and
+            not args.native_first_private_archive):
+        raise ValueError("Separate internal SHA witness requires --native-first-private-archive")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
                                 or args.native_first_capture_plan is not None
-                                or args.native_first_private_archive):
+                                or args.native_first_private_archive
+                                or args.native_first_internal_witness_root is not None):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
+    if args.native_first_internal_witness_root is not None:
+        # Fail BEFORE running market batch or writing any native first scores.
+        from eraleader.native_sha_witness import validate_witness_destination
+        validate_witness_destination(project,args.native_first_internal_witness_root)
 
     def run_and_audit(job):
         # Both dry-run observers are strictly opt-in and never schedule delivery.
@@ -85,6 +95,7 @@ def main(argv=None):
         from eraleader.prospective_due_alerts import run_prospective_due_alerts
         from eraleader.native_first_capture import capture_first_native_topk
         from eraleader.scheduled_native_archive import archive_captured_native_plan
+        from eraleader.native_sha_witness import record_native_sha_witness
 
         def capture():
             seen = set()
@@ -140,6 +151,27 @@ def main(argv=None):
                             first_archive.get("external_timestamp_attested") is not False or
                             first_archive.get("independent_market_pit_certified") is not False):
                         raise RuntimeError("Unsafe or skipped private original-source archive first SHA receipt")
+                    if (args.native_first_internal_witness_root is not None and
+                            expected is None):
+                        separate=record_native_sha_witness(
+                            project,original_plan,
+                            project/"output"/"native_first_captures",
+                            first_archive,args.native_first_internal_witness_root)
+                        if (not isinstance(separate,dict) or
+                                separate.get("status") not in (
+                                    "FIRST_SEPARATE_VOLUME_NATIVE_SHA_WITNESSED_NOT_ATTESTED",
+                                    "EXISTING_SEPARATE_VOLUME_NATIVE_SHA_REVERIFIED_NOT_ATTESTED") or
+                                separate.get("archive_sha256")!=first_archive.get("archive_original_sha256") or
+                                separate.get("market")!=first_archive.get("market") or
+                                separate.get("source_archive_verified") is not True or
+                                separate.get("separate_device_checked") is not True or
+                                separate.get("independent_timestamp_attested") is not False or
+                                separate.get("real_future_leader_accuracy_certified") is not False or
+                                separate.get("official_leader_promotions")!=0 or
+                                separate.get("messages_sent")!=0 or
+                                separate.get("external_api_calls")!=0):
+                            raise RuntimeError("Unsafe or skipped cross-volume first SHA witness")
+                        first_archive={**first_archive,"separate_volume_sha_witness":separate}
                     result={**result,"private_original_archive":first_archive}
                 all_results.append(result)
             if len(all_results)==1:

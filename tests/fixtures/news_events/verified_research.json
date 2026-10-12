@@ -1,0 +1,52 @@
+{
+  "events": [
+    {
+      "available_at": "2026-10-12T09:14:00+09:00",
+      "beneficiary_candidates": [
+        {
+          "evidence_ids": [
+            "sha.darta1"
+          ],
+          "first_known_at": "2026-10-12T09:14:00+09:00",
+          "issuer_id": "005930",
+          "relation": "DIRECT_VERIFIED"
+        }
+      ],
+      "catalyst_state": "CONFIRMED",
+      "data_cutoff": "2026-10-12T09:14:00+09:00",
+      "event_id": "event.DART.0001",
+      "event_type": "MATERIAL_DISCLOSURE",
+      "event_version": 1,
+      "evidence_ids": [
+        "sha.darta1"
+      ],
+      "export_id": "fixture_20261013",
+      "extractor_version": "extractor-fixture-1",
+      "first_seen_at": "2026-10-12T09:12:00+09:00",
+      "license_profile": {
+        "derived_storage_allowed": true,
+        "redistribution_allowed": false,
+        "research_allowed": true
+      },
+      "model_version": "nc-mock-1",
+      "novelty": "NEW",
+      "published_at": "2026-10-12T09:10:00+09:00",
+      "quality_flags": [],
+      "record_sha256": "1e88b6b3b87dd56677b3504e2b23c19f8483729830350e7b4435d420c005fc2d",
+      "related_issuer_ids": [
+        "005930"
+      ],
+      "schema_version": "1.0.0",
+      "source_refs": [
+        {
+          "source_id": "dart",
+          "url": "https://example.org/dart/1"
+        }
+      ],
+      "theme_hints": [
+        "semiconductors"
+      ],
+      "verification_status": "VERIFIED"
+    }
+  ]
+}

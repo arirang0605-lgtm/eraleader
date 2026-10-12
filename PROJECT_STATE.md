@@ -1527,3 +1527,22 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **테스트 증거**: 100% mocked transport/local synthetic fixtures의 신규 `tests/test_official_api_capture.py` **29 PASS**; 기존 `tests/test_provider_export_normalizer.py` 30, `tests/test_provider_pit_adapter.py` 58, `tests/test_provider_pair_atomic_onboard.py` 23 포함 **총 4모듈 140/140 PASS EXIT0**. `PYTHONPATH=src python3 -m pytest tests/test_official_api_capture.py tests/test_provider_export_normalizer.py tests/test_provider_pit_adapter.py tests/test_provider_pair_atomic_onboard.py -q --tb=short`; py_compile 3개 PASS, handoff30ID/40파일 PASS, Public Git staged 정확히4/suspected secrets0/`git diff --cached --check` PASS. ignored `output/verification_logs/official_api_scoped_20261012.txt`. 전체 pytest 장기 회귀는 사용자 결정대로 **실제 API 인증·원시 데이터 PIT 연결 후 실행**, 이번에 미실행. API 응답 내용을 합성/가공해 first-native WATCH에 바로 넣거나 공식 투자 후보 승격하지 않음.
 - **GitHub 코드**: 신규 코드/test/docs 4파일만 `d2961b645f8cf6ecb76d5a9229194f4c3bc53318` commit/push main, 실제 `git ls-remote origin refs/heads/main`과 일치. 이 인계 3개 문서는 별도 docs-only checkpoint. 원래 다른 세션 `native_first_capture.py` dirty patch만 남김.
 - **다음 순서(완료 전 차단)**: 사용자 실제 KRX/DART 인증키와 SEC User-Agent 설정 후 각 서비스 단 1회 인증 live HTTP smoke→현재 original response raw SHA/PIN 검증·공식 API schema/상품 이용 범위/쿼터 검사→DART 전체 공시 페이지 및 한국 corp_code↔개별 issue/shareclass, SEC CIK↔ticker/class·acceptanceDateTime cross-source, KRX 상장/상폐·기업행동/조정가격 PIT → 기존 stage normalizer / 첫 SHA / WATCH에 **실제 동일시점 이용 가능한 자료만** 연결 → 변경 영향 테스트/전체 회귀/장기 홀드아웃→정식 자동운영. 실제 first-public timestamp/모든 이전 역사 유니버스 및 미래 Top-K 실전 precision/lead-days N/A. 실제 연결 완료율 **KRX/DART/SEC 인증 수신 0/3**, 설계 및 테스트 어댑터 구현 완료; 이전 로컬 99% 숫자는 전체 시스템 인증률로 사용하지 말 것.
+
+
+## 2026-10-12 API 실제 수신 2차 검증 — KRX HTTP 401 / DART 100건
+- 사용자가 KRX/DART 키를 Mac 내부 owner-only 0700 folder/0600 file의 local setup form에 등록. SEC/KRX/DART 3종 설정 존재·preflight PASS; 실제 비밀키 본문 노출/커밋 없음.
+- 실제 공식 HTTPS: DART 2026-10-09 status 013/0건, 2026-10-08 첫 페이지 100건 수신 성공. total_count > 100이므로 **첫 페이지만이며 해당 일자 전수 수집 미완료**. 각각 private output first raw/receipt SHA 보관.
+- KRX 공식 KOSPI/KOSDAQ 2026-10-08 live 호출 모두 HTTP 401 (not authorized), API 연동 성공 주장 금지. 입력한 40자리 키는 공개 데모 키와 다르며, API 별 서비스 활용 승인·키 유효성·계정 상태는 KRX 포털에서 사용자 확인 필요. KRX 서비스 목록 사이트 Mac 브라우저에 열어둠.
+- 기존 code/Git 수동 변경 없이 실제 인증 확인만 진행. 다음: KRX 관리자 승인 확인 뒤 live 1일 스모크 재시도; DART paging 및 원시 PIT 정규화 추가.
+
+## 2026-10-12 KST | 1_2 실제 공식 KRX 승인·연결 완료 (Chrome 자동화 및 raw SHA 검증)
+
+- Mac Chrome Apple Events JavaScript 설정 활성 확인, 사용자 **직접 로그인** 유지; 비밀번호·계정 키는 채팅/도구 출력/원격 Git에 노출하지 않음. KRX 공식 메뉴 `API 인증키 발급내역`에서 키 유효기간 **2026-09-08~2027-09-07** 확인, 브라우저 인증키와 Mac 보호 파일의 KRX 키 **비교 결과 일치**(원문 출력 0).
+- `마이페이지 > API 이용현황`에서 **유가증권 일별매매정보·코스닥 일별매매정보 모두 '승인'**, 서비스 이용기간 **2026-10-12~2026-11-11(31일 표시)** 확인. 유가증권 일별매매정보 신청은 2026-10-12 browser 작업에서 접수됐고 최초 승인대기→최종 승인 확인. 최초 HTTP401은 재시도 후 두 API 정상 HTTP200으로 해소. 재신청·키 갱신·비밀키 재발급 없음.
+- 실제 공인 KRX 생산 API `krx-kospi`(2026-10-08) **942행**, `krx-kosdaq`(같은 날) **1823행**, 합계 **2765행** 현 Mac HTTPS 응답. 기존 `capture_official_api` 사용해 `output/official_api_capture/first_*/raw_response.json`+ `first_receipt.json` 별도 최초 수신 UTC와 raw/receipt SHA256 2개씩 영구 캡처, **직접 bytes 재해시 4건 일치 PASS**. 마켓 API가 실제 응답했다고 당시 전체 상장종목 PIT 완전성/사후 종목·기업행동/독립 최초 공개시각을 인증한 것은 아님.
+- 최신 진행: SEC submissions·companyfacts 실제 수신 성공, DART 공시 첫 페이지 실호출 성공, KRX 두 시장 API 실호출 성공. 지금은 1_2 원본 HTTPS 수집·수신기록 검증까지만 완료, 공식 issuer/share-class·과거 상폐/PIT·5_5 실전 미래 대장주 예측력과 전체 API 기반 3~6단계 검증은 다음 작업. KRX 서비스 사용기한 11/11 갱신 안내 필요. SSD 물리 재연결·재부팅 최종 D-021 유지.
+- 브라우저 자동화는 사용자 명시 활성화로 동작 확인. Chrome 보안 환경 설정은 자동으로 바꾸지 않았으므로, 운영 종료 시 사용자가 보기 > 개발자 > Apple Events 자바스크립트 허용을 꺼야 함. 별도 미커밋 `src/eraleader/native_first_capture.py` 6추가1삭제는 건드리지 않음.
+
+## 2026-10-12 KST | 1_2 KRX+SEC+DART live API/UI 코드 체크포인트
+- 공개 저장소 신규/수정 코드+테스트+문서 정확히 5경로 `eaaada8ca173257c2b083fe316e148f7e3dd554b` commit/push; 원격 `origin/main` SHA 직접 일치 확인. 맥북 로컬 크롬 사용승인 워크플로와 첫 HTTP KRX 2시장 실수신/독립 raw 영수증 SHA 4개 재해시 PASS. Mac 내부 비밀키 권한 folder0700/file0600, 세 provider 키/연락처 원문 출력·커밋 0. 변경 영향 local UI/API **49/49 pytest PASS**, handoff 스크립트 PASS, Git staged 보안 검사 scanned5 suspicious0. 전체 KRX/DART/SEC 역사 PIT/백테스트 통합 회귀는 아직 미실시.
+- 코스피·코스닥 API 서비스 정식 승인 상태 2026-10-12~2026-11-11, 갱신 관리 필요. 기존 `native_first_capture.py` 미커밋 6+/1- 보존(unstaged). 다음: 기존 공식 응답 raw를 timestamp/issuer/security class/full delist PIT에 안전히 정규화하고 통합 신호/일·주·월 리포트에 연결, 이후 전체 테스트/실제 적중률 전향적 평가.

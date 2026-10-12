@@ -809,3 +809,17 @@
 - 사용자 **D-022**로 D-017 API 연결 연기 철회: 지금 공식 KRX/DART/SEC 첫 원문 수집/실전 PIT 입력 경로를 개발. Mac/T5DATA online, 시작 main `179b0e7`. 새 `src/eraleader/official_api_capture.py`, `scripts/capture_official_api.py`, `tests/test_official_api_capture.py`, `docs/131_OFFICIAL_KRX_DART_SEC_LIVE_API_FIRST_CAPTURE.md` 4파일만 코드 릴리스, 기존 WATCH/native/PIT/SSDs 정상 코드 재작성0. 비밀키는 EraLeader `.secrets/official_api.env` owner-only 또는 OS 환경변수에서만 읽고 공개 GitHub 업로드 금지. 비공개 raw bytes/로컬 최초 수신시각/첫 SHA 보관, 직접 자동 WATCH 승격0.
 - **실측**: 실제 Mac에서 KRX `data-dbg.krx.co.kr`, DART `opendart.fss.or.kr`, SEC `data.sec.gov` TLS handshake 성공(각각 TLS 1.3/1.2/1.3). 그러나 키·실연락처 User-Agent가 EraLeader 로컬에 미등록되어 `--check-config` 세 기관 모두 준비 FALSE; **실제 인증 API 수신 0건**. 테스트 29 신규+기존 111 = **140/140 scoped PASS**, Py compile/handoff30ID·40필수/Public scanner 4파일 suspicious0 PASS. 전체 회귀는 실제 API 성공·PIT 실제 자료 연결 뒤. 코드 push `d2961b645f8cf6ecb76d5a9229194f4c3bc53318` remote main SHA 동일, docs-only 인계 후 최신 HEAD 확인. 별도 미커밋 `src/eraleader/native_first_capture.py` 7줄(6+/1-) 건드리지 않고 unstaged 보존.
 - **NEXT 첫 필수 작업**: 사용자 Mac의 `.secrets/official_api.env` 0600에 실 KRX `ERALEADER_KRX_AUTH_KEY`, DART `ERALEADER_DART_API_KEY` 및 SEC 실제 연락 가능 이메일 포함 `ERALEADER_SEC_USER_AGENT` 중 준비된 것을 입력 (키는 채팅/ GitHub에 보내지 않음). 이후 1회 최소 규모 인증 공식 데이터 수신→원문·SHA 검증→official PIT/법인코드·주권클래스·공개/최초 수신 시각 정합성 → 기존 데이터·WATCH 검증→전체 회귀. SSD 물리 재연결/재부팅 D-021 최종. **API 실전 인증 수신 0/3**, 발굴능력 실제 검증 N/A. 먼저 `PROJECT_STATE.md` 마지막 기록·현재 Git/실제 credential presence(값 출력 금지) 후 CONTINUE.
+
+
+## 2026-10-12 API 실제 수신 2차 검증 — KRX HTTP 401 / DART 100건
+- API 세 설정 Mac 내부 0600 파일에 보관·기밀 유지. DART 공식 API 2026-10-08 응답 100건 첫 페이지만 성공. KRX KOSPI/KOSDAQ 실제 요청 HTTP401로 미완료; KRX 사이트에서 API별 관리자 활용 승인/키 유효성 확인 후 다시 호출. SEC submissions 1001/Apple companyfacts 2 taxonomy 실수신 확인. 공식 PIT/전체시장 성과 인증 아님.
+
+## 2026-10-12 이후 최신 — KRX 공식 API 활용승인·생산 HTTPS 첫 수신 검증 완료
+
+- 맥 Chrome Apple Events 접근 성공, 사용자 로그인된 KRX `API 인증키 발급내역`의 2026-09-08~2027-09-07 키와 Mac 내부 보호된 키가 **일치** 확인(키 문자열을 채팅/콘솔/로그에 미출력). `API 이용현황`에서 코스피·코스닥 일별매매정보 **둘 다 승인**, 이용기간 **2026-10-12~2026-11-11**. 초기 401 해소.
+- 실제 KRX 생산 API **2026-10-08 코스피 942행·코스닥 1,823행** HTTPS 200; `output/official_api_capture/first_*` 원문·첫 SHA 영수증 캡처 후 파일 재해시 PASS. DART/SEC도 단일 실수신 완료. 회사/주권/상폐의 공인 역사적 PIT 인증이나 투자 실적 검증은 여전히 N/A. 다음: 정식 공급자별 원문 수집 지속성과 고유 issuer/share class, 정정·상폐·공시 발표시각 mapping, 단계별 API E2E 및 최종 전체 회귀. KRX 이용 종료 11/11 갱신 필요. SSD 분리·재부팅 D-021 최종.
+- 기존 별도 `native_first_capture.py` **미커밋 6+/1-** untouched. Chrome 자동화 허용 설정은 사용자가 수동으로 켠 상태이며 작업 후 직접 해제 가능.
+
+## 2026-10-12 KST 최신 API 실연결 체크포인트
+- Chrome 로그인 세션에서 KRX 공식 서비스 신청 상태 최종 확인: 코스피/코스닥 2026-10-12~2026-11-11 모두 **승인**. 브라우저 계정 인증키와 Mac owner-only 0600 보관 키 일치(원문 노출 0). 실제 KRX 2026-10-08 KOSPI 942행/KOSDAQ 1823행 production HTTPS 200, raw/first receipt 양 시장별 SHA 재해시 PASS. 기존 SEC/ DART 실제 HTTP 첫 수신도 성공. 아직 PIT/주권 class/상폐 정산/실제 미래 대장주 검증 아님.
+- SEC/KRX/DART 보호 로컬 API 입력 UI(브라우저·Mac 내부 파일) 코드 commit/push `eaaada8ca173257c2b083fe316e148f7e3dd554b`; 변경 관련 49 tests PASS, 보안 staged5 suspicious0, full API-integrated 회귀는 자료 연결 후 실행. KRX 사용기한 11/11 갱신 필요, 사용자 직접 켠 Chrome JavaScript from Apple Events 권한은 작업 후 수동 비활성화 권장. `src/eraleader/native_first_capture.py` 별도 미커밋 7줄 untouched. 다음 개발은 새 모듈 무분별 추가 대신 실제 공식 원시/API→PIT 정규화→WATCH/웹·보고서 최소 결선. 본 상태 문서는 docs-only followup SHA 참조.

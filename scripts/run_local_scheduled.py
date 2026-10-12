@@ -36,6 +36,8 @@ def main(argv=None):
                         help="Required when the original registry has a native WATCH evidence marker")
     parser.add_argument("--native-first-capture-plan", type=Path, action="append",
                         help="Opt-in local first-score Top-K+census; repeat for KR+US plans, never outcomes")
+    parser.add_argument("--native-first-private-archive", action="store_true",
+                        help="Opt-in private original-source ZIP and separate first SHA receipt after native capture")
     parser.add_argument("--generate-plist", type=Path,
                         help="Generate but do not install/load macOS launchd agent")
     parser.add_argument("--hour", type=int, default=18)
@@ -61,10 +63,13 @@ def main(argv=None):
         raise ValueError("Maturity-only never enables stale price-cache overrides")
     if args.prospective_due_native_config is not None and args.prospective_due_registry is None:
         raise ValueError("Native due evidence needs an explicit prospective registry")
+    if args.native_first_private_archive and not args.native_first_capture_plan:
+        raise ValueError("Private first-native archive requires --native-first-capture-plan")
     if args.generate_plist and (args.local_outbox_dry_run or args.provider_quality_dry_run
                                 or args.exchange_policy_out is not None
                                 or args.prospective_due_registry is not None
-                                or args.native_first_capture_plan is not None):
+                                or args.native_first_capture_plan is not None
+                                or args.native_first_private_archive):
         raise ValueError("Local observers/first native capture are not supported with --generate-plist")
 
     def run_and_audit(job):
@@ -79,10 +84,20 @@ def main(argv=None):
         from eraleader.exchange_policy_watchdog import run_exchange_policy_watchdog
         from eraleader.prospective_due_alerts import run_prospective_due_alerts
         from eraleader.native_first_capture import capture_first_native_topk
+        from eraleader.scheduled_native_archive import archive_captured_native_plan
 
         def capture():
             seen = set()
             all_results = []
+            if args.native_first_private_archive:
+                # Reject a renamed same-model Top-K before producing ANY first
+                # source ZIP. Default scheduler without opt-in stays untouched.
+                from eraleader.native_first_capture import read_capture_plan
+                from eraleader.native_evidence_archive import _slot
+                slots = [_slot(read_capture_plan(p)[0])
+                         for p in args.native_first_capture_plan]
+                if len(set(slots))!=len(slots):
+                    raise ValueError("Duplicate pinned native model plans cannot produce separate first archives")
             for original_plan in args.native_first_capture_plan:
                 # Do not credit the same input plan twice in one job. The
                 # underlying native capture also deduplicates market+model.
@@ -102,6 +117,30 @@ def main(argv=None):
                         result.get("real_future_leader_accuracy_certified") is not False or
                         result.get("official_leader_promotions") != 0):
                     raise RuntimeError("Unsafe or skipped first-native capture result")
+                if args.native_first_private_archive:
+                    first_archive=archive_captured_native_plan(
+                        project,original_plan,
+                        project/"output"/"native_first_captures",result)
+                    expected=("WAITING_NO_PRIVATE_NATIVE_ARCHIVE_WRITTEN"
+                              if result["status"]=="WAITING_FOR_NATIVE_FIRST_WRITE_EVIDENCE"
+                              else None)
+                    if (not isinstance(first_archive,dict) or
+                            first_archive.get("status") not in (
+                                "FIRST_PRIVATE_NATIVE_EVIDENCE_ARCHIVED_NOT_CERTIFIED",
+                                "EXISTING_PRIVATE_NATIVE_EVIDENCE_REVERIFIED_NOT_CERTIFIED",
+                                "WAITING_NO_PRIVATE_NATIVE_ARCHIVE_WRITTEN") or
+                            (expected is not None and first_archive["status"]!=expected) or
+                            (expected is None and first_archive["status"]==
+                                "WAITING_NO_PRIVATE_NATIVE_ARCHIVE_WRITTEN") or
+                            first_archive.get("original_first_capture_status")!=result["status"] or
+                            first_archive.get("official_leader_promotions")!=0 or
+                            first_archive.get("external_api_calls")!=0 or
+                            first_archive.get("messages_sent")!=0 or
+                            first_archive.get("real_future_leader_accuracy_certified") is not False or
+                            first_archive.get("external_timestamp_attested") is not False or
+                            first_archive.get("independent_market_pit_certified") is not False):
+                        raise RuntimeError("Unsafe or skipped private original-source archive first SHA receipt")
+                    result={**result,"private_original_archive":first_archive}
                 all_results.append(result)
             if len(all_results)==1:
                 return all_results[0]

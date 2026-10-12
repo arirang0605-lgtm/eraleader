@@ -126,7 +126,10 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
                                   decision_at: str, as_of: str,
                                   legacy_root: Path = LEGACY_DEFAULT,
                                   days: int = 550, top: int = 20,
-                                  auxiliary: tuple[tuple[str, Path, str], ...] = ()) -> dict:
+                                  auxiliary: tuple[tuple[str, Path, str], ...] = (),
+                                  dart_complete: tuple[Path, str, Path, str] | None = None,
+                                  dart_directory: tuple[Path,str] | None = None,
+                                  dart_financial_receipts: tuple[tuple[Path,str],...] = ()) -> dict:
     """All evidence is fully preflighted before any public research writes."""
     decision = datetime.fromisoformat(decision_at.replace("Z", "+00:00"))
     if decision.tzinfo is None or decision.utcoffset() is None:
@@ -168,6 +171,95 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
                       "quality":meta["quality"],
                       "first_local_received_at_utc":meta["first_local_received_at_utc"],
                       "pit_fact_joined":False})
+    dart_full = None
+    dart_code_map = {}
+    observed_day_codes = set()
+    if dart_complete is not None:
+        from .official_dart_daily import (
+            verify_dart_day, observed_dart_stock_links, observed_dart_unique_corp_map,
+        )
+        if len(dart_complete) != 4:
+            raise ValueError("DART complete receipt needs original first-pinned capture")
+        full_path, full_sha, original_path, original_pin = dart_complete
+        for source in extra:
+            if (source["source"] == "dart-disclosures" and
+                    source["first_receipt_sha256"] != original_pin):
+                raise ValueError("DART first receipt differs between auxiliary and full-day evidence")
+        full = verify_dart_day(full_path, full_sha, first_folder=original_path,
+                               first_sha=original_pin, decision_at=decision)
+        if full["market_day"] != session.isoformat():
+            raise ValueError("DART/KRX observed market session must match")
+        krx_codes = set(current["security_id"].tolist())
+        links = observed_dart_stock_links(full["rows"], krx_codes)
+        dart_code_map = observed_dart_unique_corp_map(full["rows"], krx_codes)
+        observed_day_codes = set(dart_code_map)
+        if len(dart_code_map) != links["observed_matching_security_count"]:
+            raise ValueError("DART observed issuer overlap count inconsistent")
+        dart_full = {
+            "source":"dart-complete-day", "market_day":full["market_day"],
+            "manifest_sha256":full_sha, "first_receipt_sha256":original_pin,
+            "row_count":full["total_rows"], "page_count":full["total_pages"],
+            "first_available_after_page":full["last_received_at_utc"],
+            "issuer_links":links,
+            "historic_pit_certified":False,
+            "financial_pit_joined":False,
+        }
+    directory_audit = None
+    if dart_directory is not None:
+        from .official_dart_corp_directory import (
+            verify_dart_corp_directory, match_krx_codes,
+        )
+        if len(dart_directory)!=2:
+            raise ValueError("DART directory capture and SHA required")
+        d=verify_dart_corp_directory(dart_directory[0],dart_directory[1],
+                                      decision_at=decision)
+        all_codes=set(current["security_id"])
+        directory_audit={
+            "source":"dart-current-corp-directory",
+            "first_receipt_sha256":d["first_receipt_sha256"],
+            "first_local_received_at_utc":d["first_local_received_at_utc"],
+            "total_corporations":d["total_corporations"],
+            **match_krx_codes(d,all_codes),
+        }
+        for code,corp in dart_code_map.items():
+            # A same-day DART disclosure and today's master file conflict:
+            # never invent which legal issuer identity is right.
+            if code in d["mapping"] and d["mapping"][code] != corp:
+                raise ValueError("DART day and current directory corp IDs disagree")
+        dart_code_map={**d["mapping"],**dart_code_map}
+    # Optional, individually first-received CFS report receipts for exact
+    # current matched DART companies. Missing reports remain N/A, not zero.
+    dart_financial_stats = {}
+    dart_financial_receipts_info = []
+    if dart_financial_receipts:
+        if dart_directory is None or len(dart_financial_receipts)>100:
+            raise ValueError("DART financial statements need current pinned company directory")
+        from .official_dart_financials import (
+            verify_dart_financial, annual_growth_diagnostic,
+        )
+        by_ticker={}
+        for folder,pin in dart_financial_receipts:
+            report=verify_dart_financial(folder,pin,decision_at=decision,
+                                         directory=dart_directory)
+            ticker=report["stock_code"]
+            if (ticker not in set(current["security_id"]) or
+                    dart_code_map.get(ticker)!=report["corp_code"] or
+                    report.get("statement")!="CFS" or
+                    report.get("report_code")!="11011"):
+                raise ValueError("DART annual CFS report source not matched to KRX code")
+            key=(report["year"],report["report_code"])
+            if key in by_ticker.setdefault(ticker,{}):
+                raise ValueError("Duplicate annual DART first-report vintage")
+            by_ticker[ticker][key]=report
+            dart_financial_receipts_info.append({"stock_code":ticker,
+                "report_year":report["year"],"first_receipt_sha256":pin,
+                "first_local_received_at_utc":report["first_local_received_at_utc"],
+                "reported_accounts":len(report["metrics"]), "pit_certified":False})
+        for ticker,years in by_ticker.items():
+            complete=sorted(y for y,form in years if form=="11011")
+            if len(complete)==2 and complete[1]==complete[0]+1:
+                dart_financial_stats[ticker]=annual_growth_diagnostic(
+                    years[(complete[0],"11011")],years[(complete[1],"11011")])
     # Prior cache observations provide *research lookback*, not official PIT
     # provenance. Never silently select a cached bar over an official session.
     bars, quality = read_market_bars("KR", asof_day, days=days, legacy_root=legacy_root)
@@ -185,14 +277,35 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
     snap["quality_flags"] = quality
     # Bind existing run-ID calculation to the immutable API evidence chain.
     # Identical prices re-published with different first receipts are different runs.
-    pin_digest = sha256(_canonical({"sources": captures + extra})).hexdigest()
+    pin_digest = sha256(_canonical({"sources": captures + extra, "dart_full":dart_full,
+                                    "dart_directory":directory_audit,
+                                    "dart_financial_receipts":dart_financial_receipts_info})).hexdigest()
     for row in snap["rows"]:
         row["official_api_source_digest_sha256"] = pin_digest
+        if dart_complete is not None or dart_directory is not None:
+            # Observed corporate code only from a receipt-pinned current DART vintage.
+            # A missing disclosure never disproves listing or identity.
+            row["observed_dart_corp_code"] = dart_code_map.get(row["security_id"])
+            row["observed_dart_corp_code_pit_certified"] = False
+            if dart_financial_receipts:
+                row["dart_financial_annual_growth_research"] = (
+                    dart_financial_stats[row["security_id"]]["research_metrics"]
+                    if row["security_id"] in dart_financial_stats else None
+                )
+                row["dart_financial_pit_certified"] = False
+            row["observed_dart_corp_code_source"] = (
+                "day-disclosure" if row["security_id"] in observed_day_codes
+                else "current-directory"
+            ) if row["observed_dart_corp_code"] else None
     snap["run_id"] = run_id_for("KR", as_of, snap["rows"])
     snap["official_api_evidence"] = {
         "schema": SCHEMA, "decision_at": decision.isoformat(),
         "api_observation_day": session.isoformat(),
         "sources": captures + extra,
+        "dart_full_day": dart_full,
+        "dart_current_directory":directory_audit,
+        "dart_financial_first_receipts":dart_financial_receipts_info,
+        "dart_financial_comparable_companies":len(dart_financial_stats),
         "historic_universe_pit_verified": False,
         "issuer_share_class_verified": False,
         "dart_sec_financial_pit_joined": False,
@@ -250,7 +363,24 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
         "상장/주권 클래스/기업행동/공시 PIT 인증 없음. DART/SEC 재무 반영 없음. "
         "과거 캐시는 공식 API 관측 이력이 아니며 전향적 적중률은 N/A.</p>"
         "<table><tr><th>공급자</th><th>확보된 원본 행/항목</th><th>품질</th></tr>" +
-        lines + "</table><p><a href='kr.html'>한국 WATCH 목록</a></p></html>",
+        lines + "</table>" +
+        ("<p>최초수신 DART 연결재무제표 연간 성장률 비교 가능 종목 " +
+         str(ev["dart_financial_comparable_companies"]) +
+         "개 (관측일 이후 연구용; 역사적 공시 PIT 인증 전).</p>"
+         if ev.get("dart_financial_first_receipts") else "") +
+        ("<p>DART 공시대상 기업 현재 고유번호 목록 " +
+         str(ev["dart_current_directory"]["total_corporations"]) +
+         "개, KRX 종목코드와 현재 교집합 " +
+         str(ev["dart_current_directory"]["matched_unique_dart_corporation"]) +
+         "개 (역사적 상장·주권 식별 인증 아님).</p>"
+         if ev.get("dart_current_directory") else "") +
+        ("<p>DART 일자 전체 공시 " + str(ev["dart_full_day"]["row_count"]) +
+         "건 / " + str(ev["dart_full_day"]["page_count"]) +
+         "페이지 검증 완료. 같은 거래일 관측 주권코드 교집합 " +
+         str(ev["dart_full_day"]["issuer_links"]["observed_matching_security_count"]) +
+         "종목 (법적 issuer/share class 인증·재무 PIT 아님).</p>"
+         if ev.get("dart_full_day") else "") +
+        "<p><a href='kr.html'>한국 WATCH 목록</a></p></html>",
         encoding="utf-8")
     index = out / "site" / "index.html"
     pit_link = (" <a href='research_kr.html'>PIT 원장·가격 시점결합 연구</a>" if joined is not None else "")
@@ -264,8 +394,15 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
             "alert_dry_run_count": alerts["count"], "messages_sent": 0,
             "official_leaders": 0, "pit_certified": False,
             "dashboard": str(page), "market_dashboard": result["dashboard"],
+            "dart_full_rows": ev["dart_full_day"]["row_count"] if ev.get("dart_full_day") else 0,
+            "dart_observed_matching_codes": (ev["dart_full_day"]["issuer_links"]["observed_matching_security_count"]
+                                             if ev.get("dart_full_day") else 0),
             "pit_join_status": ("PIT_LEDGER_RESEARCH_ONLY_NOT_CERTIFIED" if joined is not None
                                 else "NO_HISTORIC_ISSUER_CLASS_PIT_LEDGER"),
+            "dart_financial_comparable_companies": ev.get("dart_financial_comparable_companies",0),
+            "dart_directory_matching_codes": (
+                ev["dart_current_directory"]["matched_unique_dart_corporation"]
+                if ev.get("dart_current_directory") else 0),
             "pit_company_count": joined["company_count"] if joined is not None else 0,
             "evidence_json": str(out / "official_api_pit_research.json"),
             "api_first_observation": ev["decision_at"]}

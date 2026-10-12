@@ -228,3 +228,40 @@ def test_missing_explicit_pit_ledger_blocks_without_creating_watch(packs,cached,
         bridge.run_official_research(_build(packs),tmp_path/"must_not_create",
                                      pit_ledger=tmp_path/"missing.sqlite")
     assert not (tmp_path/"must_not_create").exists()
+
+
+def test_conservative_actual_dart_annual_research_join_never_promotes(
+        packs,cached,monkeypatch,tmp_path):
+    """Only pinned CFS annual rows after observed first receipt can annotate WATCH."""
+    from eraleader import official_dart_corp_directory as directory_mod
+    from eraleader import official_dart_financials as fin_mod
+    monkeypatch.setattr(directory_mod,"verify_dart_corp_directory",
+        lambda *_a,**_k:{
+            "mapping":{"005930":"00126380"},"ambiguous_stock_codes":set(),
+            "total_corporations":100,"listed_security_code_count":1,
+            "first_local_received_at_utc":"2026-10-12T11:00:00+00:00",
+            "first_receipt_sha256":"f"*64})
+    def verified(_folder,pin,**kwargs):
+        year=2024 if pin=="a"*64 else 2025
+        return {"stock_code":"005930","corp_code":"00126380",
+                "report_code":"11011","statement":"CFS",
+                "year":year,"first_local_received_at_utc":"2026-10-12T11:00:00+00:00",
+                "metrics":{"revenue":{"value":100 if year==2024 else 120},
+                           "operating_income":{"value":15 if year==2024 else 20}}}
+    monkeypatch.setattr(fin_mod,"verify_dart_financial",verified)
+    snap=bridge.build_official_price_snapshot(
+        kospi=packs[0],kosdaq=packs[1],decision_at=DECISION,
+        as_of="2026-10-12",top=2,
+        dart_directory=(tmp_path/"ignored","f"*64),
+        dart_financial_receipts=((tmp_path/"yr2024","a"*64),
+                                 (tmp_path/"yr2025","b"*64)))
+    assert snap["official_api_evidence"]["dart_financial_comparable_companies"]==1
+    row=next(x for x in snap["rows"] if x["security_id"]=="005930")
+    assert row["dart_financial_annual_growth_research"]["revenue_yoy"] == pytest.approx(.2)
+    assert row["dart_financial_pit_certified"] is False and row["total_score_100"] is None
+    out=tmp_path/"with_research"
+    res=bridge.run_official_research(snap,out)
+    assert res["dart_financial_comparable_companies"]==1
+    assert "DART 매출 YoY" in (out/"site"/"kr.html").read_text()
+    assert "20.0%" in (out/"site"/"kr.html").read_text()
+    assert res["official_leaders"]==0

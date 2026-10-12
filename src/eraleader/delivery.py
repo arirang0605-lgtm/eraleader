@@ -21,15 +21,18 @@ def render_dashboard(snapshot: dict) -> str:
             return "N/A"
         return escape(str(value))
     rows=[]
+    financial_col=any("dart_financial_annual_growth_research" in r for r in snapshot["rows"])
     for item in snapshot["rows"]:
-        cls=escape(item["state"])
-        rows.append("<tr>"+
-            "".join(f"<td>{v(value)}</td>" for value in (
+        values=[
               item["rank"],item["security_id"],item["name"],item["venue"],
               item["price_strength_25"],
               f'{item["return_6m"]*100:.1f}%' if item["return_6m"] is not None else None,
-              item["total_score_100"],cls))+
-            "</tr>")
+              item["total_score_100"],item["state"]]
+        if financial_col:
+            growth=item.get("dart_financial_annual_growth_research") or {}
+            yoy=growth.get("revenue_yoy")
+            values.append(f"{yoy*100:.1f}%" if yoy is not None else None)
+        rows.append("<tr>"+"".join(f"<td>{v(value)}</td>" for value in values)+"</tr>")
     api_note=("공식 API 일봉 연결 · PIT/상장 이력 미인증"
               if snapshot.get("official_api_evidence") else "API 미연결")
     warning=escape(snapshot["note"])
@@ -49,7 +52,7 @@ def render_dashboard(snapshot: dict) -> str:
 <div class="stat">모델 버전<br><strong>{escape(snapshot["model_version"])}</strong></div></div>
 <h2>가격 기반 관찰 순위 (최대 25점)</h2>
 <div class="wrap"><table><thead><tr><th>순위</th><th>코드</th><th>기업</th><th>시장</th>
-<th>가격점수/25</th><th>6개월 수익률</th><th>종합점수/100</th><th>상태</th></tr></thead>
+<th>가격점수/25</th><th>6개월 수익률</th><th>종합점수/100</th><th>상태</th>{'<th>DART 매출 YoY(미인증 연구)</th>' if financial_col else ''}</tr></thead>
 <tbody>{''.join(rows)}</tbody></table></div>
 <p><small>데이터 출처: {source} · 자료의 과거 조정 및 종목군 완전성 검증 필요.</small></p>
 <p><small>현재 가격 관찰 순위는 투자 추천이나 확정 대장주 순위가 아닙니다.</small></p>

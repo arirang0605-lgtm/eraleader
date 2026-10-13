@@ -858,3 +858,11 @@
 - 영향 범위 **13개 테스트 모듈, 178/178 pytest PASS EXIT0**, 합성 신규25건, Mac 공식 영수증 E2E PASS. 전체 수천 테스트는 ER-NC-10 최종 수락 전 계획, 지금 PASS로 주장하지 않음.
 - 실제 Mac 내부 DB `~/Library/Application Support/EraLeader/research-ledgers/dart_cfs_vintage_forward_20261013.sqlite`는 외장 SSD의 새 SQLite 파일 첫 INSERT가 읽기전용 오류를 보인 까닭에 분리. **본 신규 DB의 독립 암호화 오프라인 복제/복원은 아직 미완료** — 다음 작업 1순위. 외장 SSD 시험 DB와 삭제된 듯 보이는 이전 관리 worktree를 절대 임의 제거하지 말 것. 원본 main 미커밋 `native_first_capture.py` 보존 SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6`.
 - 기존 전체 95%/99% 완료율 주관값은 철회. 한정된 회사/날짜의 공식 최초수신 연구 진척과 전국/미국 전향적 대장주 예측 검증을 별개로 보고. Git 최종 SHA는 `git rev-parse HEAD`과 원격 브랜치로 확인.
+
+## 2026-10-13 신규 6_5 후속 결선 — Mac CFS 최초수신 이력 독립 암호화 백업 및 복원
+
+- 현재 개발 worktree `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013`, branch `feature/core-official-factor-coverage-20261013`. 먼저 `PROJECT_STATE.md` 최신 마지막 체크포인트 및 `docs/138_DART_CFS_VINTAGE_ENCRYPTED_DISASTER_RECOVERY.md`를 읽고 CONTINUE.
+- 새 `dart_cfs_vintage_backup.py` + `scripts/run_dart_cfs_backup.py`(init-keys/backup/verify/restore-test). 기존 Mac 유저 SQLite FY2023~25 삼성전자 DART 실적 원본 first registered 이벤트3의 일관된 온라인 DB 스냅샷을 기존 native OpenSSL AES256-GCM/RSA-OAEP로 암호화, `T5DATA/EraLeader_Recovery_Backups/VintageCFS/cfs_20261013T051710Z_fe24a7df3513` 및 Mac `~/Library/Application Support/EraLeader/ProtectedBackups/VintageCFS/` 동일 슬롯 **물리 장치별 2개** 보관, 소유자 제한·SHA + X509 고정/덮어쓰기 금지.
+- **실제 isolated decrypt restore-test PASS**: SQLite integrity, 이벤트3/chain SHA, 각 첫 등록 이전0/이후1 as-of 확인, 평문 복원파일 남김0. 키는 Mac `~/Library/Application Support/EraLeader/recovery-keys/dart_cfs_20261013/`에 RSA3072 owner0600, **Mac 분실 대비 키의 독립 암호화 에스크로/오프라인 복구는 미완료**. AES ciphertext 두개가 있어도 개인키 없으면 복구 불가! 키 원문/경로/암호문을 Public Git에 절대 복사하지 말 것.
+- 신규 9개 포함 DART/KRX/SEC 관련 **14모듈/187 pytest PASS(EXIT0)**, 전체 2450+ 재실행은 이번엔 하지 않음. 추가 코드/상태 SHA는 `git rev-parse HEAD`와 GitHub origin에서 확인.
+- **다음 개발**: 키 독립 보관 승인·암호화 복구 시험, 공식 DART 최초 공시 공개시간/전체 정정 원본·영구 issuer/share-class 상폐 기업행동 PIT와 산업·외국인 기관수급 데이터 공통 시점 확대. 전향적 미래 대장주 성능/종합100점 N/A, 과거 99% 전체 진행률 추정은 폐기.

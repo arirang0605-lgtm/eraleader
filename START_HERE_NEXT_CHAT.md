@@ -912,3 +912,7 @@ EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발
 - 별도 feature/core-official-factor-coverage-20261013 최신 작업부터 계속. `PROJECT_STATE.md` 마지막 checkpoint 및 `docs/155_KR_MARKETWIDE_REAL_PRICE_AND_OUTBOX_20261014.md` 확인. 기존 main의 미커밋 `native_first_capture.py` 절대 건드리지 않음.
 - KRX 실제 2026-10-08 관측 2,765 전시장 종목; DART 현재 33사 CFS+산업 첫 수신 결합; 기존 읽기전용 가격 캐시에서 3/6개월 상대강도 2,261사, 2요소 연구순위 25사. **정식 5요소 TOP20·실전 상태 확정 0**, 기관/외국인 수급 N/A; 2026-10-08을 오늘 가격으로 오해하지 말 것.
 - `src/eraleader/strategy_handoff.py` + `scripts/export_strategy_handoff.py --outbox-dir`에 버전별 전략 후보 읽기전용 송신 원장. 실제 WATCH20 연구 JSON 확인, 선정/주문0. D-030 사용자 지정 전 수신 프로젝트 연결 금지. 다음 필수 기능은 *새 거래세션 공식 수집·전체산업/기업경쟁력/수급 인자 결합 → 실사용 5요소 종합 평가 → 선정·약화·교체 상태 및 송신*.
+
+## 2026-10-14 최신 기능 경로 — 한국 전시장 종목 검색 UI (개발 3_3·3_4·3_5·6_2)
+
+사용자 D-027 기능우선/D-030 송신 프로젝트 중립 원칙 유지. 병행 개발 충돌 방지로 별도 feature/kr-marketwide-search-20261014 워크트리 `/Volumes/T5DATA/2.EraLeader_통합관리/02_개발워크트리/eraleader-marketwide-search-20261014`에서 기존 fa78c82 시장전체 원본 기반 종목명/코드 2,765개 검색·필터·상세 화면 구현. 실제 2026-10-08 KRX 2,765·DART CFS/산업 33·가격강도 2,261·부분50점 25개, 본 화면은 연구용 / 공식 대장주 확정0. 후속 개발은 이 브랜치의 PROJECT_STATE.md 맨 아래 및 docs/156_KR_ALLMARKET_SEARCH_20261014.md 확인 후 **기존 메인 대시보드 메뉴 연결 및 KRX 최신일 자동 갱신**을 우선. 외부 수신기·주문 개발 금지, 정상 코드 REWRITE 금지.

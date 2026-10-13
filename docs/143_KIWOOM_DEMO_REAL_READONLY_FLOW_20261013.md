@@ -52,3 +52,13 @@ PYTHONPATH=src python3 scripts/capture_kiwoom_investor_flow.py --profile demo \
 - **라이브 모의/실전 API 양쪽 인증 및 TR 응답 형식·호출제한 확인은 키 등록 후 필요**. 조회일 종목별 다중 시장코드(KRX/NXT/SOR) 구분은 현재 KRX 6자리로 강제, NXT 별도 시장연결 N/A.
 - 진짜 투자논리 검증: 실물 수급/거래량 대비 비중/산업 수급 추세, 선별표본 확대, 실시간 데이터 게시시간+원천 법적 PIT/20거래일 예측력은 아직 미완료.
 - 전체 인수진행률 45/120=37.5%(38%) 유지. 작은 scope 구현만으로 종목군 전체 실사용 인수관문을 올리지 않음.
+
+## 2026-10-13 후속 — 공식 공통 연결계층 SharedBrokerAPI로 일원화
+
+- 별도 독립 경로 `/Volumes/T5DATA/SharedBrokerAPI`. 실행중인 Mac 개인 UNIX socket `~/Library/Application Support/SharedBrokerAPI/gateway.sock` (0600).
+- 데모/실전 API 설정 파일의 단일 기본 경로를 `~/Library/Application Support/SharedBrokerAPI/kiwoom_profiles.json`로 변경. 기존 EraLeader 전용 ProviderKeys 경로에는 실제 저장된 키가 없었으므로 자격증명 이전/복사 없음.
+- EraLeader `scripts/capture_kiwoom_investor_flow.py` 기본 사용자 CLI는 이제 *직접 OAuth/직접 HTTPS 대신* `shared_broker_api.client.ReadOnlyClient("eraleader")`에 위임. 공통 계층에서만 OAuth와 `ka10059` HTTP 요청 가능; 프로젝트에 실 키/토큰 전달 안 함. 기존 백엔드 `fetch_ka10059` 수량/결측 통합 코드 재사용.
+- CoreAStock 및 NewsCatalystOS도 같은 `ReadOnlyClient(project)` 객체로 **시장/수급 조회 기능** 사용 가능, 단 기존 두 프로젝트 소스/전략/주문 코드를 자동 변경하지 않음. 주문 API는 공통 계층에 존재하지 않음. 실계좌 주문 권한은 후속 별도 인증 설계 필요.
+- 실제 Mac UNIX socket 서비스 상태: `eraleader`, `coreastock`, `newscatalystos` 세 client 모두 Local status SUCCESS, `orders_enabled=false`, 공유 socket 파일 권한0600. 사용자 키 모의/실전 현재 미설정→실제 Kiwoom HTTP 수신0.
+- 합성 two-project 공유: 동일 모의 주권 요청 2회에도 OAuth 1회+TR 1회, 실전 별도 키/토큰 분리, 다른 프로젝트 응답에서 OAuth 원문 없음. 공통 계층 테스트 9/9 PASS, EraLeader 선택 31/31 PASS. 기존 가격 WATCH 데이터·실전 추천 불변, 30ID 총 인수진척률 38% 유지.
+- 공통 코드와 아키텍처/운영 제약: `/Volumes/T5DATA/SharedBrokerAPI/README.md`. 공급자 API 사용 약관·속도 한도 및 실제 모의 live 인증 검증은 설정 후.

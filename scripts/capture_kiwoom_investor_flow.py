@@ -107,25 +107,28 @@ def main(argv=None) -> int:
     except (ValueError,OSError,KeyError):
         print("KIWOOM_PROFILE_PRIVATE_STORAGE_UNAVAILABLE", file=sys.stderr)
         return 2
-    # Profile-scoped process vars are never borrowed from the other environment.
-    label = args.profile.upper()
-    appkey = os.getenv(f"ERALEADER_KIWOOM_{label}_APP_KEY") or appkey
-    secret = os.getenv(f"ERALEADER_KIWOOM_{label}_APP_SECRET") or secret
-    token = os.getenv(f"ERALEADER_KIWOOM_{label}_ACCESS_TOKEN")
-    ready = bool(token or (appkey and secret))
+    # Broker credentials and OAuth are owned by SharedBrokerAPI, never a project.
+    ready = bool(appkey and secret)
     if args.check_config:
         print(json.dumps({"provider":"kiwoom", "profile":args.profile,
-                          "credentials_configured":ready, "tr":"ka10059",
+                          "credentials_configured":ready,
+                          "transport":"SharedBrokerAPI/UNIX_SOCKET",
                           "network_calls":0,"orders_enabled":False}, sort_keys=True))
         return 0
     if not ready or not args.codes or not args.day or args.out is None:
         print("KIWOOM_READ_ONLY_BLOCKED: CONFIG_OR_ARGUMENTS_MISSING", file=sys.stderr)
         return 2
-    post=lambda path,body,headers: https_post(path,body,headers,mode=args.profile)
+    shared_src = Path("/Volumes/T5DATA/SharedBrokerAPI/src")
+    if not shared_src.is_dir():
+        print("SHARED_BROKER_GATEWAY_MISSING", file=sys.stderr)
+        return 2
+    sys.path.insert(0, str(shared_src))
+    from shared_broker_api.client import ReadOnlyClient, eraleader_compatible_post
+    post = eraleader_compatible_post(ReadOnlyClient("eraleader"), args.profile)
     try:
         result = capture(
             codes=args.codes.split(","), market_day=args.day, out=args.out,
-            token=token, appkey=appkey, secretkey=secret,
+            token="INTERNAL_LOCAL_GATEWAY_NO_PROVIDER_TOKEN",
             environment_mode=args.profile, post=post)
         print(json.dumps(result, sort_keys=True))
         return 0

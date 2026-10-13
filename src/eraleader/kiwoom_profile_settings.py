@@ -18,7 +18,7 @@ import tempfile
 MODES = ("demo", "real")
 PROFILE_ENV = {"demo": "https://mockapi.kiwoom.com",
                "real": "https://api.kiwoom.com"}
-DEFAULT_STORE = Path.home() / "Library/Application Support/EraLeader/ProviderKeys/kiwoom_profiles.json"
+DEFAULT_STORE = Path.home() / "Library/Application Support/SharedBrokerAPI/kiwoom_profiles.json"
 MAX_POST = 12000
 
 

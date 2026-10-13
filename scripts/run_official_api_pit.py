@@ -48,6 +48,8 @@ def main(argv=None) -> int:
                    help="Optional existing read-only offline.sqlite; research only")
     p.add_argument("--vintage-ledger", type=Path,
                    help="Optional existing read-only local DART CFS first-seen SQLite research registry")
+    p.add_argument("--basic-candidates", action="store_true",
+                   help="Opt-in multi-company price and CFS two-factor candidate observation")
     p.add_argument("--out", required=True, type=Path)
     a = p.parse_args(argv)
     try:
@@ -66,9 +68,11 @@ def main(argv=None) -> int:
             dart_complete=tuple(pins) if all(x is not None for x in pins) else None,
             dart_directory=(a.dart_directory,a.dart_directory_sha256)
                 if a.dart_directory is not None else None,
-            dart_financial_receipts=tuple((Path(folder),pin) for folder,pin in a.dart_financial))
+            dart_financial_receipts=tuple((Path(folder),pin) for folder,pin in a.dart_financial),
+            basic_candidate_screen=a.basic_candidates)
         result = run_official_research(snap, a.out, pit_ledger=a.pit_ledger,
-                                       vintage_ledger=a.vintage_ledger)
+                                       vintage_ledger=a.vintage_ledger,
+                                       basic_candidates=a.basic_candidates)
     except (ValueError, OSError, KeyError, TypeError) as exc:
         # No untrusted raw JSON or URL in terminal output.
         print("BLOCKED: official first receipt, price schema or PIT gate failed ("+

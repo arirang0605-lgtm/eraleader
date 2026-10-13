@@ -383,7 +383,8 @@ def test_three_pinned_cfs_years_reach_factor_dashboard_without_price_rank_change
         dart_directory=(tmp_path/"dir","f"*64),
         dart_financial_receipts=((tmp_path/"fy2023","c"*64),
                                  (tmp_path/"fy2024","a"*64),
-                                 (tmp_path/"fy2025","b"*64)))
+                                 (tmp_path/"fy2025","b"*64)),
+        basic_candidate_screen=True)
     assert snap["rows"][0]["security_id"]=="A23456"
     assert snap["rows"][0]["total_score_100"] is None
     assert len(snap["official_financial_research_observations"])==1
@@ -394,7 +395,11 @@ def test_three_pinned_cfs_years_reach_factor_dashboard_without_price_rank_change
     assert row["research_acceleration"]["revenue_yoy_acceleration"]==pytest.approx(.1)
     assert row["historic_revisions_pit_certified"] is False
     out=tmp_path/"three_year_separate_factor_output"
-    res=bridge.run_official_research(snap,out)
+    res=bridge.run_official_research(snap,out,basic_candidates=True)
+    assert res["basic_candidate_evaluable"] >= 0
+    assert (out/"site"/"basic_candidates_kr.html").is_file()
+    assert "005930" in (out/"site"/"basic_candidates_kr.html").read_text()
+    assert "basic_candidates_kr.html" in (out/"site"/"kr.html").read_text()
     factor=json.loads((out/"factor_readiness_kr.json").read_text())
     assert factor["annual_cfs_acceleration_companies"] == 1
     assert factor["valid_full_leader_scores"] == 0

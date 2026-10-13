@@ -879,3 +879,11 @@
 - 30개 개발 ID×4개 순차 인수 관문(테스트 증거→실제 일부 E2E→요구 전체 PIT 통합→연속 안정 운영) 정량 체크는 `src/eraleader/development_progress.py`. 전체 99% 또는 95%라고 말한 과거 코딩 추정은 **전면 철회**. 본 38%는 수동 보수 인수 판정/진척 척도일 뿐 실제 개발 시간 비율·전향 투자 적중률 아님.
 - 신규 상태 생성 `scripts/publish_development_progress.py`, 신규 단위테스트 `tests/test_development_progress.py` 8개, 관련 API 대시보드 2모듈 포함 총 **64/64 PASS EXIT0**. 공식 대장주 종합순위·뉴스 기능 코어/main 병합, 20거래일 실운영·미국 전체·공시 수정시각 등은 계속 N/A.
 - 다음 작업은 늘어나는 코드 모듈수보다 실제 통합과 미래 대장주 발견의 인증 게이트 위주로 진행. 원본 main `native_first_capture.py` 미커밋 SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6` 그대로 보존. 최신 SHA는 `git rev-parse HEAD`·GitHub 원격 확인.
+
+## 2026-10-13 BASIC-FIRST 개발 우선순위 전환 — 다수 기업 가격·실적 실제 후보 관찰
+
+- 최신 코드 `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013`, `feature/core-official-factor-coverage-20261013`에서 CONTINUE. 앞선 백업·복구 외부키 기능 확장보다 사용자 명시 지시에 따라 **대장주를 찾는 본기능(1_2·3_3·3_4·3_5·4_1·6_2)** 먼저.
+- KRX/DART 실제 원문 PIN으로 서로 다른 산업 실제 **10종목** FY2024/25 CFS **20본**(기존 삼성전자2재사용+새 DART18 수집); 마감 가격 2026-10-08 KRX 관측2765+공시992/첫수신2026-10-13. `scripts/capture_dart_multi_company.py`, `official_dart_multi_company.py`의 제한 배치, `--only-existing` 재사용 및 중복 FY 수정 원본 차단.
+- `official_api_pit_bridge.build_official_price_snapshot(...basic_candidate_screen=True)` opt-in 가격 전체 관찰+실적10개 근거 별도 추출, `official_basic_candidates.py`/ `scripts/publish_basic_company_screen.py`으로 기본 후보 연구표 사이트 `http://127.0.0.1:8770/basic_candidates_kr.html` HTTP200. **10개 모두 가격·실적 계산 가능**, 3방향(3개월 가격+매출+영업익) +일치 **0개**; 이를 숨기지 말고 표시. 연구용 비교순서만 제공/공인 100점·매수순위/추가 PIT·전향적 적중률 **N/A**. 기존 가격 TOP20 WATCH/일주월 보고/모든 API 원본 그대로.
+- 직접 영향범위 7개 모듈 **96/96 pytest PASS EXIT0**, 합성 신규 collector/candidate 및 기존 공식/API 브리지 opt-in 회귀 E2E; 실제 KRX+DART first PIN 다시 verify 후 새로운 result `/Volumes/T5DATA/eraleader/output/official_basic_multicompany_20261013`에만 게시. 상세 `docs/141_KR_OFFICIAL_MULTI_COMPANY_BASIC_CANDIDATES.md`와 PROJECT_STATE 최하단 확인. 원본 main 미커밋 `native_first_capture.py` SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6` 건드리지 말 것.
+- 다음 실제 본기능: 공식 산업 성장·기관외국인 수급·동일 산업 peer 비교, 실제 시점별 DART 수정/기업class/상폐/기업행동 PIT를 연결한 후보/기초순위; 새 security/backup side-project 확대 금지. 인수 진척률 38%(45/120) 유지, 이번 일부 종목 확대만으로 완료율 상향 금지.

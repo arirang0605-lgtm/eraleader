@@ -129,7 +129,8 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
                                   auxiliary: tuple[tuple[str, Path, str], ...] = (),
                                   dart_complete: tuple[Path, str, Path, str] | None = None,
                                   dart_directory: tuple[Path,str] | None = None,
-                                  dart_financial_receipts: tuple[tuple[Path,str],...] = ()) -> dict:
+                                  dart_financial_receipts: tuple[tuple[Path,str],...] = (),
+                                  basic_candidate_screen: bool = False) -> dict:
     """All evidence is fully preflighted before any public research writes."""
     decision = datetime.fromisoformat(decision_at.replace("Z", "+00:00"))
     if decision.tzinfo is None or decision.utcoffset() is None:
@@ -274,6 +275,15 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
     merged = pd.concat([old, current], ignore_index=True)
     merged = validate_bars(merged, asof_day, quarantine=False)
     snap = score_price_observations(merged, "KR", as_of, top)
+    # Research all price-observable company rows only when explicitly requested
+    # for the two-factor fundamental/price shortlist. Preserve original TOP-N.
+    candidate_price_rows = {}
+    if basic_candidate_screen:
+        if not dart_financial_receipts or dart_directory is None:
+            raise ValueError("Basic candidate screening requires verified annual DART originals")
+        whole = score_price_observations(merged, "KR", as_of, len(current))
+        candidate_price_rows = {
+            row["security_id"]:row for row in whole["rows"]}
     snap["data_source"] = "KRX official single-day daily trade + prior unverified local marcap lookback"
     quality["source"] = snap["data_source"]
     quality["official_daily_rows"] = len(current)
@@ -343,6 +353,22 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
         if len(financial_observations) != len(dart_financial_stats):
             raise ValueError("Financial observational coverage count mismatch")
         snap["official_financial_research_observations"] = financial_observations
+        if basic_candidate_screen:
+            snap["research_candidate_price_factors"] = [
+                {
+                    "security_id":ticker,
+                    "price_strength_25":candidate_price_rows[ticker]["price_strength_25"]
+                        if ticker in candidate_price_rows else None,
+                    "return_3m":candidate_price_rows[ticker]["return_3m"]
+                        if ticker in candidate_price_rows else None,
+                    "return_6m":candidate_price_rows[ticker]["return_6m"]
+                        if ticker in candidate_price_rows else None,
+                    "price_market_rank":candidate_price_rows[ticker]["rank"]
+                        if ticker in candidate_price_rows else None,
+                    "observed_market_session":str(session),
+                    "historic_issuer_class_pit_certified":False,
+                }
+                for ticker in sorted(dart_financial_stats)]
     snap["official_api_evidence"] = {
         "schema": SCHEMA, "decision_at": decision.isoformat(),
         "api_observation_day": session.isoformat(),
@@ -362,7 +388,8 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
 
 
 def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None = None,
-                          vintage_ledger: Path | None = None) -> dict:
+                          vintage_ledger: Path | None = None,
+                          basic_candidates: bool = False) -> dict:
     """Reuse exactly the existing WATCH/SQLite, dashboards and report generators."""
     out = Path(out)
     if not out.is_absolute() or out.is_symlink():
@@ -396,6 +423,10 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
                 vintage_research["asof_available_vintages"] !=
                 vintage_research["annual_report_vintages_checked"]):
             raise ValueError("Unregistered or revised FY CFS originals cannot publish financial research")
+    research_shortlist = None
+    if basic_candidates:
+        from .official_basic_candidates import build_basic_candidate_research
+        research_shortlist=build_basic_candidate_research(snapshot)
     result = execute_run(Namespace(market="KR", as_of=as_of, out=out,
                                    prepared_snapshot=snapshot, days=550, top=snapshot["shown"]))
     reports = [execute_report(Namespace(market="KR", period=p, out=out))["path"]
@@ -407,6 +438,10 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
     )
     readiness = factor_coverage_from_official_snapshot(snapshot)
     factor_page, factor_json = write_factor_readiness(readiness, out / "site")
+    shortlist_paths = None
+    if research_shortlist is not None:
+        from .official_basic_candidates import write_basic_candidate_screen
+        shortlist_paths=write_basic_candidate_screen(research_shortlist,out / "site")
     vintage_paths = None
     if vintage_research is not None:
         from .official_dart_vintage_delivery import write_dart_cfs_vintage_sidecar
@@ -420,6 +455,8 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
     price_page.write_text(price_html.replace(
         "</main>", "<p><a href='factor_readiness_kr.html'>실제 데이터 확보 현황·"
         "20위 밖 실적 관찰 기업 보기</a>" +
+        (" · <a href='basic_candidates_kr.html'>실제 가격·실적 기본 후보 비교</a>"
+         if shortlist_paths else "") +
         (" · <a href='dart_cfs_vintages.html'>DART 최초 등록·정정 상태</a>"
          if vintage_paths else "")+"</p></main>"), encoding="utf-8")
     if joined is not None:
@@ -464,6 +501,8 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
     index.write_text(index.read_text(encoding="utf-8").replace(
         "</body>", "<p><a href='official_api.html'>공식 API 최초 수신·PIT 제한</a>"+pit_link+
         " | <a href='factor_readiness_kr.html'>5요소 실제 자료 충족도·실적 관찰</a>"+
+        (" | <a href='basic_candidates_kr.html'>실제 가격·실적 후보 비교</a>"
+         if shortlist_paths else "")+
         (" | <a href='dart_cfs_vintages.html'>DART 원본 등록·정정 상태</a>"
          if vintage_paths else "")+"</p></body>"),
         encoding="utf-8")
@@ -487,6 +526,11 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
             "evidence_json": str(out / "official_api_pit_research.json"),
             "factor_coverage_html": str(factor_page),
             "factor_coverage_json": str(factor_json),
+            "basic_candidate_html": str(shortlist_paths[0]) if shortlist_paths else None,
+            "basic_candidate_json": str(shortlist_paths[1]) if shortlist_paths else None,
+            "basic_candidate_evaluable": (
+                research_shortlist["direction_fully_evaluable"]
+                if research_shortlist is not None else 0),
             "dart_vintage_html": str(vintage_paths[0]) if vintage_paths else None,
             "dart_vintage_json": str(vintage_paths[1]) if vintage_paths else None,
             "financial_comparables_not_in_price_top": (

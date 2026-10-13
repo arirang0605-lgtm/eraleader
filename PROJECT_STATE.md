@@ -1570,3 +1570,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **실제 전체 테스트 PASS**: `cd /Volumes/T5DATA/eraleader && PYTHONPATH=src python3 -m pytest tests -q --tb=short` (stdout/err는 ignored `output/verification_logs/official_preoperations_full_20261012.txt` 보관). Python pytest 테스트 진행 로그의 개별 성공 점 **2,450개**, 마지막 `[100%]`, F/E 없음. 도구 쉘에서 `TEST_EXIT=0`, 프로세스 자체 **exit code 0**, 실제 약 897.51초 경과. 전부 변경된 실제 코드의 테스트이며 이전 체크포인트의 2,403건을 현재 수치로 혼동하지 않음.
 - API 새 인증·실전 발송/주문·20거래일 전향적 실험을 검증했다는 뜻 **아님**. 본 세션의 원자 게시 변경은 mocked synthetic/실패주입 검증, 기존 2026-10-12 라이브 KRX/DART/CFS/SEC 증거는 `docs/134_OFFICIAL_DART_SEC_PREOPERATIONS.md` 참조. DART/KRX issuer·주권 클래스/상폐/기업행동 PIT/미래 적중률 N/A.
 - 코드 배포 main `0ce3aad87d60f31a1c51b5d88f6b5f3224a0f9bb`, 전 단계 상태 docs checkpoint `8282a25a214159d7d6f2ffd86368862091ae75e3`가 GitHub와 일치 확인. 이번 테스트 종료 증거 문서는 후속 별도 문서 커밋 후 SHA 확인. `src/eraleader/native_first_capture.py` unstaged 6+/1- 계속 보존.
+
+## 2026-10-13 KST | ER-NC-07 분리 개발 — 저자 원형 rule provenance 안전 계약 (PARTIAL)
+
+- ER-NC-B00 확인: 원본 main a244002 기준 암호화/독립 보관 31,197파일, 일관 SQLite 273개, SHA/복원/pytest EXIT0. 추가 기존 ER-NC 기능 worktree 546파일과 미커밋 news_market_response.py 별도 암호화/서로 다른 st_dev·SHA256·격리 복원 PASS. 원래 native_first_capture.py 미커밋 6+/1- 보존.
+- 새 **독립 branch** feature/er-nc-07-20261013 (시작 bbe9be5). 변경: src/eraleader/author_strategy_rules.py, tests/test_author_strategy_rules.py, docs/ER_NC_07_AUTHOR_RULE_PROVENANCE.md 및 이 인계 기록. 다른 개발 세션의 ER-NC-06 worktree 파일은 수정0.
+- 4개 남석관/유목민 단기·중기 독립 규칙 원본출처 검증 계약, 미래 정보/PIT 시각 차단, 중복 SHA 및 JSON 안전성, NO_ORDER/NOT_READY 연구 전용. 저자 원본 익절·손절 수치나 매매 신호 임의 생성0.
+- 새 집중 tests/test_author_strategy_rules.py **25 PASS EXIT0**; ER-NC-01/05 뉴스·기존 회전 영향 검증 3개 테스트 모듈 합계 **63 PASS EXIT0**. 기존 전체 회귀는 ER-NC 통합 수락 시 한 번 검증.
+- 다음: ER-NC-06 진행중 미추적 파일 주인 세션과 병합 충돌 없이 결선; ER-NC-07 실제 1차 서지/강연 원문 검증 후 각 저자 단기·중기 로직 분리 구현 및 PIT 테스트. 미확정 원형 NOT_EXECUTABLE, 전체 실전 성능 N/A.

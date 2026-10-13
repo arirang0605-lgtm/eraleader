@@ -1598,3 +1598,10 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 합성 fixture 기존 KR 최초 후보 4개에서 B0=4/B1=4/B2=2/B3=1; 정확히 `simulation_clock_supplied=true`/실전 인증 N/A. B2/B3의 희소 표본으로 precision이 올라도 선행성 개선의 통계 증거로 주장하지 않음. `precision@K/recall` 공인 종목군·TopK 필요, `CAGR/MDD/비용` 가격 체결·기업행동/상폐 자료 필요로 모두 N/A. 자연 1~12개월 신규 실제 Top-K 성숙평가 미검증.
 - 테스트: ER-NC-09 신규 테스트 **38/38 PASS EXIT0**. 기존 `test_frozen_holdout.py, test_discovery_metrics.py, test_walkforward.py, test_market_regime_experiment.py, test_theme_lifecycle.py, test_news_catalyst_adapter.py, test_news_rotation_context.py, test_news_market_response.py, test_news_theme_delivery.py` 9모듈 영향 포함 **전체 선택한 11모듈 232/232 PASS EXIT0** (전체 수천건 regression은 ER-NC-10 최종 수락에 1회 계획).
 - 다음 단일 작업: ER-NC-10 실제 합법적 뉴스 API/export의 이용권·최초 published/received 시각 증빙과 E2E 연결, B00 복구 시나리오 및 NEWS_ENABLED=false rollback, 실시간 5/20 거래일 기록, 독립 부재/손상 fail safe와 전체 회귀. ER-NC-07 저자 원형 4개는 별도 feature 브랜치의 NOT_READY 출처 인터페이스를 유지하고 문헌 원형 확인 전 성과 숫자/실거래 금지.
+
+## 2026-10-13 KST | ER-NC-09 GitHub feature push / 공개 안전 증거
+
+- 첫 기능 커밋 `dd044cae54c164a98dd9b74117b2579287a825b6` (`feature/er-nc-09-frozen-ablation-20261013`) GitHub origin push 성공, `git ls-remote origin refs/heads/feature/er-nc-09-frozen-ablation-20261013`와 SHA 동일. 기존 main reset/merge/push **0**. 후속 인계 문서 갱신은 별도 docs-only 커밋으로 수행.
+- 최종 변경 코드 포함 **선택 11개 모듈 232/232 pytest PASS EXIT0**, 신규 ER-NC-09 38/38 PASS, py_compile, `git diff --cached --check` PASS. `scripts/check_git_safety.py` PUBLIC scanner **staged7 / suspicious0**. 전체 2,000개 이상 회귀는 ER-NC-10 통합 수락까지 유예.
+- 원본 보호 SHA 재확인: `src/eraleader/native_first_capture.py` = `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6`; 기존 다른 feature 미추적 `news_market_response.py` = `8431010c3eacb33a780e00fe72c6367f8dfb80942a4bbc78b63b423ee0dd71b1`; 둘 다 변경0. `main` 새로 관측된 비추적 PNG·MD는 **다른 작업물로 취급하여 수정/업로드 금지**.
+- 다음: `docs/ER_NC_09_FROZEN_ABLATION.md`을 먼저 읽고 ER-NC-10 별도 새 worktree에서 실제 허가 뉴스의 schema/rights·first-seen SHA/최초 등록 시각을 PIT로 결선. 실제 시장 전향적 5/20거래일 검증은 시간이 경과하고 실수집이 끝난 뒤에만 PASS. ER-NC-07 저자 원형 규칙 4개는 `NOT_READY`를 유지.

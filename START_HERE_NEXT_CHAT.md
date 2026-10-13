@@ -842,3 +842,10 @@
 - 자동회귀 관련 9모듈 129/129 PASS(EXIT0), 실제 공식 첫 receipt read-only E2E 2회 PASS. 추후 KRX-DART 공시 최초 공개·3개 연속 사업연도 성장가속/기관 수급·산업 데이터+법적 클래스 PIT 검증부터 이어서 구현.
 - 원본 main `src/eraleader/native_first_capture.py` 미커밋 6+1 유지 SHA `6d3139f0...`. 이번 확인에서 이전 `/Volumes/T5DATA/EraLeader_통합관리` 폴더 **부재** 및 이전 5개 worktree `prunable`; 지우거나 `git worktree prune`하지 말 것. B00 암호화 백업·이전 다른 기능 브랜치 소스는 별도 보호.
 - 완성 추정 95/99%는 전체 실사용 완료율로 **철회**. 기능별 독립 인증 결과로 개발 상태를 표현한다. 이후 GitHub branch SHA는 `PROJECT_STATE.md` 및 git log/latest origin에서 확인.
+
+## 2026-10-13 최신 핵심 개발 — 공식 3개 사업연도 연결실적 가속/별도 화면
+
+- 최신 개별 브랜치 `feature/core-official-factor-coverage-20261013`, 작업 경로 `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013`. 원래 main과 보호 미커밋 파일 변동 금지. `PROJECT_STATE.md` 마지막 및 `docs/136_OFFICIAL_DART_THREE_YEAR_GROWTH_ACCELERATION.md` 참조.
+- 가격관찰 TOP20와 별도 DART FY2023·2024·2025 공식 첫 SHA CFS 실적 연구: 005930 실제 YoY 2024 +16.1953%, 2025 +10.8801%, 가속 -5.3152pp; 최초 수신/결정시각 후 이용, 과거 예측 성과 N/A. 기존 WATCH/3종 보고/DRY-RUN/가격순위 보존. 실제 CLI 원본 재생 1회 E2E PASS, `http://127.0.0.1:8768/factor_readiness_kr.html` 로컬 화면. 관련 테스트 10모듈 **153 PASS EXIT0**.
+- 현재 여전히 전체 산업·경쟁력·기관외국인 수급 공식 데이터, DART 최초공개·정정 vintage/PIT 기업클래스·상폐·기업행동, 미국 전체시장 가격 및 종합100점/전향적 적중률은 미완료. 99%/95% 실전 완료율 표현 철회. ER-NC 뉴스 확장 브랜치 작업트리 경로 `prunable` 표시되므로 임의 prune/삭제/강제 복구 금지.
+- 다음 1개 기능: DART 최초공개·정정 시계열 진본성 및 영구 기업/주권 PIT 증거부터 보강해 실제 공통 5요소 후보 평가를 연결. 본 소스 브랜치의 Git 최종 SHA는 `git rev-parse HEAD`·GitHub 원격 확인.

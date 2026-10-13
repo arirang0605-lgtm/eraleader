@@ -160,9 +160,14 @@ def factor_coverage_from_official_snapshot(snapshot: dict) -> dict:
             raise ValueError("Finance observation not tied to original DART receipts")
         parts = financial_by_code[code]
         year = observed.get("reported_financial_year")
-        if (type(year) is not int or len(parts) != 2 or
-                sorted(p["report_year"] for p in parts) != [year - 1, year]):
+        receipt_years=sorted(p["report_year"] for p in parts)
+        if (type(year) is not int or
+                len(parts) not in (2,3) or
+                receipt_years != list(range(year-len(parts)+1,year+1)) or
+                observed.get("annual_receipt_years",receipt_years) != receipt_years):
             raise ValueError("Incomplete consecutive CFS evidence")
+        if observed.get("historic_revisions_pit_certified", False) is not False:
+            raise ValueError("Later revision history is not independently certified")
         if (observed.get("historic_issuer_class_pit_certified") is not False or
                 observed.get("formal_score_100") is not None or
                 observed.get("official_leader") is not False or
@@ -174,6 +179,31 @@ def factor_coverage_from_official_snapshot(snapshot: dict) -> dict:
         factors = observed.get("research_metrics")
         if type(factors) is not dict or set(factors) != set(FIELDS):
             raise ValueError("Incomplete annual company diagnostic fields")
+        acceleration = observed.get("research_acceleration")
+        previous_yoy = observed.get("previous_yoy")
+        if len(parts)==3:
+            if (type(acceleration) is not dict or
+                    set(acceleration) != {field+"_acceleration" for field in FIELDS} or
+                    type(previous_yoy) is not dict or set(previous_yoy) != set(FIELDS)):
+                raise ValueError("Three-year acceleration requires two annual YoY vintages")
+            for field in FIELDS:
+                old = _number(previous_yoy[field])
+                now = _number(factors[field])
+                claimed = _number(acceleration[field+"_acceleration"])
+                expected = round(now-old,10) if old is not None and now is not None else None
+                if claimed is None and expected is None:
+                    continue
+                if claimed is None or expected is None or abs(claimed-expected)>1e-9:
+                    raise ValueError("Acceleration contradicts pinned annual CFS growth")
+            from .official_api_capture import _canonical as receipt_canonical
+            digest=sha256(receipt_canonical({
+                "pin_receipts":sorted(p["first_receipt_sha256"] for p in parts),
+                "stock_code":code,"report_year":year
+            })).hexdigest()
+            if observed["evidence_sha256"]!=digest:
+                raise ValueError("Three annual report original PINs do not bind acceleration")
+        elif acceleration is not None or previous_yoy is not None:
+            raise ValueError("Cannot compute acceleration from only two annual receipts")
         emitted.add(code)
         details.append({
             "security_id": code, "name": observed["name"],
@@ -181,6 +211,20 @@ def factor_coverage_from_official_snapshot(snapshot: dict) -> dict:
             "revenue_yoy": _number(factors["revenue_yoy"]),
             "operating_income_yoy": _number(factors["operating_income_yoy"]),
             "net_income_yoy": _number(factors["net_income_yoy"]),
+            "receipt_years": receipt_years,
+            "previous_revenue_yoy": (_number(previous_yoy["revenue_yoy"])
+                                      if previous_yoy else None),
+            "previous_operating_income_yoy": (_number(previous_yoy["operating_income_yoy"])
+                                               if previous_yoy else None),
+            "previous_net_income_yoy": (_number(previous_yoy["net_income_yoy"])
+                                         if previous_yoy else None),
+            "revenue_yoy_acceleration": (_number(acceleration["revenue_yoy_acceleration"])
+                                          if acceleration else None),
+            "operating_income_yoy_acceleration": (
+                _number(acceleration["operating_income_yoy_acceleration"])
+                if acceleration else None),
+            "net_income_yoy_acceleration": (_number(acceleration["net_income_yoy_acceleration"])
+                                             if acceleration else None),
             "first_local_received_at_utc": observed["source_first_received_at_utc"],
             "price_watch_rank": observed["rank_in_price_top20"],
             "independent_history_pit_certified": False,
@@ -190,14 +234,21 @@ def factor_coverage_from_official_snapshot(snapshot: dict) -> dict:
         # Old published result formats did not retain all-company YoY figures.
         # Use receipt metadata to preserve coverage, never invent financial YoY.
         for code, parts in sorted(financial_by_code.items()):
-            if len(parts) != 2 or sorted(p["report_year"] for p in parts)[1] != (
-                    sorted(p["report_year"] for p in parts)[0] + 1):
+            years=sorted(p["report_year"] for p in parts)
+            if len(years) not in (2,3) or years != list(range(years[0],years[0]+len(years))):
                 continue
             details.append({
                 "security_id": code, "name": None,
                 "reported_financial_year": max(p["report_year"] for p in parts),
                 "revenue_yoy": None, "operating_income_yoy": None,
                 "net_income_yoy": None,
+                "receipt_years":sorted(p["report_year"] for p in parts),
+                "previous_revenue_yoy":None,
+                "previous_operating_income_yoy":None,
+                "previous_net_income_yoy":None,
+                "revenue_yoy_acceleration":None,
+                "operating_income_yoy_acceleration":None,
+                "net_income_yoy_acceleration":None,
                 "first_local_received_at_utc": max(p["first_local_received_at_utc"]
                                                     for p in parts),
                 "price_watch_rank": next((r["rank"] for r in rows
@@ -218,6 +269,8 @@ def factor_coverage_from_official_snapshot(snapshot: dict) -> dict:
         "observed_krx_market_rows": universe_size,
         "current_dart_mapping_observed": mapped,
         "annual_cfs_comparable_companies": financial_count,
+        "annual_cfs_acceleration_companies": sum(len(row["receipt_years"])==3
+                                                  for row in details),
         "annual_cfs_in_price_top20": sum(row["price_watch_rank"] is not None
                                          for row in details),
         "price_watch_shown": len(rows),
@@ -254,6 +307,10 @@ def _safe(value: object) -> str:
 
 def _percent(value: float | None) -> str:
     return "N/A" if value is None else f"{value * 100:+.2f}%"
+
+
+def _percentage_points(value: float | None) -> str:
+    return "N/A" if value is None else f"{value * 100:+.2f} pp"
 
 
 def render_factor_readiness(report: dict) -> str:
@@ -293,9 +350,13 @@ def render_factor_readiness(report: dict) -> str:
         finance.append(
             "<tr>" + "".join("<td>"+_safe(v)+"</td>" for v in (
                 row["security_id"], row["name"], row["reported_financial_year"],
+                _percent(row.get("previous_revenue_yoy")),
                 _percent(row["revenue_yoy"]),
                 _percent(row["operating_income_yoy"]),
                 _percent(row["net_income_yoy"]),
+                _percentage_points(row.get("revenue_yoy_acceleration")),
+                _percentage_points(row.get("operating_income_yoy_acceleration")),
+                _percentage_points(row.get("net_income_yoy_acceleration")),
                 row["price_watch_rank"],
                 row["first_local_received_at_utc"],
                 "연구 전용·실전 순위 아님",
@@ -317,19 +378,25 @@ def render_factor_readiness(report: dict) -> str:
         _safe(report["observed_krx_market_rows"])+"</strong></div>"
         "<div class='stat'>현재 DART 기업코드 일치<br><strong>"+
         _safe(report["current_dart_mapping_observed"])+"</strong></div>"
-        "<div class='stat'>연결재무 연속 2개 연도 비교 가능한 주권<br><strong>"+
+        "<div class='stat'>연결재무 연속 2년 이상 비교 가능한 주권<br><strong>"+
         _safe(report["annual_cfs_comparable_companies"])+"</strong></div>"
+        "<div class='stat'>3개 연도 실적가속 비교<br><strong>"+
+        _safe(report.get("annual_cfs_acceleration_companies",0))+"</strong></div>"
         "<div class='stat'>가격 WATCH 표본<br><strong>"+
         _safe(report["price_watch_shown"])+"</strong></div></div>"
         "<h2>5가지 평가 요소별 실제 자료 확보 현황 (공식 역사 PIT 인증 전)</h2>"
         "<div class='wrap'><table><thead><tr><th>평가 요소</th><th>자료 관측 수/공식 당일 거래 관측 수</th>"
         "<th>판정</th></tr></thead><tbody>"+"".join(cells)+"</tbody></table></div>"
-        "<h2>공식 DART 연속 2개 사업연도 CFS 연구 대상 (가격 20위 외 기업도 포함)</h2>"
-        "<p>성장률은 당초 사업보고서 2개만으로 계산되는 연간 YoY입니다. "
-        "3개 연도의 성장 가속도는 아직 검증하지 않았으며, 최초 로컬 확보일 이전 예측으로 기록하지 않습니다.</p>"
+        "<h2>공식 DART 연속 2~3개 사업연도 CFS 연구 (가격 TOP20 밖 포함)</h2>"
+        "<p>성장률은 공시 원본 2개 연도의 YoY이며, "
+        "가속도는 검증된 연속 3개 사업연도일 때만 "
+        "후반 YoY에서 전반 YoY를 뺀 값(pp)입니다. "
+        "DART 과거 정정/실제 최초공개 시각은 독립 인증되지 않았으며 "
+        "로컬 첫 수신 이전 미래 대장주 예측으로 소급하지 않습니다.</p>"
         "<div class='wrap'><table><thead><tr>"
-        "<th>종목코드</th><th>회사명</th><th>사업연도</th><th>매출 YoY</th>"
-        "<th>영업익 YoY</th><th>순이익 YoY</th><th>가격 WATCH 순위</th>"
+        "<th>종목코드</th><th>회사명</th><th>사업연도</th><th>직전 매출 YoY</th><th>최근 매출 YoY</th>"
+        "<th>영업익 YoY</th><th>순이익 YoY</th><th>매출 가속(pp)</th>"
+        "<th>영업익 가속(pp)</th><th>순이익 가속(pp)</th><th>가격 WATCH 순위</th>"
         "<th>최초 로컬 확보시각</th><th>등급</th></tr></thead><tbody>"+
         "".join(finance)+"</tbody></table></div>"
         "<p><small>시장 관측일 "+_safe(report["market_session"])+

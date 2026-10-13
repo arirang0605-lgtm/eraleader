@@ -236,6 +236,7 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
             raise ValueError("DART financial statements need current pinned company directory")
         from .official_dart_financials import (
             verify_dart_financial, annual_growth_diagnostic,
+            annual_acceleration_diagnostic,
         )
         by_ticker={}
         for folder,pin in dart_financial_receipts:
@@ -260,6 +261,12 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
             if len(complete)==2 and complete[1]==complete[0]+1:
                 dart_financial_stats[ticker]=annual_growth_diagnostic(
                     years[(complete[0],"11011")],years[(complete[1],"11011")])
+            elif len(complete)==3 and complete==list(range(complete[0],complete[0]+3)):
+                dart_financial_stats[ticker]=annual_acceleration_diagnostic(
+                    years[(complete[0],"11011")],years[(complete[1],"11011")],
+                    years[(complete[2],"11011")],decision_at=decision)
+            elif len(complete)>3:
+                raise ValueError("Annual CFS research currently supports up to three years")
     # Prior cache observations provide *research lookback*, not official PIT
     # provenance. Never silently select a cached bar over an official session.
     bars, quality = read_market_bars("KR", asof_day, days=days, legacy_root=legacy_root)
@@ -308,13 +315,17 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
         for ticker, growth in sorted(dart_financial_stats.items()):
             related = [entry for entry in dart_financial_receipts_info
                        if entry["stock_code"] == ticker]
-            if len(related) != 2:
-                raise ValueError("Financial growth evidence requires two annual original receipts")
+            if len(related) not in (2,3):
+                raise ValueError("Financial growth evidence requires two or three annual original receipts")
             financial_observations.append({
                 "security_id": ticker, "name": names[ticker][0],
                 "venue": names[ticker][1],
                 "reported_financial_year": growth["year"],
                 "research_metrics": growth["research_metrics"],
+                "annual_receipt_years": sorted(entry["report_year"] for entry in related),
+                "research_acceleration": growth.get("research_acceleration"),
+                "previous_yoy": growth.get("previous_yoy"),
+                "historic_revisions_pit_certified": False,
                 "source_first_received_at_utc": max(
                     entry["first_local_received_at_utc"] for entry in related),
                 "evidence_sha256": sha256(_canonical(

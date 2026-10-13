@@ -239,3 +239,87 @@ def test_duplicate_receipts_or_nonconsecutive_years_cannot_supply_growth():
     snap["official_api_evidence"]["dart_financial_first_receipts"][0]["report_year"] = 2025
     with pytest.raises(ValueError, match="consecutive CFS"):
         factor_coverage_from_official_snapshot(snap)
+
+
+def with_three_annual_originals():
+    """One extra independent FY2023 receipt; FY2024/2025 remain unchanged."""
+    from eraleader.official_api_capture import _canonical as official_canonical
+    snap=source()
+    e=snap["official_api_evidence"]
+    e["dart_financial_first_receipts"].append({
+        "stock_code":"005930","report_year":2023,
+        "first_receipt_sha256":"f"*64,
+        "first_local_received_at_utc":KNOWN,"pit_certified":False,
+    })
+    row=snap["official_financial_research_observations"][0]
+    row["annual_receipt_years"]=[2023,2024,2025]
+    row["historic_revisions_pit_certified"]=False
+    row["previous_yoy"]={
+        "revenue_yoy":.20,
+        "operating_income_yoy":.10,
+        "net_income_yoy":.10,
+    }
+    row["research_acceleration"]={
+        "revenue_yoy_acceleration":round(.1088-.20,10),
+        "operating_income_yoy_acceleration":round(.3323-.10,10),
+        "net_income_yoy_acceleration":round(.3122-.10,10),
+    }
+    original=e["dart_financial_first_receipts"]
+    row["evidence_sha256"]=sha256(official_canonical({
+        "pin_receipts": sorted(p["first_receipt_sha256"] for p in original),
+        "stock_code":"005930","report_year":2025,
+    })).hexdigest()
+    return snap
+
+
+def test_three_annual_report_acceleration_in_sidecar_separate_from_price_rank():
+    snap=with_three_annual_originals()
+    report=factor_coverage_from_official_snapshot(snap)
+    assert report["annual_cfs_acceleration_companies"] == 1
+    assert report["annual_cfs_in_price_top20"] == 0
+    assert report["financial_research"][0]["receipt_years"] == [2023,2024,2025]
+    assert report["financial_research"][0]["revenue_yoy_acceleration"] == pytest.approx(-.0912)
+    assert report["official_leaders"] == 0
+    assert report["investment_priority_ranking_available"] is False
+    page=render_factor_readiness(report)
+    assert "매출 가속(pp)" in page
+    assert "-9.12 pp" in page
+    assert "과거 정정/실제 최초공개 시각" in page
+
+
+@pytest.mark.parametrize("what",["invalid_source_sha","wrong_acceleration","unknown_years",
+                                  "fake_historical_pit","late_cfs"])
+def test_three_year_report_forged_or_late_original_cannot_enter_ranked_view(what):
+    snap=with_three_annual_originals()
+    row=snap["official_financial_research_observations"][0]
+    if what=="invalid_source_sha":
+        row["evidence_sha256"]="e"*64
+    elif what=="wrong_acceleration":
+        row["research_acceleration"]["revenue_yoy_acceleration"]=+.4
+    elif what=="unknown_years":
+        row["annual_receipt_years"]=[2022,2024,2025]
+    elif what=="fake_historical_pit":
+        row["historic_revisions_pit_certified"]=True
+    else:
+        snap["official_api_evidence"]["dart_financial_first_receipts"][0][
+            "first_local_received_at_utc"]="2026-10-14T12:00:00Z"
+    with pytest.raises(ValueError):
+        factor_coverage_from_official_snapshot(snap)
+
+
+def test_old_saved_three_cfs_metadata_does_not_create_fictitious_acceleration():
+    snap=with_three_annual_originals()
+    del snap["official_financial_research_observations"]
+    report=factor_coverage_from_official_snapshot(snap)
+    assert report["annual_cfs_acceleration_companies"] == 1
+    assert report["financial_research"][0]["revenue_yoy_acceleration"] is None
+    assert report["financial_research"][0]["revenue_yoy"] is None
+    assert "N/A" in render_factor_readiness(report)
+
+
+def test_two_year_preexisting_display_still_has_no_invented_acceleration():
+    snap=source()
+    result=factor_coverage_from_official_snapshot(snap)
+    assert result["annual_cfs_acceleration_companies"] == 0
+    assert result["financial_research"][0]["revenue_yoy_acceleration"] is None
+    assert "N/A" in render_factor_readiness(result)

@@ -339,3 +339,68 @@ def test_actual_two_year_cfs_outside_price_topn_gets_independent_research_page(
     assert finished["financial_comparables_not_in_price_top"] == 1
     assert len(json.loads((out/"kr_latest.json").read_text())["rows"]) == 1
     assert finished["official_leaders"] == finished["messages_sent"] == 0
+
+
+def test_three_pinned_cfs_years_reach_factor_dashboard_without_price_rank_change(
+        packs, cached, tmp_path, monkeypatch):
+    from eraleader import official_dart_corp_directory as directory_mod
+    from eraleader import official_dart_financials as fin_mod
+    original=bridge.read_market_bars
+
+    def make_other_security_lead(*args,**kwargs):
+        hist,quality=original(*args,**kwargs)
+        hist.loc[hist["security_id"]=="A23456",["open","high","low","close"]]=(
+            4200,4300,3900,4100)
+        return hist,quality
+
+    monkeypatch.setattr(bridge,"read_market_bars",make_other_security_lead)
+    monkeypatch.setattr(directory_mod,"verify_dart_corp_directory",
+        lambda *_a,**_k: {
+            "mapping":{"005930":"00126380"},"ambiguous_stock_codes":set(),
+            "total_corporations":100,"listed_security_code_count":1,
+            "first_local_received_at_utc":"2026-10-12T11:00:00+00:00",
+            "first_receipt_sha256":"f"*64})
+
+    def verified(_folder,pin,**kw):
+        year={"c"*64:2023,"a"*64:2024,"b"*64:2025}[pin]
+        values={2023:(100,20,10),2024:(120,30,15),2025:(156,48,30)}
+        rv,op,net=values[year]
+        return {
+            "stock_code":"005930","corp_code":"00126380","year":year,
+            "report_code":"11011","statement":"CFS",
+            "first_local_received_at_utc":"2026-10-12T11:00:00+00:00",
+            "report_accessions":[f"{year+1}0315000001"],
+            "pit_certified":False,
+            "metrics":{"revenue":{"value":rv},
+                       "operating_income":{"value":op},
+                       "net_income":{"value":net}},
+        }
+
+    monkeypatch.setattr(fin_mod,"verify_dart_financial",verified)
+    snap=bridge.build_official_price_snapshot(
+        kospi=packs[0],kosdaq=packs[1],decision_at=DECISION,
+        as_of="2026-10-12",top=1,
+        dart_directory=(tmp_path/"dir","f"*64),
+        dart_financial_receipts=((tmp_path/"fy2023","c"*64),
+                                 (tmp_path/"fy2024","a"*64),
+                                 (tmp_path/"fy2025","b"*64)))
+    assert snap["rows"][0]["security_id"]=="A23456"
+    assert snap["rows"][0]["total_score_100"] is None
+    assert len(snap["official_financial_research_observations"])==1
+    row=snap["official_financial_research_observations"][0]
+    assert row["security_id"]=="005930"
+    assert row["rank_in_price_top20"] is None
+    assert row["annual_receipt_years"]==[2023,2024,2025]
+    assert row["research_acceleration"]["revenue_yoy_acceleration"]==pytest.approx(.1)
+    assert row["historic_revisions_pit_certified"] is False
+    out=tmp_path/"three_year_separate_factor_output"
+    res=bridge.run_official_research(snap,out)
+    factor=json.loads((out/"factor_readiness_kr.json").read_text())
+    assert factor["annual_cfs_acceleration_companies"] == 1
+    assert factor["valid_full_leader_scores"] == 0
+    assert res["financial_comparables_not_in_price_top"] == 1
+    html=(out/"site"/"factor_readiness_kr.html").read_text()
+    assert "매출 가속(pp)" in html and "+10.00 pp" in html
+    assert "005930" in html
+    assert "factor_readiness_kr.html" in (out/"site"/"kr.html").read_text()
+    assert res["official_leaders"]==res["messages_sent"]==0

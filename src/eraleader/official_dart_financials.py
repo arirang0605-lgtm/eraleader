@@ -230,3 +230,70 @@ def annual_growth_diagnostic(previous: dict,current: dict) -> dict:
             "research_metrics":metrics,
             "issuer_share_class_pit_certified":False,
             "prospective_backtest_eligible":False}
+
+
+def annual_acceleration_diagnostic(
+        past: dict, middle: dict, current: dict, *,
+        decision_at: datetime) -> dict:
+    """3 consecutive verified CFS originals, strictly research only.
+
+    The two annual growth rates are from different original fiscal reports,
+    not a future retrospective 'thstrm_amount' copied from a later filing.
+    Comparison is allowed only once all three original local receipts existed.
+    Later DART corrections and historic market issuer/class completeness are
+    NOT certified merely by this capture/receipt check.
+    """
+    if decision_at.tzinfo is None or decision_at.utcoffset() is None:
+        raise ValueError("Annual acceleration needs a timezone-aware decision")
+    three=(past,middle,current)
+    identity={(r.get("stock_code"),r.get("corp_code"),
+               r.get("report_code"),r.get("statement")) for r in three}
+    if (len(identity)!=1 or
+            any(r.get("report_code")!="11011" or r.get("statement")!="CFS"
+                or r.get("pit_certified") is not False for r in three)):
+        raise ValueError("Annual acceleration issuer/report/statement PIT conflict")
+    years=[r.get("year") for r in three]
+    if (any(type(year) is not int for year in years) or
+            years[1]!=years[0]+1 or years[2]!=years[1]+1):
+        raise ValueError("Annual acceleration needs three consecutive report years")
+    seen_accessions=set()
+    decision=decision_at.astimezone(timezone.utc)
+    local_received=[]
+    for item in three:
+        stamp=datetime.fromisoformat(
+            item["first_local_received_at_utc"].replace("Z","+00:00"))
+        if stamp.tzinfo is None or stamp.utcoffset() is None or stamp>decision:
+            raise ValueError("Future/naive annual CFS receipt cannot enter decision")
+        local_received.append(stamp.isoformat())
+        acc=item.get("report_accessions")
+        if (type(acc) is not list or len(acc)!=1 or
+                type(acc[0]) is not str or not re.fullmatch(r"[0-9]{14}",acc[0]) or
+                acc[0] in seen_accessions):
+            raise ValueError("Invalid or repeated annual CFS filing accession")
+        seen_accessions.add(acc[0])
+    # Existing 2-year function is the single authoritative value mapper.
+    prior=annual_growth_diagnostic(past,middle)
+    latest=annual_growth_diagnostic(middle,current)
+    delta={}
+    for metric in ("revenue","operating_income","net_income"):
+        name=metric+"_yoy"
+        before=prior["research_metrics"][name]
+        now=latest["research_metrics"][name]
+        delta[metric+"_yoy_acceleration"]=(
+            round(now-before,10) if before is not None and now is not None
+            else None)
+    return {
+        "stock_code":current["stock_code"], "corp_code":current["corp_code"],
+        "year":current["year"], "annual_comparison_years":years,
+        "previous_yoy":prior["research_metrics"],
+        "research_metrics":latest["research_metrics"],
+        "research_acceleration":delta,
+        "first_local_received_at_utc":max(local_received),
+        "read_only":True,
+        "historic_publication_time_certified":False,
+        "issuer_share_class_pit_certified":False,
+        "original_report_revision_history_certified":False,
+        "prospective_backtest_eligible":False,
+        "official_leader":False,
+        "interpretation":"THREE_YEAR_RESEARCH_ONLY_NOT_AUTHORITATIVE_PIT",
+    }

@@ -16,7 +16,8 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from eraleader.official_api_capture import KEYS, credentials
 from eraleader.official_dart_multi_company import (
-    collect_multi_company_cfs, choose_price_watch_company_batch, source_eligible_universe
+    collect_multi_company_cfs, choose_price_watch_company_batch,
+    choose_marketwide_turnover_cfs_batch, source_eligible_universe
 )
 from datetime import datetime, timezone
 
@@ -26,11 +27,15 @@ def main(argv=None) -> int:
     p.add_argument("--official-evidence",type=Path,required=True)
     p.add_argument("--capture-root",type=Path,
                    default=ROOT/"output"/"official_api_capture")
-    p.add_argument("--code",action="append",
+    selection=p.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--code",action="append",
                    help="One present, first-received KRX+DART six-digit code; max 12")
-    p.add_argument("--auto-price-watch",type=Path,
+    selection.add_argument("--auto-price-watch",type=Path,
                    help="Existing signed KRX price WATCH snapshot, for automatic bounded CFS queue")
+    selection.add_argument("--auto-marketwide-report",type=Path,
+                   help="Uncovered DART issuers from KRX whole-market report, turnover descending")
     p.add_argument("--auto-start-rank",type=int,default=1)
+    p.add_argument("--auto-offset",type=int,default=0)
     p.add_argument("--auto-limit",type=int,default=12)
     p.add_argument("--year",type=int,action="append",default=[])
     p.add_argument("--out",type=Path,required=True,
@@ -52,21 +57,26 @@ def main(argv=None) -> int:
                 a.out.suffix!=".json"):
             raise ValueError("Output manifest must be new absolute private JSON path")
         years=tuple(a.year) if a.year else (2024,2025)
-        if (a.code is None) == (a.auto_price_watch is None):
-            raise ValueError("Use explicit codes OR verified price-watch auto queue")
-        if a.auto_price_watch is not None:
-            if not a.auto_price_watch.is_absolute() or a.auto_price_watch.is_symlink():
-                raise ValueError("Price source path must be absolute regular source")
-            snapshot=json.loads(a.auto_price_watch.read_bytes())
+        if a.code is not None:
+            codes=tuple(a.code)
+        else:
+            source=a.auto_price_watch or a.auto_marketwide_report
+            if (not source.is_absolute() or source.is_symlink() or
+                    not source.is_file()):
+                raise ValueError("Auto source must be existing regular absolute file")
+            snapshot=json.loads(source.read_bytes())
             evidence=json.loads(a.official_evidence.read_bytes())
             market,_,_=source_eligible_universe(
                 a.official_evidence,a.capture_root,
                 decision=datetime.now(timezone.utc))
-            codes=choose_price_watch_company_batch(
-                snapshot,evidence,market,start_rank=a.auto_start_rank,
-                limit=a.auto_limit)
-        else:
-            codes=tuple(a.code)
+            if a.auto_price_watch is not None:
+                codes=choose_price_watch_company_batch(
+                    snapshot,evidence,market,start_rank=a.auto_start_rank,
+                    limit=a.auto_limit)
+            else:
+                codes=choose_marketwide_turnover_cfs_batch(
+                    snapshot,evidence,market,offset=a.auto_offset,
+                    limit=a.auto_limit)
         result=collect_multi_company_cfs(
             evidence_file=a.official_evidence,
             private_root=a.capture_root,

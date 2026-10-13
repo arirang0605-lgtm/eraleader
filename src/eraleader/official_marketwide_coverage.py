@@ -20,7 +20,10 @@ from .official_dart_multi_company import _all_pinned, source_eligible_universe
 from .official_company_explorer import _verified, BASIC, PEER, canonical
 from .official_dart_financials import verify_dart_financial, annual_growth_diagnostic
 from .official_dart_industry import verify_company_profile
-from .discovery import run_id_for
+from .discovery import run_id_for, score_price_observations
+from .data import LEGACY_DEFAULT, read_market_bars, validate_bars
+from datetime import date
+import pandas as pd
 
 SCHEMA = "eraleader.official_kr_marketwide_factor_coverage.v1"
 CODE = re.compile(r"[A-Za-z0-9]{6}\Z")
@@ -29,7 +32,9 @@ CODE = re.compile(r"[A-Za-z0-9]{6}\Z")
 def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
                               clock: datetime | None = None,
                               extra_cfs_manifests: tuple[Path, ...] = (),
-                              extra_industry_manifests: tuple[Path, ...] = ()) -> dict:
+                              extra_industry_manifests: tuple[Path, ...] = (),
+                              full_price_lookback: bool = False,
+                              legacy_root: Path = LEGACY_DEFAULT) -> dict:
     """Recheck pinned originals and join every observed KRX issue exactly once."""
     now = clock or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:
@@ -67,6 +72,7 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
         raise ValueError("MARKETWIDE_SOURCE_DAY_MISMATCH")
     pins = _all_pinned(capture_root)
     all_rows = {}
+    current_frames = []
     for source in ("krx-kospi", "krx-kosdaq"):
         records = [x for x in evidence["sources"] if x["source"] == source]
         if len(records) != 1 or records[0]["first_receipt_sha256"] not in pins:
@@ -74,6 +80,7 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
         pin = records[0]["first_receipt_sha256"]
         meta, payload = verified_capture(pins[pin], source, pin, now)
         frame = _krx_frame(source, meta, payload)
+        current_frames.append(frame)
         if len(frame) != records[0]["row_count"]:
             raise ValueError("MARKETWIDE_KRX_ROW_MISMATCH")
         for row in frame.itertuples(index=False):
@@ -217,6 +224,38 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
                     profile["current_dart_industry_code"] is None):
                 raise ValueError("MARKETWIDE_INDUSTRY_RECEIPT_MISMATCH")
             all_rows[code]["industry_code"] = profile["current_dart_industry_code"]
+    # Optional whole-market 3/6-month price ranking. Reuse the *same*
+    # research model as the original verified official PRICE WATCH20. Its
+    # pre-session lookback is legacy local cache, never certified historical PIT.
+    full_price_evaluable = 0
+    if full_price_lookback:
+        if (not isinstance(legacy_root,Path) or not legacy_root.is_absolute() or
+                legacy_root.is_symlink()):
+            raise ValueError("MARKETWIDE_PRICE_CACHE_ROOT_UNSAFE")
+        as_of_day = date.fromisoformat(snapshot["as_of_requested"])
+        old, _ = read_market_bars("KR",as_of_day,days=550,legacy_root=legacy_root)
+        old = old.loc[old["session"].dt.date < date.fromisoformat(observed)].copy()
+        full = validate_bars(
+            pd.concat([old,*current_frames],ignore_index=True),
+            as_of_day,quarantine=False)
+        prices_full = score_price_observations(
+            full,"KR",snapshot["as_of_requested"],len(all_rows))
+        if prices_full["market_last_observation"] != observed:
+            raise ValueError("MARKETWIDE_FULL_PRICE_SESSION_MISMATCH")
+        expected = snapshot["rows"]
+        if [(r["security_id"],r["price_strength_25"]) for r in prices_full[
+                "rows"][:len(expected)]] != [
+                    (r["security_id"],r["price_strength_25"]) for r in expected]:
+            raise ValueError("MARKETWIDE_PRICE_MODEL_NOT_SAME_AS_WATCH")
+        for price in prices_full["rows"]:
+            code=price["security_id"]
+            if code not in all_rows or all_rows[code]["name"] != price["name"]:
+                raise ValueError("MARKETWIDE_PRICE_CACHE_SECURITY_MISMATCH")
+            previous = all_rows[code]["price_strength_25"]
+            if previous is not None and previous != price["price_strength_25"]:
+                raise ValueError("MARKETWIDE_PRICE_FACTOR_CONFLICT")
+            all_rows[code]["price_strength_25"] = price["price_strength_25"]
+        full_price_evaluable = len(prices_full["rows"])
     # P2 first executable comparison: observed momentum+earnings only.
     # Missing industry growth, competitive moat or institution flows must NEVER
     # be zero-filled into the official 100-point leader model.
@@ -256,6 +295,8 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
         "extra_industry_manifests_sha256": industry_pins,
         "flow_factors_observed": 0,
         "two_factor_research_evaluable":len(comparable),
+        "local_price_lookback_enabled":full_price_lookback,
+        "local_price_lookback_evaluable":full_price_evaluable,
         "two_factor_research_top20":[
             {"research_order":x["two_factor_research_rank"],
              "security_id":x["security_id"],"name":x["name"],

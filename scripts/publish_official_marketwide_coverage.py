@@ -22,10 +22,13 @@ def main(argv=None):
                    help="Additional verified existing bounded CFS batch (FY consecutive)")
     p.add_argument("--extra-industry-manifest",type=Path,action="append",default=[],
                    help="Additional verified DART industry first-receipt batch")
+    p.add_argument("--full-price-lookback",action="store_true",
+                   help="Opt in to existing uncertified local marcap price-history percentiles")
     a=p.parse_args(argv)
     result=build_marketwide_coverage(a.cohort,a.capture_root,
                                       extra_cfs_manifests=tuple(a.extra_cfs_manifest),
-                                      extra_industry_manifests=tuple(a.extra_industry_manifest))
+                                      extra_industry_manifests=tuple(a.extra_industry_manifest),
+                                      full_price_lookback=a.full_price_lookback)
     paths=publish_marketwide_coverage(result,a.out)
     print(json.dumps({"status":"RESEARCH_COVERAGE_PUBLISHED",
           "observed":result["official_krx_observed"],

@@ -314,3 +314,90 @@ def test_two_factor_research_order_uses_actual_price_and_finance_only(tmp_path,m
     assert stock[CODE_A]["formal_leader_score_100"] is None
     _,page=module.publish_marketwide_coverage(report,tmp_path/"rankpage")
     assert "연구 비교 TOP20" in page.read_text()
+
+
+def test_marketwide_turnover_auto_batch_skips_observed_financial_and_reuses_issuer():
+    from eraleader.official_dart_multi_company import choose_marketwide_turnover_cfs_batch
+    evidence={"api_observation_day":"2026-10-08",
+              "historic_universe_pit_verified":False}
+    rows=[
+        {"security_id":"005930","name":"삼성전자","venue":"KOSPI",
+         "current_dart_directory_matched":True,"turnover":500,"market_cap":1000,
+         "market_traded":True,"revenue_yoy":0.15},
+        {"security_id":"000660","name":"SK하이닉스","venue":"KOSPI",
+         "current_dart_directory_matched":True,"turnover":400,"market_cap":900,
+         "market_traded":True,"revenue_yoy":None},
+        {"security_id":"035420","name":"NAVER","venue":"KOSPI",
+         "current_dart_directory_matched":True,"turnover":300,"market_cap":900,
+         "market_traded":True,"revenue_yoy":None},
+        {"security_id":"005935","name":"삼성전자우","venue":"KOSPI",
+         "current_dart_directory_matched":False,"turnover":800,"market_cap":800,
+         "market_traded":True,"revenue_yoy":None},
+        {"security_id":"035720","name":"카카오","venue":"KOSPI",
+         "current_dart_directory_matched":True,"turnover":0,"market_cap":800,
+         "market_traded":False,"revenue_yoy":None},
+    ]
+    eligible={
+        "005930":{"name":"삼성전자","venue":"KOSPI"},
+        "000660":{"name":"SK하이닉스","venue":"KOSPI"},
+        "035420":{"name":"NAVER","venue":"KOSPI"},
+        "035720":{"name":"카카오","venue":"KOSPI"},
+    }
+    data={"schema":module.SCHEMA,"market":"KR",
+          "market_session":"2026-10-08","research_only":True,
+          "full_market_composite_rank_available":False,"official_leaders":0,
+          "official_krx_observed":len(rows),"securities":rows}
+    data["content_sha256"]=sha256(module.canonical(data)).hexdigest()
+    assert choose_marketwide_turnover_cfs_batch(data,evidence,eligible)==(
+        "000660","035420")
+    assert choose_marketwide_turnover_cfs_batch(
+        data,evidence,eligible,offset=1,limit=1)==("035420",)
+    amended=copy.deepcopy(data)
+    amended["securities"][1]["turnover"]=1000
+    with pytest.raises(ValueError,match="pinned"):
+        choose_marketwide_turnover_cfs_batch(amended,evidence,eligible)
+    wrong=dict(eligible)
+    wrong["000660"]={"name":"잘못된 이름","venue":"KOSPI"}
+    with pytest.raises(ValueError,match="name/venue"):
+        choose_marketwide_turnover_cfs_batch(data,evidence,wrong)
+
+
+def test_marketwide_full_price_reuses_original_ranking_without_promoting(tmp_path,monkeypatch):
+    cohort,root,basic,peers,_=fixture(tmp_path,monkeypatch)
+    snapshot=json.loads((cohort/"kr_latest.json").read_text())
+    snapshot["rows"][0]["price_strength_25"]=24.0
+    snapshot["rows"][1]["price_strength_25"]=22.0
+    from eraleader.discovery import run_id_for
+    snapshot["run_id"]=run_id_for("KR",snapshot["as_of_requested"],snapshot["rows"])
+    (cohort/"kr_latest.json").write_text(json.dumps(snapshot))
+    basic["source_watch_run_id"]=snapshot["run_id"]
+    basic["comparisons"][0]["price_strength_25"]=22.0
+    basic.pop("content_sha256")
+    basic["content_sha256"]=sha256(module.canonical(basic)).hexdigest()
+    peers["baseline_candidate_sha256"]=basic["content_sha256"]
+    peers.pop("content_sha256")
+    peers["content_sha256"]=sha256(module.canonical(peers)).hexdigest()
+    monkeypatch.setattr(module,"read_market_bars",lambda *a,**kw: (
+        pd.DataFrame({"session":pd.to_datetime([])}),{}))
+    monkeypatch.setattr(module,"validate_bars",lambda data,asof,quarantine=False:data)
+    original_scores=[
+        {"security_id":CODE_B,"name":"CJ4우(전환)","price_strength_25":24.0},
+        {"security_id":CODE_A,"name":"삼성전자","price_strength_25":22.0},
+        {"security_id":CODE_C,"name":"SK하이닉스","price_strength_25":20.0},
+    ]
+    monkeypatch.setattr(module,"score_price_observations",
+        lambda *a,**kw:{"market_last_observation":"2026-10-08",
+                         "rows":original_scores})
+    report=module.build_marketwide_coverage(
+        cohort,root,clock=NOW,full_price_lookback=True,
+        legacy_root=tmp_path)
+    assert report["local_price_lookback_evaluable"]==3
+    assert report["two_factor_research_evaluable"]==1
+    matched={row["security_id"]:row for row in report["securities"]}
+    assert matched[CODE_C]["price_strength_25"]==20.0
+    assert matched[CODE_C]["two_factor_research_50"] is None
+    assert report["official_leaders"]==0
+    original_scores[0]["price_strength_25"]=24.5
+    with pytest.raises(ValueError,match="NOT_SAME_AS_WATCH"):
+        module.build_marketwide_coverage(
+            cohort,root,clock=NOW,full_price_lookback=True,legacy_root=tmp_path)

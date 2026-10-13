@@ -907,3 +907,8 @@
 ## 2026-10-14 최신 사용자 확정 — 수신 프로젝트 미지정 (D-030)
 
 EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발한다. 후속 수신 프로젝트는 CoreAStock/MarketOS 등으로 미리 정하지 않으며 연결은 **사용자가 추후 별도 결정**한다. 외부 프로젝트의 수신기·전략 연동·직접 전송 작업 금지. 기존 `strategy_handoff.py`와 JSON 발행기·대장주 상태이력을 재사용하고, 다음 작업은 EraLeader 자체 선정·발행/자동 갱신 기능으로 이어간다. 관련 최종 정책 DECISIONS.md D-030, docs/153_STRATEGY_SELECTION_HANDOFF.md.
+
+## 2026-10-14 최신 P1/P2 CONTINUE — 공식 전체시장 가격 피처·추가 재무/업종·범용 JSON outbox
+- 별도 feature/core-official-factor-coverage-20261013 최신 작업부터 계속. `PROJECT_STATE.md` 마지막 checkpoint 및 `docs/155_KR_MARKETWIDE_REAL_PRICE_AND_OUTBOX_20261014.md` 확인. 기존 main의 미커밋 `native_first_capture.py` 절대 건드리지 않음.
+- KRX 실제 2026-10-08 관측 2,765 전시장 종목; DART 현재 33사 CFS+산업 첫 수신 결합; 기존 읽기전용 가격 캐시에서 3/6개월 상대강도 2,261사, 2요소 연구순위 25사. **정식 5요소 TOP20·실전 상태 확정 0**, 기관/외국인 수급 N/A; 2026-10-08을 오늘 가격으로 오해하지 말 것.
+- `src/eraleader/strategy_handoff.py` + `scripts/export_strategy_handoff.py --outbox-dir`에 버전별 전략 후보 읽기전용 송신 원장. 실제 WATCH20 연구 JSON 확인, 선정/주문0. D-030 사용자 지정 전 수신 프로젝트 연결 금지. 다음 필수 기능은 *새 거래세션 공식 수집·전체산업/기업경쟁력/수급 인자 결합 → 실사용 5요소 종합 평가 → 선정·약화·교체 상태 및 송신*.

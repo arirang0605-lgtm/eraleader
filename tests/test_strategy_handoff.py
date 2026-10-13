@@ -266,3 +266,45 @@ def test_integrated_cli_can_deliver_one_way_feed_without_creating_leaders(tmp_pa
     main(argv)
     again = json.loads(capsys.readouterr().out)
     assert again["strategy_handoff"]["status"] == "ALREADY_DELIVERED"
+
+
+def test_receiver_neutral_versioned_outbox_preserves_source_versions(tmp_path):
+    cohort=research_source(tmp_path)
+    outbox=tmp_path/"eraleader_outbox"
+    outbox.mkdir(mode=0o700)
+    one=feed.research_cohort_handoff(cohort,request_day="2026-10-14",clock=NOW)
+    delivered=feed.publish_versioned_handoff(one,outbox)
+    assert delivered["status"]=="DELIVERED_TO_INBOX"
+    assert delivered["outbox_mode"]=="IMMUTABLE_VERSIONED_RESEARCH_FEED"
+    path=Path(delivered["path"])
+    assert path.parent==outbox and path.name.startswith("KR_20261008_")
+    assert feed.verify_handoff(path,expected_market="KR")==one
+    repeat=feed.research_cohort_handoff(
+        cohort,request_day="2026-10-14",clock=NOW+timedelta(minutes=5))
+    assert feed.publish_versioned_handoff(repeat,outbox)["status"]=="ALREADY_DELIVERED"
+    assert len(list(outbox.glob("*.json")))==1
+    altered=feed.research_cohort_handoff(
+        cohort,request_day="2026-10-14",clock=NOW+timedelta(minutes=10))
+    altered["source_sha256"]="a"*64
+    altered.pop("content_sha256")
+    altered["content_sha256"]=sha256(feed.canonical(altered)).hexdigest()
+    new=feed.publish_versioned_handoff(altered,outbox)
+    assert new["status"]=="DELIVERED_TO_INBOX"
+    assert new["path"]!=delivered["path"]
+    assert feed.verify_handoff(path,expected_market="KR")==one
+    assert len(list(outbox.glob("*.json")))==2
+    with pytest.raises(ValueError,match="OUTBOX_UNSAFE"):
+        feed.publish_versioned_handoff(one,outbox/"nonexistent")
+
+
+
+def test_versioned_feed_preflight_rejects_untrusted_payload_before_write(tmp_path):
+    cohort=research_source(tmp_path)
+    outbox=tmp_path/"feed_outbox"
+    outbox.mkdir(mode=0o700)
+    report=feed.research_cohort_handoff(cohort,request_day="2026-10-14",clock=NOW)
+    forged=dict(report)
+    forged["execution_authority"]=True
+    with pytest.raises(ValueError,match="PREPUBLICATION_INVALID"):
+        feed.publish_versioned_handoff(forged,outbox)
+    assert not list(outbox.iterdir())

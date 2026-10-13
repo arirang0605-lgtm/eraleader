@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
 from eraleader.strategy_handoff import (
     publish_handoff, research_cohort_handoff, state_history_handoff,
-    marketwide_research_handoff, verify_handoff,
+    marketwide_research_handoff, publish_versioned_handoff, verify_handoff,
 )
 
 
@@ -36,8 +36,11 @@ def main(argv=None) -> int:
                         help="Optional existing PIT membership SQLite for permanent ID to ticker lookup (read-only)")
     parser.add_argument("--as-of",default="today",
                         help="Requested date or timezone-aware decision timestamp")
-    parser.add_argument("--out",required=True,type=Path,
+    destination = parser.add_mutually_exclusive_group(required=True)
+    destination.add_argument("--out",type=Path,
                         help="New EraLeader-owned JSON publication file; recipient integration is deferred")
+    destination.add_argument("--outbox-dir",type=Path,
+                        help="Existing EraLeader-owned directory: immutable source-date version files")
     args = parser.parse_args(argv)
     try:
         as_of = args.as_of
@@ -58,7 +61,9 @@ def main(argv=None) -> int:
         else:
             report = state_history_handoff(args.state_ledger,market=args.market,
                                            as_of=as_of,identity_ledger=args.identity_ledger)
-        delivery = publish_handoff(report,args.out)
+        delivery = (publish_versioned_handoff(report,args.outbox_dir)
+                    if args.outbox_dir is not None
+                    else publish_handoff(report,args.out))
         print(json.dumps({
             **delivery, "market":report["market"],
             "feed_status":report["status"],

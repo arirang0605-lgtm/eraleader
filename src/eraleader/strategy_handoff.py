@@ -437,6 +437,35 @@ def verify_handoff(path: Path, *, expected_market: str | None = None) -> dict:
     return payload
 
 
+
+def publish_versioned_handoff(report: dict, outbox: Path) -> dict:
+    """Project-neutral immutable daily selection feed directory.
+
+    Repeated publication of the same source reuses its deterministic filename.
+    A changed input SHA gets a different filename, never overwrites another
+    release, and never writes to a receiver project's filesystem.
+    """
+    if (not outbox.is_absolute() or outbox.is_symlink() or
+            not outbox.is_dir() or any(p.is_symlink() for p in outbox.parents)
+            or outbox.stat().st_uid != os.geteuid()):
+        raise ValueError("HANDOFF_OUTBOX_UNSAFE")
+    market = report.get("market")
+    moment = report.get("source_observed_as_of")
+    pin = report.get("source_sha256")
+    if (market not in MARKET_ZONES or type(moment) is not str or
+            type(pin) is not str or re.fullmatch(r"[0-9a-f]{64}",pin) is None):
+        raise ValueError("HANDOFF_VERSION_SOURCE_INVALID")
+    try:
+        observed = date.fromisoformat(moment[:10])
+    except ValueError:
+        raise ValueError("HANDOFF_VERSION_OBSERVED_DATE_INVALID") from None
+    if moment != observed.isoformat() and moment[:10] != observed.isoformat():
+        raise ValueError("HANDOFF_VERSION_OBSERVED_DATE_INVALID")
+    filename = f"{market}_{observed.strftime('%Y%m%d')}_{pin[:16]}.json"
+    result = publish_handoff(report,outbox / filename)
+    result["outbox_mode"] = "IMMUTABLE_VERSIONED_RESEARCH_FEED"
+    return result
+
 def publish_handoff(report: dict, output: Path) -> dict:
     """Publish immutable receiver-neutral JSON at an explicit output location."""
     if (not output.is_absolute() or output.is_symlink() or
@@ -444,6 +473,24 @@ def publish_handoff(report: dict, output: Path) -> dict:
             any(p.is_symlink() for p in output.parents) or
             output.parent.stat().st_uid != os.geteuid()):
         raise ValueError("HANDOFF_DESTINATION_UNSAFE")
+    if type(report) is not dict:
+        raise ValueError("HANDOFF_PREPUBLICATION_INVALID")
+    source = dict(report)
+    digest = source.pop("content_sha256",None)
+    if (report.get("schema") != SCHEMA or type(digest) is not str or
+            digest != sha256(canonical(source)).hexdigest() or
+            report.get("market") not in MARKET_ZONES or
+            report.get("execution_authority") is not False or
+            report.get("order_instruction") is not False or
+            report.get("research_only") is not True or
+            report.get("broker_account") is not None or
+            report.get("consumer_intent") != "STRATEGY_CANDIDATE_UNIVERSE_ONLY" or
+            type(report.get("selected_candidates")) is not list or
+            type(report.get("research_watchlist")) is not list or
+            type(report.get("state_changes")) is not list or
+            report.get("selection_count") != len(report["selected_candidates"]) or
+            report.get("watchlist_count") != len(report["research_watchlist"])):
+        raise ValueError("HANDOFF_PREPUBLICATION_INVALID")
     payload = canonical(report) + b"\n"
     if output.exists():
         previous = verify_handoff(output,expected_market=report.get("market"))

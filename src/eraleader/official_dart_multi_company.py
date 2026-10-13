@@ -149,6 +149,64 @@ def choose_price_watch_company_batch(snapshot: dict, official_evidence: dict,
         raise ValueError("No eligible current DART company in requested price page")
     return tuple(choices)
 
+
+def choose_marketwide_turnover_cfs_batch(report: dict, official_evidence: dict,
+                                         eligible: dict, *, offset: int = 0,
+                                         limit: int = 12) -> tuple[str, ...]:
+    """Next DART annual CFS queue from the whole pinned KRX market, by turnover.
+
+    Existing comparable companies are skipped, missing-company facts remain
+    N/A, and turnover is NOT treated as leadership/investment rank.
+    """
+    import math
+    from .official_company_explorer import canonical
+    from .official_marketwide_coverage import SCHEMA as COVERAGE
+    if (type(offset) is not int or not 0 <= offset <= 5000 or
+            type(limit) is not int or not 1 <= limit <= MAX_COMPANIES):
+        raise ValueError("Bounded marketwide batch offset/limit required")
+    original = dict(report)
+    digest = original.pop("content_sha256",None)
+    if (report.get("schema") != COVERAGE or
+            type(digest) is not str or
+            sha256(canonical(original)).hexdigest() != digest or
+            report.get("market") != "KR" or
+            report.get("research_only") is not True or
+            report.get("official_leaders") != 0 or
+            report.get("full_market_composite_rank_available") is not False or
+            report.get("market_session") != official_evidence.get("api_observation_day") or
+            official_evidence.get("historic_universe_pit_verified") is not False):
+        raise ValueError("Marketwide KRX source must be unpromoted, pinned and same session")
+    rows = report.get("securities")
+    if type(rows) is not list or len(rows) != report.get("official_krx_observed"):
+        raise ValueError("Whole-market KRX rows/count missing")
+    seen = set()
+    pool = []
+    for row in rows:
+        code = row.get("security_id")
+        if code in seen or type(code) is not str:
+            raise ValueError("Marketwide KRX duplicate security code")
+        seen.add(code)
+        if code not in eligible:
+            continue
+        if (row.get("name") != eligible[code]["name"] or
+                row.get("venue") != eligible[code]["venue"] or
+                row.get("current_dart_directory_matched") is not True):
+            raise ValueError("Marketwide issuer name/venue mismatch")
+        amount = row.get("turnover")
+        cap = row.get("market_cap")
+        if (type(amount) not in (int,float) or not math.isfinite(amount) or
+                type(cap) not in (int,float) or not math.isfinite(cap) or
+                amount < 0 or cap < 0):
+            raise ValueError("Invalid KRX turnover/market cap")
+        if (CODE.fullmatch(code) and row.get("revenue_yoy") is None and
+                row.get("market_traded") is True and amount > 0):
+            pool.append((code,float(amount),float(cap)))
+    pool.sort(key=lambda x:(-x[1],-x[2],x[0]))
+    batch = tuple(row[0] for row in pool[offset:offset+limit])
+    if not batch:
+        raise ValueError("No uncovered current DART issuers in marketwide batch")
+    return batch
+
 def collect_multi_company_cfs(*, evidence_file: Path, private_root: Path,
                               codes: tuple[str,...], credentials: dict,
                               years: tuple[int,...]=(2024,2025),

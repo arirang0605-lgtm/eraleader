@@ -872,3 +872,10 @@
 - 최신 core worktree `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013` → `START_HERE_NEXT_CHAT.md→AGENTS.md→PROJECT_STATE.md(맨 아래)→DECISIONS.md→docs/139_DART_CFS_EXTERNAL_OFFLINE_KEY_ESCROW.md` 확인. 기존 main/미커밋/기본 CFS DB 원본 절대 재작성 금지.
 - `dart_cfs_external_key_escrow.py`, `scripts/run_dart_cfs_external_escrow.py`: **별개의 오프라인 수탁자 RSA 공개 인증서**로 기존 Mac CFS 복구 개인키 AES-256-GCM/RSA-OAEP 암호문 외장 저장, SHA 봉인, 외부키로 두 단계 CFS SQLite 독립 restore-test 계약. 코드+합성 외부키 실제 암호학 복원, 신규 11 테스트 포함 관련 15모듈 **198/198 pytest PASS EXIT0**. 인증서가 미설정이므로 실물 외부 offline 복구키 수탁/패키지 발행/실제 키 복원은 **미완료**. 외부 개인키를 이 Mac에서 임의 생성해 완료 선언하지 말 것.
 - 다음 개발 타깃: 사용자가 별도 오프라인 장치에서 생성/보관한 private escrow key와 공개 인증서를 확보하면 **공개 cert만** Mac에 넣어 실제 SHA 암호화 escrow 발행/감사/독립 DR drill. 지금은 전국/미국 주권 클래스/상폐/공시 공개시각·정정 PIT+산업/수급 실데이터 확대를 우선. CFS 백업 슬롯 `cfs_20261013T051710Z_fe24a7df3513` 및 original Mac DB는 이전 restore-test verified 상태로 보존. 전체 95/99% 진행률 추정은 폐기.
+
+## 2026-10-13 전체 진행률 최신 기준: 38% (실사용 인수 45/120)
+
+- 2026-10-13 요청에 따라 **전체 인수 진척률 37.5%(표시 38%)**를 `docs/140_Eraleader_OVERALL_ACCEPTANCE_PROGRESS_20261013.md`와 실제 로컬 웹 화면 `http://127.0.0.1:8769/development_progress_20261013.html`에 반영. 1~6단계 각각 **35% / 50% / 35% / 30% / 25% / 50%**.
+- 30개 개발 ID×4개 순차 인수 관문(테스트 증거→실제 일부 E2E→요구 전체 PIT 통합→연속 안정 운영) 정량 체크는 `src/eraleader/development_progress.py`. 전체 99% 또는 95%라고 말한 과거 코딩 추정은 **전면 철회**. 본 38%는 수동 보수 인수 판정/진척 척도일 뿐 실제 개발 시간 비율·전향 투자 적중률 아님.
+- 신규 상태 생성 `scripts/publish_development_progress.py`, 신규 단위테스트 `tests/test_development_progress.py` 8개, 관련 API 대시보드 2모듈 포함 총 **64/64 PASS EXIT0**. 공식 대장주 종합순위·뉴스 기능 코어/main 병합, 20거래일 실운영·미국 전체·공시 수정시각 등은 계속 N/A.
+- 다음 작업은 늘어나는 코드 모듈수보다 실제 통합과 미래 대장주 발견의 인증 게이트 위주로 진행. 원본 main `native_first_capture.py` 미커밋 SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6` 그대로 보존. 최신 SHA는 `git rev-parse HEAD`·GitHub 원격 확인.

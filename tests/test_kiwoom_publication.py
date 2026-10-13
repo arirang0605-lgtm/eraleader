@@ -69,7 +69,8 @@ def test_capture_mock_is_private_and_manifest_receipts_verify(tmp_path):
     path=tmp_path/"protected"/"capture"
     path.parent.mkdir(mode=0o700)
     result=capture(codes=["005930"],market_day="20261008",out=path,
-                   token="ONLY_TEST_FAKE",environment_mode="demo",fetch=fake_fetch)
+                   token="ONLY_TEST_FAKE",environment_mode="demo",fetch=fake_fetch,
+                   post=lambda *_args: ({}, {}))
     assert result["companies"]==1 and result["official_investment_ranking"] is False
     records=read_flows(path/"manifest.json")
     assert records["005930"]["content_sha256"]==report["content_sha256"]
@@ -78,7 +79,8 @@ def test_capture_mock_is_private_and_manifest_receipts_verify(tmp_path):
                    for x in path.glob("*.json"))
     with pytest.raises(ValueError):
         capture(codes=["005930"],market_day="20261008",out=path,
-                token="ONLY_TEST_FAKE",environment_mode="demo",fetch=fake_fetch)
+                token="ONLY_TEST_FAKE",environment_mode="demo",fetch=fake_fetch,
+                   post=lambda *_args: ({}, {}))
     as_bytes=(path/"005930.json").read_bytes()
     (path/"005930.json").write_bytes(as_bytes+b" ")
     with pytest.raises(ValueError):
@@ -90,9 +92,11 @@ def test_capture_cannot_override_mode_or_partial_publish(tmp_path):
     path=tmp_path/"private"/"capture";path.parent.mkdir(mode=0o700)
     with pytest.raises(ValueError):
         capture(codes=["005930","000660"],market_day="20261008",out=path,
-                token="NO_LIVE",environment_mode="real",fetch=failing)
+                token="NO_LIVE",environment_mode="real",fetch=failing,
+                post=lambda *_args: ({}, {}))
     assert not path.exists()
     assert list(path.parent.iterdir())==[]
     with pytest.raises(ValueError):
         capture(codes=["005930"],market_day="20261008",out=path,
-                token="NO_LIVE",environment_mode="other",fetch=failing)
+                token="NO_LIVE",environment_mode="other",fetch=failing,
+                post=lambda *_args: ({}, {}))

@@ -62,3 +62,10 @@ PYTHONPATH=src python3 scripts/capture_kiwoom_investor_flow.py --profile demo \
 - 실제 Mac UNIX socket 서비스 상태: `eraleader`, `coreastock`, `newscatalystos` 세 client 모두 Local status SUCCESS, `orders_enabled=false`, 공유 socket 파일 권한0600. 사용자 키 모의/실전 현재 미설정→실제 Kiwoom HTTP 수신0.
 - 합성 two-project 공유: 동일 모의 주권 요청 2회에도 OAuth 1회+TR 1회, 실전 별도 키/토큰 분리, 다른 프로젝트 응답에서 OAuth 원문 없음. 공통 계층 테스트 9/9 PASS, EraLeader 선택 31/31 PASS. 기존 가격 WATCH 데이터·실전 추천 불변, 30ID 총 인수진척률 38% 유지.
 - 공통 코드와 아키텍처/운영 제약: `/Volumes/T5DATA/SharedBrokerAPI/README.md`. 공급자 API 사용 약관·속도 한도 및 실제 모의 live 인증 검증은 설정 후.
+
+## 2026-10-13 재검증 — 공통 API 단독 인증 및 타 프로젝트 수급 연구 조회
+
+- EraLeader CLI는 공통 로컬 UNIX socket `ReadOnlyClient.status()`만 호출하고 Mac 개인 키 파일을 더는 직접 열지 않는다. `--check-config`는 `gateway_reachable` + `credentials_configured`만 반환, 실 API 호출0. 실제 수집은 gateway가 없거나 실전/모의 프로필 미준비면 fail-closed. 과거 독립 `access_token()` / 원시 수집 정규화 함수는 외부 주입 transport 없이는 기본 실호출하지 않도록 차단.
+- 신규 `tests/test_kiwoom_gateway_cli.py`에서 shared 모의 상태만으로 CLI 수행, 주문 가능하다고 위조된 상태·브로커 다운 시 원본/새 output 미발행 검사.
+- 독립 SharedBrokerAPI `ReadOnlyClient.selected_flow_research`는 타 프로젝트 CoreAStock도 소켓으로 이용 가능. `5/20` 관측 순매수는 기관·외국인 **주수량**만 표시하고, 시장 전체 외국인 `foreign_flow_20d` 금액으로 넣으면 **표본과 단위가 달라 투자 모델 오염**. 따라서 `can_fill_coreastock_macro_foreign_flow_20d=false`와 `can_unlock_new_risk=false` 항상 고정.
+- **실행 테스트**: 공통 `24/24 PASS`; EraLeader 관련13모듈 `158/158 PASS EXIT0`, 보호 SHA256 정상 유지. 실제 키움 프로필 등록0/공식 수급 수신0/주문0. 실사용 인수진척률 38% 유지.

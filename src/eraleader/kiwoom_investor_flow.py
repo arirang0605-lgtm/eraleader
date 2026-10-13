@@ -89,9 +89,9 @@ def https_post(path: str, body: dict, headers: dict, *, mode: str = "demo") -> t
         raise ValueError("Kiwoom HTTPS request blocked (credentials hidden)") from None
 
 
-def access_token(*, appkey: str, secretkey: str, post=https_post) -> str:
-    if not appkey or not secretkey:
-        raise ValueError("Kiwoom credentials not configured")
+def access_token(*, appkey: str, secretkey: str, post=None) -> str:
+    if not appkey or not secretkey or not callable(post):
+        raise ValueError("Direct OAuth disabled; dependency-injected test transport required")
     body, _ = post("/oauth2/token", {
         "grant_type": "client_credentials", "appkey": appkey, "secretkey": secretkey}, {})
     if (type(body) is not dict or body.get("return_code") != 0 or
@@ -102,7 +102,7 @@ def access_token(*, appkey: str, secretkey: str, post=https_post) -> str:
 
 
 def fetch_ka10059(*, code: str, as_of: str, token: str,
-                  post=https_post, max_pages: int = 8,
+                  post=None, max_pages: int = 8,
                   received_at: datetime | None = None, environment_mode: str = "demo") -> dict:
     """Return verified read-only, SHARE-unit net-buy rows, not trade instructions."""
     if type(code) is not str or not STOCK.fullmatch(code):
@@ -110,8 +110,8 @@ def fetch_ka10059(*, code: str, as_of: str, token: str,
     day(as_of)
     if environment_mode not in API_HOSTS:
         raise ValueError("Unknown provider environment")
-    if not token or type(token) is not str or not 1 <= max_pages <= 12:
-        raise ValueError("Provider authorization and bounded pagination required")
+    if not token or type(token) is not str or not callable(post) or not 1 <= max_pages <= 12:
+        raise ValueError("Shared read-only transport and bounded pagination required")
     now = received_at or datetime.now(timezone.utc)
     if now.utcoffset() is None:
         raise ValueError("Aware local receipt time required")

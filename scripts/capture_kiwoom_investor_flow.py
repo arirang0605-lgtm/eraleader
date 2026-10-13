@@ -3,8 +3,7 @@
 
 Example: --check-config
 Actual: --codes 005930,000660 --day YYYYMMDD --out /absolute/private/new/dir
-Credentials only from process environment: ERALEADER_KIWOOM_ACCESS_TOKEN or
-ERALEADER_KIWOOM_APP_KEY + ERALEADER_KIWOOM_APP_SECRET.
+All actual credentials/OAuth are owned by the shared local broker service.
 """
 from __future__ import annotations
 from pathlib import Path
@@ -19,9 +18,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from eraleader.kiwoom_profile_settings import read_profiles, public_status
 from eraleader.kiwoom_investor_flow import (
-    canonical, day, access_token, fetch_ka10059, verify_flow, https_post,
+    canonical, day, fetch_ka10059, verify_flow,
 )
 
 
@@ -34,9 +32,8 @@ def _new(path: Path, content: bytes) -> None:
 
 
 def capture(*, codes: list[str], market_day: str, out: Path,
-            token: str | None = None, appkey: str | None = None,
-            secretkey: str | None = None, fetch=fetch_ka10059,
-            environment_mode: str = "demo", post=https_post) -> dict:
+            token: str, fetch=fetch_ka10059,
+            environment_mode: str = "demo", post=None) -> dict:
     day(market_day)
     if environment_mode not in ("demo","real"):
         raise ValueError("Explicit demo or real profile required")
@@ -47,8 +44,8 @@ def capture(*, codes: list[str], market_day: str, out: Path,
     if (not out.is_absolute() or out.exists() or out.is_symlink()
             or not out.parent.is_dir() or out.parent.is_symlink()):
         raise ValueError("Output must be new nonlinked local private path")
-    if not token:
-        token = access_token(appkey=appkey or "", secretkey=secretkey or "", post=post)
+    if not token or type(token) is not str or not callable(post):
+        raise ValueError("Shared broker read-only transport required; no direct OAuth fallback")
     # Prepare privately; never publish a partially captured cohort.
     scratch = Path(tempfile.mkdtemp(prefix=".kiwoom_flow_", dir=out.parent))
     os.chmod(scratch, 0o700)
@@ -99,32 +96,35 @@ def main(argv=None) -> int:
     parser.add_argument("--day")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
-    try:
-        profiles = read_profiles()
-        profile = profiles[args.profile]
-        appkey = profile.get("appkey") or ""
-        secret = profile.get("secretkey") or ""
-    except (ValueError,OSError,KeyError):
-        print("KIWOOM_PROFILE_PRIVATE_STORAGE_UNAVAILABLE", file=sys.stderr)
-        return 2
-    # Broker credentials and OAuth are owned by SharedBrokerAPI, never a project.
-    ready = bool(appkey and secret)
+    shared_src = Path("/Volumes/T5DATA/SharedBrokerAPI/src")
+    gateway = None
+    reachable = False
+    ready = False
+    if shared_src.is_dir():
+        try:
+            sys.path.insert(0, str(shared_src))
+            from shared_broker_api.client import ReadOnlyClient, eraleader_compatible_post
+            gateway = ReadOnlyClient("eraleader")
+            status = gateway.status()
+            if status.get("orders_enabled") is not False:
+                raise ValueError("Shared broker must be read-only")
+            ready = status["configured"][args.profile] is True
+            reachable = True
+        except (OSError, ValueError, KeyError, TypeError, ImportError):
+            ready = False
+            gateway = None
     if args.check_config:
         print(json.dumps({"provider":"kiwoom", "profile":args.profile,
                           "credentials_configured":ready,
+                          "gateway_reachable":reachable,
                           "transport":"SharedBrokerAPI/UNIX_SOCKET",
                           "network_calls":0,"orders_enabled":False}, sort_keys=True))
         return 0
-    if not ready or not args.codes or not args.day or args.out is None:
-        print("KIWOOM_READ_ONLY_BLOCKED: CONFIG_OR_ARGUMENTS_MISSING", file=sys.stderr)
+    if not ready or gateway is None or not args.codes or not args.day or args.out is None:
+        print("KIWOOM_READ_ONLY_BLOCKED: GATEWAY_OR_ARGUMENTS_UNAVAILABLE",
+              file=sys.stderr)
         return 2
-    shared_src = Path("/Volumes/T5DATA/SharedBrokerAPI/src")
-    if not shared_src.is_dir():
-        print("SHARED_BROKER_GATEWAY_MISSING", file=sys.stderr)
-        return 2
-    sys.path.insert(0, str(shared_src))
-    from shared_broker_api.client import ReadOnlyClient, eraleader_compatible_post
-    post = eraleader_compatible_post(ReadOnlyClient("eraleader"), args.profile)
+    post = eraleader_compatible_post(gateway, args.profile)
     try:
         result = capture(
             codes=args.codes.split(","), market_day=args.day, out=args.out,

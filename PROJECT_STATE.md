@@ -1736,3 +1736,14 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **실제 Mac 런타임 성공**: `SharedBrokerAPI/scripts/serve.py` 작동, 3개 클라이언트 각 status 조회 정상, `orders_enabled=false`, `gateway.sock` 소유자 0600 확인, EraLeader 로컬 설정 `127.0.0.1:8782` 재실행 후 HTTP 200, 두 환경 입력 UI 유지. 공통 store `STORE==EraLeader.DEFAULT_STORE` true.
 - **검증**: shared mock IPC **9/9 PASS EXIT0**, EraLeader 새 수급 관련3 + 공식 가격/실적/업종 관련9 모듈 선택 회귀 **155/155 PASS EXIT0**. 로컬 인증토큰/API 비밀 유출0, 사용자의 기존 `native_first_capture.py` SHA 6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6 그대로. 기존 외장 가격·원시 수급 데이터·API/기존 WATCH/PIT와 별도 CoreAStock/뉴스 프로젝트 파일 수정0.
 - **한계·다음**: 신규 실전 데이터 수신/장기 홀드아웃/전시장 PIT/자동 시작·키체인 암호화/타 프로젝트 기존 파이프라인 실제 통합은 미완료. CoreAStock 자동매매의 실전 주문 접근을 승인한 사실 아님. 모의·실전 API 키 등록은 사용자의 Mac 로컬 화면에서 수동으로 해야 함. 전체 30개 ID 인수 진행률은 **45/120=38% 유지**.
+
+## 2026-10-13 KST | 공통 API 실사용 경계 보완: 직접 키접근 제거 / CoreAStock 수급 계약
+
+- 기준: 실제 원격 Mac SHMOONui-MacBookAir.local Online, `feature/core-official-factor-coverage-20261013` 기존 HEAD `1bb43b5`, 작업 시작 clean. 원본 별도 `/Volumes/T5DATA/eraleader/src/eraleader/native_first_capture.py` SHA256 `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6` 및 미커밋6+/1- 보존.
+- 실제 수정: `scripts/capture_kiwoom_investor_flow.py`에서 공통 API 경계를 넘어 Mac 개인 인증키 파일을 직접 읽던 경로 제거. `SharedBrokerAPI`의 조회전용 `client.status()`에서 구성 상태만 받도록 변경. 브로커 실토큰/Key/Secret은 EraLeader 소스/로그/메모리로 전달0. 공통 게이트웨이 접속불가/주문 허용 상태일 때 외부 호출 거부. `--check-config`는 공통소켓 상태·현재 프로필 준비만 출력하고 공급자 네트워크0.
+- `src/eraleader/kiwoom_investor_flow.py`에서는 외부 수급 fetch/토큰 단독 helper의 **자동 직접 HTTPS/OAuth 기본 호출을 차단**하고 명시적으로 주입한 전달 함수만 허용. 원래 `ka10059` 수량·날짜 정규화는 그대로 유지. `tests/test_kiwoom_publication.py` 합성 transport 명시 테스트 수정, 신규 `tests/test_kiwoom_gateway_cli.py` 3 케이스 추가.
+- 공통 별도 모듈 `/Volumes/T5DATA/SharedBrokerAPI`의 `ReadOnlyClient.selected_flow_research` 추가. CoreAStock에서도 같은 소켓으로 개별 종목 `ka10059` 수급 연구 데이터를 받아볼 수 있음(실물 소켓 synthetic 경로 확인). **종목 외국인 순매수 주 수량은 시장 전체 외국인 순유입 금액이 아니므로** CoreAStock Macro `foreign_flow_20d`/투자허가 필드 직접 채움 차단, 매매 실행0. CoreAStock 기존 코드 변경0.
+- 공통 selected flow 명시적 과거 as-of 미래정보 차단, 라이브 API 밀리초 수신시각 역전 수정. 테스트 첫 회귀에서 바로 해당 시각 경계 오류 발견→결과 확인/수정/재검증.
+- **테스트 실제 성공**: 공통 API `PYTHONPATH=src:/Volumes/T5DATA/eraleader-core-factor-coverage-20261013/src python3 -m pytest tests -q` **24/24 PASS(EXIT0)**, EraLeader 신규 키움4 + 원래 가격/DART/업종·재무9 = **13모듈 158/158 PASS(EXIT0)**. Python py_compile PASS. 미국/한국 full 2450+ 및 장기간 전향적 검증 미실행.
+- Mac 현재 `SharedBrokerAPI` owner-only 소켓 `0600` 및 3클라이언트 명령 정상 status 확인, 모의/실전 외부 인증키 미등록, 실제 수급 외부 HTTP0. EraLeader 공식 실전 발굴/대장주 확정 0, 기존 10사 가격·실적 N/A 수급 유지.
+- **다음**: 키움 모의 키가 설정되면 공통 단일 OAuth→`ka10059` 공식 수급 1종목 실수신, PIT-first/local receipt와 서명된 과거 실측 집계 교차검증→기존 후보10사 수급 활성. 그 전에는 기관/외국인 합산·가격100점 투자 우선순위 가공 금지. 실사용 진행률 `45/120=37.5%(38%)` 유지.

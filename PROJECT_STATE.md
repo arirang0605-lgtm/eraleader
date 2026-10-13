@@ -1850,3 +1850,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **NEXT**: 공식 일별 KRX/DART 최신 원천→오늘자 분석 cohort 자동 갱신/휴장 캘린더+주권/기업행동 PIT 정합성, 이후에만 launchd 잡 실제 로드·재부팅/회복 운영 검증(D-021 최종), 실제 전향 1~12개월 WATCH/Top-K 성과 성숙. **API 제외 약99%는 과거 주관적 추정**이며 실전 발굴/PIT 인증 N/A.
 
 - **2026-10-13 푸시 최종 확인**: 정확히 5파일 stage·기밀 scanner0·diffcheck/Python compile PASS 후 feature code+state commit `4a97ed3e5f1e8e42ea23412009cc7e55a23a5234`, GitHub `origin/feature/core-official-factor-coverage-20261013` push 성공·ls-remote SHA 동일, feature worktree clean. 원본 main `a244002`, native_first_capture.py 기존 unstaged 수정 여전히 원형 보존. 이 문서 증거 후속 docs-only SHA는 Git 최신 기록 기준 확인.
+
+## 2026-10-13 KST | 2_2·2_5·4_2·5_5·6_2·6_5 | KRX/DART 당일 실수집–당일 후보/업종 최초 PIN–모의 키움 수급 Handoff 개발
+
+- 인수: Remote Mac/T5DATA 온라인. 시작 feature HEAD `490d8a7`, 원본 main `a244002` 및 사용자 별도 미커밋 `src/eraleader/native_first_capture.py` 보존. 기존 KR 일별 원본/financial cohort/모의 수급 정상 코드 및 MarketOS/CoreAStock 변경0.
+- 신규 `src/eraleader/official_kiwoom_daily_bridge.py`, `scripts/run_official_kiwoom_research.py`, `tests/test_official_kiwoom_daily_bridge.py`, `docs/143_OFFICIAL_TO_KIWOOM_CURRENT_DAY_HANDOFF.md`. 기존 공식 `capture_and_publish_kr_day`와 `kiwoom_daily_runner.run`만 opt-in 재사용. 기본 CHECK-ONLY 네트워크0, 주중 KST 19:00 이후 당일만. `--capture-official` 시 보호된 기존 캡처 root 명시 필수, `--apply-demo-flow`은 공인 오늘 KRX/DART 연구 source와 2개의 같은 날짜 기본 후보/업종 비교 snapshot이 모두 준비됐을 때만.
+- 발행 차단 강화: KRX 양시장 응답 각 1행 이상, DART complete manifest SHA, source KRX2+DART 첫 SHA 3개 존재·서로 같은 날짜. 비교 후보의 `source_watch_run_id`가 가리키는 `runs/<id>.json` 원본과 세 API 최초 원문 SHA 및 DART 전 페이지 SHA 직접 일치; 동일일자라도 원본이 다르면 차단, 오래된 종목·업종/산업 PIT·가격점수에 최신 수급을 소급하지 않음. 정상이어도 실전 투자인증/주문0.
+- 안전 실측: 기존 2026-10-08 공식 KRX/DART 실제 연구 영수증 3 PIN/992 DART full 합성 아닌 실파일 계약 검사 PASS. 2026-10-13 KRX 코스피 live read-only 21:08 응답 `OutBlock_1=[]` 0행(`NO_DAILY_ROWS`): 거래소 휴장이라고 주장 불가, 최초 공인 당일 시장자료/현재 CFS cohort 없음. **10/13 공식 연구 원장 게시 안 함, broker 자동 결합0**. 신규 원문 fetch 래퍼는 반환 0행이면 원본 first receipt 생성 이전 BLOCK, 정상 raw는 추가 네트워크 호출 없이 원래 capture 함수로 전달. 첫 CLI 라이브 시도는 이전 작업트리 디폴트 capture root 부재로 종료2, 이를 확실한 명시 `--capture-root` 의무로 수정.
+- 변경 직접 영향 10개 모듈 **144 PASS / failures0 errors0 skipped0 / pytest EXIT0**, `output/verification_logs/official_kiwoom_daily_refresh_20261013.{log,xml}`. 전체 수천 건 최종 회귀·20거래일 운영·물리 재연결/재부팅 미실행.
+- **다음**: KRX 당일 양시장 실자료 확인 후 공식 1회 수입과 DART CFS/업종 현재 snapshot 자동 생성의 데이터 계약 확장, 같은 최초 SHA 결합 시에만 키움 모의 sidecar. 장시간 자동 스케줄 실제 설치는 조건 충족·운영 확인 이후. API 제외 약99%는 기존 주관적 추정치, 예측 정확도 N/A.

@@ -320,6 +320,7 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
             financial_observations.append({
                 "security_id": ticker, "name": names[ticker][0],
                 "venue": names[ticker][1],
+                "observed_dart_corp_code":dart_code_map.get(ticker),
                 "reported_financial_year": growth["year"],
                 "research_metrics": growth["research_metrics"],
                 "annual_receipt_years": sorted(entry["report_year"] for entry in related),
@@ -360,7 +361,8 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
     return snap
 
 
-def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None = None) -> dict:
+def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None = None,
+                          vintage_ledger: Path | None = None) -> dict:
     """Reuse exactly the existing WATCH/SQLite, dashboards and report generators."""
     out = Path(out)
     if not out.is_absolute() or out.is_symlink():
@@ -383,6 +385,17 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
             ledger.close()
         if joined["pit_certified"] or joined["confirmed_leaders"]:
             raise ValueError("Raw KRX evidence cannot certify an issuer/class PIT snapshot")
+    # An explicitly requested source-vintage gate must finish BEFORE any
+    # SQLite WATCH, site, reports or alerts are published. Otherwise a
+    # late/revised DART filing might leave partial or stale financial output.
+    vintage_research=None
+    if vintage_ledger is not None:
+        from .official_dart_vintage_delivery import audit_dart_cfs_vintages
+        vintage_research=audit_dart_cfs_vintages(snapshot,Path(vintage_ledger))
+        if (vintage_research["needs_revision_reconciliation"] or
+                vintage_research["asof_available_vintages"] !=
+                vintage_research["annual_report_vintages_checked"]):
+            raise ValueError("Unregistered or revised FY CFS originals cannot publish financial research")
     result = execute_run(Namespace(market="KR", as_of=as_of, out=out,
                                    prepared_snapshot=snapshot, days=550, top=snapshot["shown"]))
     reports = [execute_report(Namespace(market="KR", period=p, out=out))["path"]
@@ -394,6 +407,10 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
     )
     readiness = factor_coverage_from_official_snapshot(snapshot)
     factor_page, factor_json = write_factor_readiness(readiness, out / "site")
+    vintage_paths = None
+    if vintage_research is not None:
+        from .official_dart_vintage_delivery import write_dart_cfs_vintage_sidecar
+        vintage_paths=write_dart_cfs_vintage_sidecar(vintage_research,out / "site")
     # A price-WATCH user must be able to reach the separate evidence screen
     # directly, without treating price rank 1..20 as buy priority.
     price_page = out / "site" / "kr.html"
@@ -402,7 +419,9 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
         raise ValueError("Cannot attach factor evidence link to malformed WATCH page")
     price_page.write_text(price_html.replace(
         "</main>", "<p><a href='factor_readiness_kr.html'>실제 데이터 확보 현황·"
-        "20위 밖 실적 관찰 기업 보기</a></p></main>"), encoding="utf-8")
+        "20위 밖 실적 관찰 기업 보기</a>" +
+        (" · <a href='dart_cfs_vintages.html'>DART 최초 등록·정정 상태</a>"
+         if vintage_paths else "")+"</p></main>"), encoding="utf-8")
     if joined is not None:
         write_json(out / "official_pit_integrated_research.json", joined)
         write_integrated_dashboard(joined, out / "site")
@@ -444,7 +463,9 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
     pit_link = (" <a href='research_kr.html'>PIT 원장·가격 시점결합 연구</a>" if joined is not None else "")
     index.write_text(index.read_text(encoding="utf-8").replace(
         "</body>", "<p><a href='official_api.html'>공식 API 최초 수신·PIT 제한</a>"+pit_link+
-        " | <a href='factor_readiness_kr.html'>5요소 실제 자료 충족도·실적 관찰</a></p></body>"),
+        " | <a href='factor_readiness_kr.html'>5요소 실제 자료 충족도·실적 관찰</a>"+
+        (" | <a href='dart_cfs_vintages.html'>DART 원본 등록·정정 상태</a>"
+         if vintage_paths else "")+"</p></body>"),
         encoding="utf-8")
     return {"status": "OFFICIAL_API_TO_RESEARCH_WATCH_AND_REPORTS",
             "krx_rows": sum(s["row_count"] for s in c if s["source"].startswith("krx")),
@@ -466,6 +487,8 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
             "evidence_json": str(out / "official_api_pit_research.json"),
             "factor_coverage_html": str(factor_page),
             "factor_coverage_json": str(factor_json),
+            "dart_vintage_html": str(vintage_paths[0]) if vintage_paths else None,
+            "dart_vintage_json": str(vintage_paths[1]) if vintage_paths else None,
             "financial_comparables_not_in_price_top": (
                 readiness["annual_cfs_comparable_companies"] -
                 readiness["annual_cfs_in_price_top20"]),

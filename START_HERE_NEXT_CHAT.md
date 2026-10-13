@@ -849,3 +849,12 @@
 - 가격관찰 TOP20와 별도 DART FY2023·2024·2025 공식 첫 SHA CFS 실적 연구: 005930 실제 YoY 2024 +16.1953%, 2025 +10.8801%, 가속 -5.3152pp; 최초 수신/결정시각 후 이용, 과거 예측 성과 N/A. 기존 WATCH/3종 보고/DRY-RUN/가격순위 보존. 실제 CLI 원본 재생 1회 E2E PASS, `http://127.0.0.1:8768/factor_readiness_kr.html` 로컬 화면. 관련 테스트 10모듈 **153 PASS EXIT0**.
 - 현재 여전히 전체 산업·경쟁력·기관외국인 수급 공식 데이터, DART 최초공개·정정 vintage/PIT 기업클래스·상폐·기업행동, 미국 전체시장 가격 및 종합100점/전향적 적중률은 미완료. 99%/95% 실전 완료율 표현 철회. ER-NC 뉴스 확장 브랜치 작업트리 경로 `prunable` 표시되므로 임의 prune/삭제/강제 복구 금지.
 - 다음 1개 기능: DART 최초공개·정정 시계열 진본성 및 영구 기업/주권 PIT 증거부터 보강해 실제 공통 5요소 후보 평가를 연결. 본 소스 브랜치의 Git 최종 SHA는 `git rev-parse HEAD`·GitHub 원격 확인.
+
+## 2026-10-13 최신 개발: DART FY CFS 최초 인지·정정 빈티지 registry 및 실제 대시보드
+
+- 별도 Git worktree `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013`, branch `feature/core-official-factor-coverage-20261013`; `PROJECT_STATE.md` 최신 137 체크포인트 + `docs/137_DART_CFS_VINTAGE_REGISTRY_AND_DASHBOARD.md`부터 CONTINUE.
+- `official_dart_vintage_registry.py`은 기존 원본 SHA 확인 DART FY CFS를 Mac 내부(owner-only) 전향적 SQLite 장부에 첫 수신/등록 두 시각으로 append-only 등록, 같은 FY 신규 접수번호·동일 접수번호 재무 변경 차단. 원래 2023/24/25 CFS를 실제 새 3건 등록해서 역사 거래일 2026-10-08 as-of [0,0,0], 실제 등록 후 [1,1,1], correction trigger/chain 검증. 실제 화면 `http://127.0.0.1:8769/dart_cfs_vintages.html` HTTP200.
+- `scripts/run_dart_cfs_vintage.py` register/as-of/checksum, `scripts/run_official_api_pit.py --vintage-ledger /abs/mac_local.sqlite` **명시적 옵션**으로 KRX2765/DART992/CFS3 1개 기업/첫 등록 원본 3개와 가격 WATCH20/별도 자료 충족도 화면 연결. **누락·정정 충돌 시 화면/SQLite 발행 전 실패**. 공식 공시 최초공개시각/전체 정정·issuer-class PIT/공식 대장주·종합100점/실전매매는 N/A.
+- 영향 범위 **13개 테스트 모듈, 178/178 pytest PASS EXIT0**, 합성 신규25건, Mac 공식 영수증 E2E PASS. 전체 수천 테스트는 ER-NC-10 최종 수락 전 계획, 지금 PASS로 주장하지 않음.
+- 실제 Mac 내부 DB `~/Library/Application Support/EraLeader/research-ledgers/dart_cfs_vintage_forward_20261013.sqlite`는 외장 SSD의 새 SQLite 파일 첫 INSERT가 읽기전용 오류를 보인 까닭에 분리. **본 신규 DB의 독립 암호화 오프라인 복제/복원은 아직 미완료** — 다음 작업 1순위. 외장 SSD 시험 DB와 삭제된 듯 보이는 이전 관리 worktree를 절대 임의 제거하지 말 것. 원본 main 미커밋 `native_first_capture.py` 보존 SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6`.
+- 기존 전체 95%/99% 완료율 주관값은 철회. 한정된 회사/날짜의 공식 최초수신 연구 진척과 전국/미국 전향적 대장주 예측 검증을 별개로 보고. Git 최종 SHA는 `git rev-parse HEAD`과 원격 브랜치로 확인.

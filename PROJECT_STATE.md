@@ -1583,3 +1583,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **테스트**: 신규 `tests/test_official_factor_readiness.py` 및 수정 기존 `tests/test_official_api_pit_bridge.py`(가격 TOP1에서 실제 다른 회사 CFS 성장자료 분리 유지 후 화면/링크까지 E2E). 공식 KRX/DART/SEC source·CFS·원자 게시·PIT 연구 포함 **9모듈 129/129 PASS EXIT0**, 실제 Mac 원본 receipt 재실행 E2E 별도 2회 PASS, py_compile 확인 예정. 전체 수천 개 회귀/미래 5~20 거래일 실적 인증은 이 단계에 불포함. 상세 `docs/135_OFFICIAL_FACTOR_COVERAGE_AND_CFS_SIDECAR.md`.
 - **미완료**: 산업성장/경쟁력/외국인·기관 수급 공식 시점별 수집, 3개 연속연도 실적 가속, 전시장 영구 issuer/share-class·상폐/기업행동·PIT 교차인증, 미국 전체 가격 공급원, 진짜 비교 가능한 100점 종합순위/종목별 데이터 충족도와 최초 실전 전향 적중률. 다음 단일 작업: DART 연속 3개년 *공식 최초공개/수신시각+정정·발행사 클래스* 확인 → 가격 TOPN과 독립인 PIT-eligible 성장가속 후보 연구, 신뢰되지 않은 수익/점수는 N/A.
 - **참고**: 이번 브랜치는 main에 아직 병합하지 않음. Public Git에는 코드/합성 테스트/문서만 올리고 원시 시장데이터·키·출력 폴더는 제외. 커밋·원격 SHA와 보안검사는 후속 체크포인트에 기록.
+
+## 2026-10-13 KST | 공식 데이터 충족도 Core 브랜치 GitHub 코드 배포 체크포인트
+
+- 개발 커밋 `5ec6360d5862569294da2cb40f1a57b96ba3c26b`를 `feature/core-official-factor-coverage-20261013`로 GitHub origin 실제 push 성공, `git ls-remote origin refs/heads/feature/core-official-factor-coverage-20261013` == 로컬 HEAD 동일 SHA 확인. `main` 강제 reset/merge/push 0.
+- 공식 KRX/DART/SEC 관련 **9모듈 129/129 PASS EXIT0**, 신규 실제 `output/official_core_factor_20261013_v2` 원시 first receipts+전체 DART 10페이지/현 DART 기업 목록/2024-2025 CFS 재검증 E2E PASS, 신규 HTML/JSON 파일 및 기존 WATCH에서 링크 PASS, 실전 주문/메시지0. `python3 -m py_compile` PASS.
+- staged 정확히 7경로(`official_api_pit_bridge.py` + 새 `official_factor_readiness.py` + 2 test + 135 doc + PROJECT_STATE/START_HERE). `git diff --cached --check` PASS, `scripts/check_git_safety.py` Public 검사 **scanned=7 suspicious=0**.
+- 원본 `main`의 `src/eraleader/native_first_capture.py` 미커밋 6추가1삭제 SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6` 그대로. 다른 새 그림/기획 MD도 그대로 unstaged.
+- 미완료 원인은 **산업·경쟁력·기관수급·3년 실적가속 공식 원천 결손과 PIT 법적 클래스 미인증**; 따라서 100점/공식 주도주 승격·실전 투자 우선순위와 5~20 거래일 진짜 조기 적중률은 모두 N/A. 기존 99/95%는 실사용 완료율 추정으로 사용 금지.
+- 이전 통합관리 worktree 폴더 실재 부재 및 5개 경로 `prunable` 관측. 이것이 어디로 이동/삭제됐는지 확인 전 `git worktree prune`·기존 브랜치 강제 checkout/삭제 금지. ER-NC-B00 암호화 백업은 별도로 보호·유지.

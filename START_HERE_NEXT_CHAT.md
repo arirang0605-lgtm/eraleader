@@ -912,3 +912,8 @@ EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발
 - 별도 feature/core-official-factor-coverage-20261013 최신 작업부터 계속. `PROJECT_STATE.md` 마지막 checkpoint 및 `docs/155_KR_MARKETWIDE_REAL_PRICE_AND_OUTBOX_20261014.md` 확인. 기존 main의 미커밋 `native_first_capture.py` 절대 건드리지 않음.
 - KRX 실제 2026-10-08 관측 2,765 전시장 종목; DART 현재 33사 CFS+산업 첫 수신 결합; 기존 읽기전용 가격 캐시에서 3/6개월 상대강도 2,261사, 2요소 연구순위 25사. **정식 5요소 TOP20·실전 상태 확정 0**, 기관/외국인 수급 N/A; 2026-10-08을 오늘 가격으로 오해하지 말 것.
 - `src/eraleader/strategy_handoff.py` + `scripts/export_strategy_handoff.py --outbox-dir`에 버전별 전략 후보 읽기전용 송신 원장. 실제 WATCH20 연구 JSON 확인, 선정/주문0. D-030 사용자 지정 전 수신 프로젝트 연결 금지. 다음 필수 기능은 *새 거래세션 공식 수집·전체산업/기업경쟁력/수급 인자 결합 → 실사용 5요소 종합 평가 → 선정·약화·교체 상태 및 송신*.
+
+## 2026-10-14 최근 코드 기능 CONTINUE — 업종 Peer · 수급 거래일 게이트 · 연구 TOP20 송신
+- 최신 feature 브랜치 SHA는 `git rev-parse HEAD` 확인. 자세한 실제 증거 `docs/156_KR_PEER_FLOW_COHORT_RESEARCH_AND_HANDOFF.md`, `PROJECT_STATE.md` 맨 끝. 원본 main·미커밋 `native_first_capture.py`는 절대 덮어쓰지 않음.
+- 전시장 가격·DART33사 연구 50점 후보25 중 연구 상위20과 별개 가격 WATCH20의 **두 목록**을 선정결과 JSON에서 구분(정식 선정 0); 동업종 표본 비교6그룹/매출15/영업익9, 실제 흐름 최신세션 불일치 수급 N/A. KRX 2026-10-08 자료를 2026-10-14 당일 자료로 표시 금지.
+- 다음 개발: 같은 최신 실제 세션 데이터 수집과 산업·기업경쟁력·기관/외국인 수급의 실측 결합, 기존 5요소 100점 종합 선정+상태+범용 전달. 과도한 전체회귀/장기인증보다 기능 우선, 변경 영향 pytest+실데이터 E2E. 수신 프로젝트 지정되지 않았으므로 외부 수신기/주문 작업 금지.

@@ -20,21 +20,174 @@ from .official_dart_multi_company import _all_pinned, source_eligible_universe
 from .official_company_explorer import _verified, BASIC, PEER, canonical
 from .official_dart_financials import verify_dart_financial, annual_growth_diagnostic
 from .official_dart_industry import verify_company_profile
+from .kiwoom_investor_flow import verify_flow
 from .discovery import run_id_for, score_price_observations
 from .data import LEGACY_DEFAULT, read_market_bars, validate_bars
 from datetime import date
+from zoneinfo import ZoneInfo
 import pandas as pd
 
 SCHEMA = "eraleader.official_kr_marketwide_factor_coverage.v1"
 CODE = re.compile(r"[A-Za-z0-9]{6}\Z")
 
 
+
+def attach_observed_industry_peers(observed: dict[str,dict]) -> dict:
+    """Peer diagnostics within captured CURRENT DART cohorts, not sector totals.
+
+    A group with one member has no peer leadership rank. Missing revenue /
+    operating growth is omitted from that metric's denominator, never zero.
+    """
+    grouped={}
+    for row in observed.values():
+        row.update({
+            "observed_industry_sample_size": None,
+            "peer_revenue_yoy_rank": None,
+            "peer_revenue_yoy_denominator": None,
+            "peer_operating_yoy_rank": None,
+            "peer_operating_yoy_denominator": None,
+        })
+        industry=row.get("industry_code")
+        if industry is not None and row.get("current_dart_directory_matched") is True:
+            grouped.setdefault(industry,[]).append(row)
+    pairs=0
+    revenue_compared=0
+    operating_compared=0
+    groups=[]
+    for industry,group in sorted(grouped.items()):
+        if len(group)<2:
+            continue
+        pairs+=len(group)
+        groups.append({"current_dart_industry_code":industry,
+                       "captured_company_count":len(group)})
+        for row in group:
+            row["observed_industry_sample_size"]=len(group)
+        for metric,rank_key,denom_key in (
+                ("revenue_yoy","peer_revenue_yoy_rank","peer_revenue_yoy_denominator"),
+                ("operating_income_yoy","peer_operating_yoy_rank","peer_operating_yoy_denominator")):
+            valid=[r for r in group if r.get(metric) is not None]
+            if len(valid)<2:
+                continue
+            if any(type(r[metric]) not in (int,float) or
+                   not math.isfinite(r[metric]) for r in valid):
+                raise ValueError("MARKETWIDE_PEER_NONFINITE_METRIC")
+            valid.sort(key=lambda r:(-r[metric],r["security_id"]))
+            last=None
+            rank=0
+            for pos,item in enumerate(valid,1):
+                if last is None or item[metric]!=last:
+                    rank=pos
+                item[rank_key]=rank
+                item[denom_key]=len(valid)
+                last=item[metric]
+            if metric=="revenue_yoy":
+                revenue_compared+=len(valid)
+            else:
+                operating_compared+=len(valid)
+    return {
+        "same_industry_sample_groups":groups,
+        "same_industry_sample_company_count":pairs,
+        "revenue_yoy_peer_evaluable":revenue_compared,
+        "operating_income_yoy_peer_evaluable":operating_compared,
+        "industry_comparison_scope":"CAPTURED_CURRENT_COMPANIES_ONLY_NOT_OFFICIAL_SECTOR_GROWTH",
+    }
+
+
+def attach_matched_session_investor_flow(observed: dict[str,dict],
+                                         flow_folder: Path, *,
+                                         market_session: str,
+                                         decision_at: datetime) -> dict:
+    """Join existing read-only Kiwoom ka10059 only for the exact KRX session.
+
+    Provider aggregate share quantities are observations, not investable ranks;
+    a future/different observed day is kept as N/A instead of being backdated.
+    """
+    from .kiwoom_investor_flow import canonical as flow_canonical
+    if (not flow_folder.is_absolute() or flow_folder.is_symlink() or
+            not flow_folder.is_dir() or
+            any(p.is_symlink() for p in flow_folder.parents)):
+        raise ValueError("MARKETWIDE_FLOW_SOURCE_UNSAFE")
+    def pairs_unique(pairs):
+        result={}
+        for key,value in pairs:
+            if key in result:
+                raise ValueError("MARKETWIDE_FLOW_DUPLICATE_FIELD")
+            result[key]=value
+        return result
+    manifest_file=flow_folder/"manifest.json"
+    if not manifest_file.is_file() or manifest_file.is_symlink():
+        raise ValueError("MARKETWIDE_FLOW_MANIFEST_MISSING")
+    payload=manifest_file.read_bytes()
+    manifest=json.loads(payload,object_pairs_hook=pairs_unique)
+    original=dict(manifest)
+    pin=original.pop("content_sha256",None)
+    if (pin != sha256(flow_canonical(original)).hexdigest() or
+            manifest.get("schema")!="eraleader.kiwoom_selected_flow_capture_manifest.v1" or
+            manifest.get("provider")!="KIWOOM_REST_KA10059" or
+            manifest.get("unit")!="shares" or
+            manifest.get("environment_mode") not in ("demo","real") or
+            manifest.get("trading_enabled") is not False or
+            type(manifest.get("files")) is not list or
+            len(manifest["files"])!=manifest.get("companies") or
+            len(manifest["files"])>20):
+        raise ValueError("MARKETWIDE_FLOW_MANIFEST_INVALID")
+    aligned=manifest["requested_day"]==market_session.replace("-","")
+    count=0
+    mismatched=0
+    seen=set()
+    for entry in manifest["files"]:
+        code=entry.get("security_id")
+        if (type(code) is not str or code in seen or code not in observed or
+                entry.get("filename")!=code+".json" or
+                not re.fullmatch(r"[0-9]{6}",code)):
+            raise ValueError("MARKETWIDE_FLOW_SECURITY_MISMATCH")
+        seen.add(code)
+        path=flow_folder/(code+".json")
+        if not path.is_file() or path.is_symlink():
+            raise ValueError("MARKETWIDE_FLOW_RECEIPT_MISSING")
+        raw=path.read_bytes()
+        if sha256(raw).hexdigest()!=entry.get("sha256"):
+            raise ValueError("MARKETWIDE_FLOW_RECEIPT_SHA_INVALID")
+        detail=json.loads(raw,object_pairs_hook=pairs_unique)
+        verify_flow(detail,decision_at=decision_at)
+        if (detail["security_id"]!=code or
+                detail["environment_mode"]!=manifest["environment_mode"] or
+                detail["requested_day"]!=manifest["requested_day"] or
+                detail["observed_rows"]!=entry["rows"]):
+            raise ValueError("MARKETWIDE_FLOW_RECEIPT_CONFLICT")
+        row=observed[code]
+        row["flow_source_sha256"]=detail["content_sha256"]
+        if (not aligned or detail["latest_observed_day"]!=
+                market_session.replace("-","")):
+            row["flow_source_quality"]="MISMATCHED_DAY_NOT_USABLE"
+            mismatched+=1
+            continue
+        row["flow_source_quality"]="EXACT_SESSION_20_OBSERVATIONS_RESEARCH_ONLY"
+        window=detail["flow_20_observed_sessions"]
+        foreign=window.get("foreign_net_shares")
+        institution=window.get("institution_net_shares")
+        if type(foreign) is not int or type(institution) is not int:
+            row["flow_source_quality"]="INCOMPLETE_20_OBSERVATIONS_NA"
+            continue
+        row["foreign_flow"]=foreign
+        row["institutional_flow"]=institution
+        row["flow_unit"]="shares_20_observed_sessions"
+        count+=1
+    return {
+        "flow_source_manifest_sha256":sha256(payload).hexdigest(),
+        "flow_capture_companies_checked":len(seen),
+        "flow_matched_session_companies":count,
+        "flow_mismatched_session_companies":mismatched,
+        "flow_certification":"FIRST_LOCAL_RECEIPT_RESEARCH_ONLY_NOT_HISTORIC_PIT",
+    }
+
 def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
                               clock: datetime | None = None,
                               extra_cfs_manifests: tuple[Path, ...] = (),
                               extra_industry_manifests: tuple[Path, ...] = (),
                               full_price_lookback: bool = False,
-                              legacy_root: Path = LEGACY_DEFAULT) -> dict:
+                              legacy_root: Path = LEGACY_DEFAULT,
+                              kiwoom_flow_folder: Path | None = None) -> dict:
     """Recheck pinned originals and join every observed KRX issue exactly once."""
     now = clock or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:
@@ -277,9 +430,27 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
                                   -x["price_strength_25"],x["security_id"]))
     for ix,item in enumerate(comparable,1):
         item["two_factor_research_rank"]=ix
+    peer_audit = attach_observed_industry_peers(all_rows)
+    flow_audit = (attach_matched_session_investor_flow(
+        all_rows,kiwoom_flow_folder,market_session=observed,decision_at=now)
+        if kiwoom_flow_folder is not None else {
+            "flow_source_manifest_sha256":None,
+            "flow_capture_companies_checked":0,
+            "flow_matched_session_companies":0,
+            "flow_mismatched_session_companies":0,
+            "flow_certification":"N/A_NO_FLOW_SOURCE",
+        })
     rows = [all_rows[k] for k in sorted(all_rows)]
+    local_day=now.astimezone(ZoneInfo("Asia/Seoul")).date()
+    elapsed_calendar_days=(local_day-date.fromisoformat(observed)).days
+    if elapsed_calendar_days < 0:
+        raise ValueError("MARKETWIDE_FUTURE_MARKET_SESSION")
     result = {
         "schema": SCHEMA, "market": "KR", "market_session": observed,
+        "requested_local_day":local_day.isoformat(),
+        "calendar_days_since_market_observation":elapsed_calendar_days,
+        "stale_research_warning":elapsed_calendar_days>=2,
+        "official_trading_sessions_elapsed":None,
         "source_decision_at_utc": decision.isoformat(),
         "built_at_utc": now.isoformat(),
         "source_watch_run_id": snapshot["run_id"],
@@ -293,7 +464,9 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
         "industry_factors_observed": sum(
             x["industry_code"] is not None for x in rows),
         "extra_industry_manifests_sha256": industry_pins,
-        "flow_factors_observed": 0,
+        **peer_audit,
+        **flow_audit,
+        "flow_factors_observed":flow_audit["flow_matched_session_companies"],
         "two_factor_research_evaluable":len(comparable),
         "local_price_lookback_enabled":full_price_lookback,
         "local_price_lookback_evaluable":full_price_evaluable,
@@ -317,6 +490,75 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
     result["content_sha256"] = sha256(canonical(result)).hexdigest()
     return result
 
+
+
+def refresh_saved_marketwide_flow(source_file: Path, flow_folder: Path, *,
+                                  clock: datetime | None = None) -> dict:
+    """Reuse the already-published *checksum-verified* KRX/DART snapshot.
+
+    This avoids rerunning thousands of original DART checks just to add a
+    newly-arrived broker research source. Original JSON is left untouched.
+    """
+    now=clock or datetime.now(timezone.utc)
+    if now.tzinfo is None or now.utcoffset() is None:
+        raise ValueError("MARKETWIDE_FLOW_UPDATE_CLOCK_UNAWARE")
+    now=now.astimezone(timezone.utc)
+    if (not source_file.is_absolute() or source_file.is_symlink() or
+            not source_file.is_file() or
+            any(p.is_symlink() for p in source_file.parents)):
+        raise ValueError("MARKETWIDE_SAVED_SOURCE_UNSAFE")
+    def unique(pairs):
+        result={}
+        for k,v in pairs:
+            if k in result:
+                raise ValueError("MARKETWIDE_SAVED_SOURCE_DUPLICATE_FIELD")
+            result[k]=v
+        return result
+    data=json.loads(source_file.read_bytes(),object_pairs_hook=unique)
+    digest=data.get("content_sha256")
+    original=dict(data)
+    original.pop("content_sha256",None)
+    if (data.get("schema")!=SCHEMA or type(digest) is not str or
+            digest != sha256(canonical(original)).hexdigest() or
+            data.get("research_only") is not True or
+            data.get("official_leaders") != 0 or
+            data.get("full_market_composite_rank_available") is not False or
+            data.get("flow_factors_observed") != 0 or
+            type(data.get("securities")) is not list or
+            len(data["securities"])!=data.get("official_krx_observed") or
+            datetime.fromisoformat(data["built_at_utc"])>now):
+        raise ValueError("MARKETWIDE_SAVED_SOURCE_INVALID")
+    by_code={}
+    for row in data["securities"]:
+        key=row.get("security_id")
+        if (type(key) is not str or key in by_code or
+                row.get("foreign_flow") is not None or
+                row.get("institutional_flow") is not None):
+            raise ValueError("MARKETWIDE_SAVED_DUPLICATE_OR_PREJOINED")
+        by_code[key]=row
+    # Keep the source score untouched; add actual observed DART same-code
+    # industry peer diagnostics as a separate research dimension.
+    peer_audit=attach_observed_industry_peers(by_code)
+    data.update(peer_audit)
+    audit=attach_matched_session_investor_flow(
+        by_code,flow_folder,market_session=data["market_session"],
+        decision_at=now)
+    data.update(audit)
+    data["flow_factors_observed"]=audit["flow_matched_session_companies"]
+    data["previous_research_sha256"]=digest
+    data["built_at_utc"]=now.isoformat()
+    local_day=now.astimezone(ZoneInfo("Asia/Seoul")).date()
+    delta=(local_day-date.fromisoformat(data["market_session"])).days
+    if delta < 0:
+        raise ValueError("MARKETWIDE_FLOW_UPDATE_FUTURE_SESSION")
+    data["requested_local_day"]=local_day.isoformat()
+    data["calendar_days_since_market_observation"]=delta
+    data["stale_research_warning"]=delta>=2
+    data["official_trading_sessions_elapsed"]=None
+    data["warning"]+=" Kiwoom research flow attached only if its latest and requested sessions match KRX."
+    data.pop("content_sha256")
+    data["content_sha256"]=sha256(canonical(data)).hexdigest()
+    return data
 
 def publish_marketwide_coverage(report: dict, dest: Path) -> tuple[Path, Path]:
     """Write separate immutable JSON and HTML without altering WATCH history."""
@@ -357,7 +599,11 @@ def publish_marketwide_coverage(report: dict, dest: Path) -> tuple[Path, Path]:
         str(report["current_dart_directory_matched"]) + " · 재무 " +
         str(report["financial_factors_observed"]) + " · 산업 " +
         str(report["industry_factors_observed"]) + " · 공식 수급 " +
-        str(report["flow_factors_observed"]) + "</p><p><strong>"
+        str(report["flow_factors_observed"]) + "</p><p><strong>" +
+        ("자료 지연 경고: 과거 거래일 관측 ("+
+         str(report["calendar_days_since_market_observation"])+
+         "달력일 경과, 실제 휴장 반영 거래세션 수 N/A).</strong> "
+         if report.get("stale_research_warning") else "")+
         "가격 관찰 TOP20은 투자/대장주 종합 순위가 아닙니다. "
         "자료 부족 종목·분야는 N/A, 확정 대장주 0.</strong></p>"
         "<table><thead><tr><th>가격 관찰순서</th><th>종목코드</th>"
@@ -368,6 +614,13 @@ def publish_marketwide_coverage(report: dict, dest: Path) -> tuple[Path, Path]:
         "종목 한정. 산업성장·기업경쟁력·외국인기관 수급은 N/A.</p>"
         "<table><thead><tr><th>비교 순서</th><th>종목</th><th>회사</th>"
         "<th>관측점수 /50</th></tr></thead><tbody>"+research_rows+"</tbody></table>"
+        "<h2>동일 업종 표본 내 매출·영업 성장 상대비교</h2>"
+        "<p>동종 2사 이상 그룹 "+str(len(report.get("same_industry_sample_groups",[])))+
+        "개 · 매출성장 비교 "+str(report.get("revenue_yoy_peer_evaluable",0))+
+        "사 · 영업익 성장 비교 "+str(report.get("operating_income_yoy_peer_evaluable",0))+
+        "사. 정확한 업종코드가 일치하는 수집 기업끼리만 비교하며 "
+        "시장 전체 업종 성장률이나 기업 경쟁력 평가가 아닙니다. "
+        "종목별 상대위치는 marketwide_kr.json에서 확인합니다.</p>"
         "<p>전체 KRX 종목별 자료 확보 여부: marketwide_kr.json (동일 폴더). "
         "재무/산업은 현재 수집 표본이며 과거 주권 PIT 인증은 N/A.</p>"
         "</main></html>")

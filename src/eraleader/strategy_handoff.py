@@ -14,6 +14,7 @@ from hashlib import sha256
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import json
+import math
 import os
 import re
 import sqlite3
@@ -227,13 +228,49 @@ def marketwide_research_handoff(path: Path, *, request_day: str,
     watch.sort(key=lambda x:x["research_order"])
     if [x["research_order"] for x in watch] != list(range(1,len(watch)+1)):
         raise ValueError("HANDOFF_MARKETWIDE_NONCONTIGUOUS_PRICE_ORDER")
+    # The 50-point score is an explicitly separate research *comparison*.
+    # Never turn this into a POTENTIAL/CONFIRMED strategy candidate.
+    security_rows={r["security_id"]:r for r in report["securities"]}
+    research=[]
+    for item in report.get("two_factor_research_top20",[]):
+        code=item.get("security_id")
+        score=item.get("observed_score_50")
+        rank=item.get("research_order")
+        if (code not in security_rows or
+                item.get("name") != security_rows[code]["name"] or
+                item.get("official_leader") is not False or
+                type(score) not in (int,float) or
+                not math.isfinite(score) or not 0<=score<=50 or
+                type(rank) is not int or not 1<=rank<=20):
+            raise ValueError("HANDOFF_RESEARCH_50_POINT_INPUT_INVALID")
+        observed=security_rows[code]
+        if (observed.get("two_factor_research_50")!=score or
+                observed.get("two_factor_research_rank")!=rank):
+            raise ValueError("HANDOFF_RESEARCH_SCORE_COHORT_MISMATCH")
+        research.append({
+            "market":"KR","security_id":code,"name":item["name"],
+            "research_order":rank,"observed_score_50":float(score),
+            "selection_state":"WATCH","score_100":None,
+            "strategy_research_allowed":False,
+            "research_basis":"PRICE_25_EARNINGS_25_RESEARCH_ONLY",
+            "peer_revenue_yoy_rank":observed.get("peer_revenue_yoy_rank"),
+            "peer_revenue_yoy_denominator":observed.get("peer_revenue_yoy_denominator"),
+            "source_market_session":report["market_session"],
+            "first_known_at_utc":report["built_at_utc"],
+        })
+    research.sort(key=lambda r:r["research_order"])
+    if [r["research_order"] for r in research]!=list(range(1,len(research)+1)):
+        raise ValueError("HANDOFF_RESEARCH_50_POINT_ORDER_INVALID")
     return _finalize({
         "market":"KR","source_kind":"MARKETWIDE_KRX_DART_COVERAGE_RESEARCH",
         "as_of":request_day,"source_observed_as_of":report["market_session"],
         "source_decision_at_utc":report["source_decision_at_utc"],
         "source_sha256":fingerprint,
         "data_stale":report["market_session"] != request_day,
-        "selected_candidates":[],"research_watchlist":watch,"state_changes":[],
+        "selected_candidates":[],"research_watchlist":watch,
+        "two_factor_research_watchlist":research,
+        "two_factor_research_count":len(research),
+        "state_changes":[],
         "selection_count":0,"watchlist_count":len(watch),
         "status":"WATCHLIST_ONLY_NO_VERIFIED_LEADER_SELECTION",
     },now)
@@ -415,6 +452,24 @@ def verify_handoff(path: Path, *, expected_market: str | None = None) -> dict:
             payload.get("selection_count") != len(payload["selected_candidates"]) or
             payload.get("watchlist_count") != len(payload["research_watchlist"])):
         raise ValueError("HANDOFF_COUNTS_INCONSISTENT")
+    if "two_factor_research_watchlist" in payload:
+        research=payload["two_factor_research_watchlist"]
+        if (payload.get("source_kind")!="MARKETWIDE_KRX_DART_COVERAGE_RESEARCH" or
+                type(research) is not list or len(research)>20 or
+                payload.get("two_factor_research_count")!=len(research)):
+            raise ValueError("HANDOFF_50_RESEARCH_COUNTS_INVALID")
+        for pos, row in enumerate(research,1):
+            score=row.get("observed_score_50")
+            if (row.get("research_order")!=pos or
+                    type(row.get("security_id")) is not str or
+                    KRX_OBSERVED_CODE.fullmatch(row["security_id"]) is None or
+                    row.get("selection_state")!="WATCH" or
+                    row.get("score_100") is not None or
+                    row.get("strategy_research_allowed") is not False or
+                    row.get("research_basis")!="PRICE_25_EARNINGS_25_RESEARCH_ONLY" or
+                    type(score) not in (int,float) or not math.isfinite(score) or
+                    not 0<=score<=50):
+                raise ValueError("HANDOFF_50_RESEARCH_ROW_INVALID")
     for row in payload["selected_candidates"]:
         _identity(row["security_id"])
         ticker = row.get("ticker")

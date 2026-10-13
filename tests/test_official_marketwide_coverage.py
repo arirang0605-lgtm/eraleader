@@ -401,3 +401,138 @@ def test_marketwide_full_price_reuses_original_ranking_without_promoting(tmp_pat
     with pytest.raises(ValueError,match="NOT_SAME_AS_WATCH"):
         module.build_marketwide_coverage(
             cohort,root,clock=NOW,full_price_lookback=True,legacy_root=tmp_path)
+
+
+def test_current_industry_peer_diagnostics_keep_sample_rank_not_leader():
+    companies={
+        "A":{"security_id":"000001","current_dart_directory_matched":True,
+             "industry_code":"29271","revenue_yoy":0.20,
+             "operating_income_yoy":0.09},
+        "B":{"security_id":"000002","current_dart_directory_matched":True,
+             "industry_code":"29271","revenue_yoy":0.20,
+             "operating_income_yoy":None},
+        "C":{"security_id":"000003","current_dart_directory_matched":True,
+             "industry_code":"29271","revenue_yoy":0.10,
+             "operating_income_yoy":0.24},
+        "D":{"security_id":"000004","current_dart_directory_matched":True,
+             "industry_code":"582","revenue_yoy":0.50,
+             "operating_income_yoy":0.12},
+        "E":{"security_id":"000005","current_dart_directory_matched":False,
+             "industry_code":"29271","revenue_yoy":0.60,
+             "operating_income_yoy":0.20}
+    }
+    audit=module.attach_observed_industry_peers(companies)
+    assert audit["same_industry_sample_company_count"]==3
+    assert len(audit["same_industry_sample_groups"])==1
+    assert audit["revenue_yoy_peer_evaluable"]==3
+    assert audit["operating_income_yoy_peer_evaluable"]==2
+    assert companies["A"]["peer_revenue_yoy_rank"]==1
+    assert companies["B"]["peer_revenue_yoy_rank"]==1
+    assert companies["C"]["peer_revenue_yoy_rank"]==3
+    assert companies["C"]["peer_operating_yoy_rank"]==1
+    assert companies["B"]["peer_operating_yoy_rank"] is None
+    assert companies["D"]["peer_revenue_yoy_rank"] is None
+    assert companies["E"]["peer_revenue_yoy_rank"] is None
+    with pytest.raises(ValueError,match="PEER_NONFINITE"):
+        module.attach_observed_industry_peers({
+            "A":dict(companies["A"],revenue_yoy=float("nan")),
+            "B":dict(companies["B"])})
+
+
+def test_saved_verified_marketwide_flow_join_is_session_exact(tmp_path,monkeypatch):
+    from eraleader.kiwoom_investor_flow import canonical as flow_canonical
+    cohort,root,*_=fixture(tmp_path,monkeypatch)
+    original=module.build_marketwide_coverage(cohort,root,clock=NOW)
+    source,_=module.publish_marketwide_coverage(original,tmp_path/"original_marketwide")
+    flow_folder=tmp_path/"kiwoom_flow"
+    flow_folder.mkdir(mode=0o700)
+    report={
+        "security_id":CODE_A,"requested_day":"20261008",
+        "latest_observed_day":"20261008","environment_mode":"demo",
+        "observed_rows":20,
+        "flow_20_observed_sessions":{"foreign_net_shares":14,
+                                      "institution_net_shares":-9}
+    }
+    report["content_sha256"]=sha256(flow_canonical(report)).hexdigest()
+    flow_raw=flow_canonical(report)+b"\n"
+    (flow_folder/f"{CODE_A}.json").write_bytes(flow_raw)
+    manifest={"schema":"eraleader.kiwoom_selected_flow_capture_manifest.v1",
+              "provider":"KIWOOM_REST_KA10059","unit":"shares",
+              "environment_mode":"demo","trading_enabled":False,
+              "requested_day":"20261008","companies":1,
+              "files":[{"security_id":CODE_A,"filename":f"{CODE_A}.json",
+                        "rows":20,"sha256":sha256(flow_raw).hexdigest()}]}
+    manifest["content_sha256"]=sha256(flow_canonical(manifest)).hexdigest()
+    (flow_folder/"manifest.json").write_bytes(flow_canonical(manifest)+b"\n")
+    monkeypatch.setattr(module,"verify_flow",lambda obj,**kw:obj)
+    later=NOW+timedelta(minutes=4)
+    joined=module.refresh_saved_marketwide_flow(
+        source,flow_folder,clock=later)
+    actual=next(x for x in joined["securities"] if x["security_id"]==CODE_A)
+    assert actual["foreign_flow"]==14
+    assert actual["institutional_flow"]==-9
+    assert joined["flow_factors_observed"]==1
+    assert joined["flow_mismatched_session_companies"]==0
+    assert joined["previous_research_sha256"]==original["content_sha256"]
+    assert json.loads(source.read_bytes())==original
+    # Simulate a newer valid capture with an observed day that doesn't match KRX.
+    report["latest_observed_day"]="20261009"
+    report["requested_day"]="20261009"
+    report.pop("content_sha256")
+    report["content_sha256"]=sha256(flow_canonical(report)).hexdigest()
+    newer=flow_canonical(report)+b"\n"
+    (flow_folder/f"{CODE_A}.json").write_bytes(newer)
+    manifest["requested_day"]="20261009"
+    manifest["files"][0]["sha256"]=sha256(newer).hexdigest()
+    manifest.pop("content_sha256")
+    manifest["content_sha256"]=sha256(flow_canonical(manifest)).hexdigest()
+    (flow_folder/"manifest.json").write_bytes(flow_canonical(manifest)+b"\n")
+    stale=module.refresh_saved_marketwide_flow(
+        source,flow_folder,clock=later)
+    row=next(x for x in stale["securities"] if x["security_id"]==CODE_A)
+    assert stale["flow_factors_observed"]==0
+    assert stale["flow_mismatched_session_companies"]==1
+    assert row["foreign_flow"] is None and row["institutional_flow"] is None
+    # A file tamper must not be rendered or rewritten into a new report.
+    (flow_folder/f"{CODE_A}.json").write_bytes(b'{"tampered":true}')
+    with pytest.raises(ValueError,match="FLOW_RECEIPT_SHA_INVALID"):
+        module.refresh_saved_marketwide_flow(source,flow_folder,clock=later)
+
+
+def test_marketwide_two_factor_comparison_passes_only_as_nontrading_research(tmp_path,monkeypatch):
+    from eraleader.strategy_handoff import (
+        marketwide_research_handoff,publish_handoff,verify_handoff
+    )
+    cohort,root,*_=fixture(tmp_path,monkeypatch)
+    report=module.build_marketwide_coverage(cohort,root,clock=NOW)
+    company=next(r for r in report["securities"] if r["security_id"]==CODE_A)
+    company["two_factor_research_rank"]=1
+    company["two_factor_research_50"]=35.5
+    report["two_factor_research_evaluable"]=1
+    report["two_factor_research_top20"]=[{
+        "research_order":1,"security_id":CODE_A,
+        "name":company["name"],"observed_score_50":35.5,
+        "official_leader":False,
+    }]
+    report.pop("content_sha256")
+    report["content_sha256"]=sha256(module.canonical(report)).hexdigest()
+    source,_=module.publish_marketwide_coverage(report,tmp_path/"source_rank")
+    handoff=marketwide_research_handoff(
+        source,request_day="2026-10-14",clock=NOW)
+    assert handoff["two_factor_research_count"]==1
+    assert handoff["selection_count"]==0
+    assert handoff["two_factor_research_watchlist"][0]["selection_state"]=="WATCH"
+    assert handoff["two_factor_research_watchlist"][0]["strategy_research_allowed"] is False
+    assert handoff["two_factor_research_watchlist"][0]["score_100"] is None
+    dest=tmp_path/"out.json"
+    publish_handoff(handoff,dest)
+    assert verify_handoff(dest,expected_market="KR")==handoff
+    # A validly re-hashed but falsely promoted observation is still rejected.
+    invalid=copy.deepcopy(handoff)
+    invalid["two_factor_research_watchlist"][0]["selection_state"]="CONFIRMED"
+    invalid.pop("content_sha256")
+    invalid["content_sha256"]=sha256(module.canonical(invalid)).hexdigest()
+    second=tmp_path/"invalid.json"
+    second.write_bytes(module.canonical(invalid)+b"\n")
+    with pytest.raises(ValueError,match="HANDOFF_50_RESEARCH_ROW_INVALID"):
+        verify_handoff(second)

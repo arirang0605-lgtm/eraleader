@@ -72,9 +72,13 @@ def publish_basic_company_screen(
             if tag in providers:
                 raise ValueError("Duplicate official source receipt")
             providers[tag]=bound(source_row["first_receipt_sha256"])
-    if set(providers)!={"krx-kospi","krx-kosdaq","dart-disclosures",
-                        "sec-submissions","sec-companyfacts"}:
-        raise ValueError("Core KR/DART/SEC original evidence missing")
+    required={"krx-kospi","krx-kosdaq","dart-disclosures"}
+    sec={"sec-submissions","sec-companyfacts"}
+    # Daily KR capture can be KRX+DART only. A pair of SEC receipts is
+    # optional, but accepting a lone SEC source would create mixed evidence.
+    if (not required.issubset(providers) or
+            set(providers) not in (required,required|sec)):
+        raise ValueError("Core KR/DART original evidence missing or partial SEC evidence")
     directory=bound(source["dart_current_directory"]["first_receipt_sha256"])
     d=source.get("dart_full_day")
     if not isinstance(d,dict) or not isinstance(d.get("manifest_sha256"),str):
@@ -119,7 +123,8 @@ def publish_basic_company_screen(
         as_of=localday,decision_at=now.astimezone(timezone.utc).isoformat(),
         days=550,top=20,
         auxiliary=tuple((name,*providers[name])
-            for name in ("dart-disclosures","sec-submissions","sec-companyfacts")),
+            for name in ("dart-disclosures","sec-submissions","sec-companyfacts")
+            if name in providers),
         dart_complete=(complete[0],d["manifest_sha256"],*providers["dart-disclosures"]),
         dart_directory=directory,
         dart_financial_receipts=tuple(financial),

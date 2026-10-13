@@ -1747,3 +1747,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **테스트 실제 성공**: 공통 API `PYTHONPATH=src:/Volumes/T5DATA/eraleader-core-factor-coverage-20261013/src python3 -m pytest tests -q` **24/24 PASS(EXIT0)**, EraLeader 신규 키움4 + 원래 가격/DART/업종·재무9 = **13모듈 158/158 PASS(EXIT0)**. Python py_compile PASS. 미국/한국 full 2450+ 및 장기간 전향적 검증 미실행.
 - Mac 현재 `SharedBrokerAPI` owner-only 소켓 `0600` 및 3클라이언트 명령 정상 status 확인, 모의/실전 외부 인증키 미등록, 실제 수급 외부 HTTP0. EraLeader 공식 실전 발굴/대장주 확정 0, 기존 10사 가격·실적 N/A 수급 유지.
 - **다음**: 키움 모의 키가 설정되면 공통 단일 OAuth→`ka10059` 공식 수급 1종목 실수신, PIT-first/local receipt와 서명된 과거 실측 집계 교차검증→기존 후보10사 수급 활성. 그 전에는 기관/외국인 합산·가격100점 투자 우선순위 가공 금지. 실사용 진행률 `45/120=37.5%(38%)` 유지.
+
+## 2026-10-13 KST | 키움 로컬 설정 저장 거부 개선 (모의/실계좌 입력 UI)
+
+- 사용자가 로컬 UI 저장 완료를 두 번 보고했으나 Mac 실제 파일 `~/Library/Application Support/SharedBrokerAPI/kiwoom_profiles.json` 미존재, shared gateway `demo` 미등록. 실제 외부 HTTP/API/매매 0회.
+- Chrome 내 로컬 설정 탭 중 `http://127.0.0.1:8782/save`가 남았고 해당 탭 제목이 공백으로 확인되어 기존 POST의 일반적인 보안 거부(HTTP403) 가능성이 높았음. **정확한 원인 헤더는 캡처하지 않았으므로 추정으로 표시**.
+- 정상 브라우저의 Origin 생략/opaque `null`/localhost 별칭을 허용하도록 `src/eraleader/kiwoom_profile_settings.py` 수정. **127.0.0.1 Host·loopback 접속·랜덤 CSRF는 그대로 필수**, 명시된 외부 Origin/Referer·cross-site fetch 거부 유지. 실패 메시지를 한국어로 구분해 재입력 방법 제공.
+- `tests/test_kiwoom_profile_settings.py` 직접 영향 테스트 확장: 정상 Origin 생략·null·localhost 저장, 외부 Origin/Referer/교차 사이트 차단, 기존 모의·실계좌 분리 보존. 변경 범위 `tests/test_kiwoom_profile_settings.py tests/test_kiwoom_gateway_cli.py tests/test_kiwoom_investor_flow.py` 실제 실행 PASS/EXIT0, py_compile/Git diffcheck PASS.
+- 이전 UI 프로세스(PID 54081)임을 확인한 뒤 종료하고 수정된 소스로 PID 65438의 `127.0.0.1:8782` HTTP200 재가동. Mac Chrome에 새로운 설정 화면을 열었음. **새로운 실사용 키를 모델/로그로 읽지 않았고 아직 등록 파일 없음**. 사용자가 새 화면에서 정상 저장 후 다음 read-only `demo ka10059` 005930 1일분 검증 가능.
+- 원본 EraLeader main 미커밋 `native_first_capture.py` 수정 보호, 주문 기능/별도 보안 프로젝트 수정0. 실전 키는 요청하지 않으며 모의키 먼저 설정.

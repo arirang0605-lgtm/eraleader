@@ -95,9 +95,10 @@ def test_local_http_dashboard_csrf_and_secret_nonreflection(tmp_path):
         with pytest.raises(HTTPError) as error:
             post(dict(values,csrf="invalid"))
         assert error.value.code==403
-        with pytest.raises(HTTPError) as error:
-            post(values,origin=False)
-        assert error.value.code==403
+        # A legitimate loopback form may omit Origin; CSRF token, Host and
+        # loopback peer checks still enforce same-page authorization.
+        with post(values,origin=False) as without_origin:
+            assert without_origin.status==200
         with post(values) as response:
             result=response.read().decode()
             assert "설정이 로컬에 저장되었습니다" in result
@@ -110,3 +111,62 @@ def test_local_http_dashboard_csrf_and_secret_nonreflection(tmp_path):
         assert error.value.code==400
     finally:
         server.shutdown(); server.server_close(); thread.join(timeout=3)
+
+
+@pytest.mark.parametrize("extra_headers", [
+    {"Origin": "https://outside.example"},
+    {"Origin": "http://127.0.0.1:8782.evil.example"},
+    {"Referer": "https://outside.example/form"},
+    {"Sec-Fetch-Site": "cross-site"},
+])
+def test_kiwoom_form_origin_fallback_rejects_cross_site(tmp_path,extra_headers):
+    private=tmp_path/"safe"/"profiles.json"
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1",0))
+        port=sock.getsockname()[1]
+    token=secrets.token_urlsafe(24)
+    server=ThreadingHTTPServer(("127.0.0.1",port),make_handler(private,token,port))
+    worker=Thread(target=server.serve_forever,daemon=True)
+    worker.start()
+    try:
+        fields={"csrf":token,"active_mode":"demo",
+                "demo_appkey":"SYNTHETIC_KEY","demo_secret":"SYNTHETIC_SECRET"}
+        request=Request(f"http://127.0.0.1:{port}/save",
+                        data=urlencode(fields).encode(),
+                        headers={"Content-Type":"application/x-www-form-urlencoded",**extra_headers},
+                        method="POST")
+        with pytest.raises(HTTPError) as rejected:
+            urlopen(request,timeout=2)
+        assert rejected.value.code==403
+        assert not private.exists()
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=3)
+
+
+@pytest.mark.parametrize("origin_header", ["null","http://localhost:{port}"])
+def test_kiwoom_form_accepts_opaque_origin_only_with_valid_csrf(tmp_path,origin_header):
+    private=tmp_path/"owner"/"profiles.json"
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1",0))
+        port=sock.getsockname()[1]
+    token=secrets.token_urlsafe(24)
+    server=ThreadingHTTPServer(("127.0.0.1",port),make_handler(private,token,port))
+    worker=Thread(target=server.serve_forever,daemon=True)
+    worker.start()
+    try:
+        fields={"csrf":token,"active_mode":"demo",
+                "demo_appkey":"TEST_KEY","demo_secret":"TEST_SECRET"}
+        request=Request(f"http://127.0.0.1:{port}/save",
+                        data=urlencode(fields).encode(),
+                        headers={"Content-Type":"application/x-www-form-urlencoded",
+                                 "Origin":origin_header.format(port=port)},
+                        method="POST")
+        with urlopen(request,timeout=2) as response:
+            assert response.status==200
+        assert read_profiles(private)["demo"]["appkey"]=="TEST_KEY"
+    finally:
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=3)

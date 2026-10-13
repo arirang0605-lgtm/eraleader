@@ -199,11 +199,23 @@ def make_handler(store: Path, csrf: str, port: int):
                 self.respond(500, "Private settings unavailable")
 
         def do_POST(self):
+            # First-party browser forms sometimes omit Origin (or use "null"
+            # for an opaque origin). Keep loopback Host + CSRF mandatory;
+            # reject a declared external Origin/Referer or cross-site fetch.
+            request_origin = self.headers.get("Origin")
+            referer = self.headers.get("Referer")
+            sec_fetch_site = self.headers.get("Sec-Fetch-Site")
+            allowed_origins = {None, "null", origin, f"http://localhost:{port}"}
+            referer_ok = (not referer or
+                          referer.startswith(origin + "/") or
+                          referer.startswith(f"http://localhost:{port}/"))
             if (not self.allowed() or self.path != "/save" or
-                    self.headers.get("Origin") != origin or
+                    request_origin not in allowed_origins or
+                    not referer_ok or
+                    sec_fetch_site not in (None, "none", "same-origin") or
                     self.headers.get("Content-Type","").split(";")[0].strip() !=
                     "application/x-www-form-urlencoded"):
-                self.respond(403, "Forbidden")
+                self.respond(403, "보안 확인 실패. 설정 화면을 새로 열어 다시 저장하세요.")
                 return
             try:
                 size = int(self.headers.get("Content-Length", "-1"))
@@ -215,7 +227,7 @@ def make_handler(store: Path, csrf: str, port: int):
                     raise ValueError("Duplicate form fields rejected")
                 args = {k: v[0] for k,v in data.items()}
                 if not secrets.compare_digest(args.pop("csrf",""), csrf):
-                    self.respond(403, "Forbidden")
+                    self.respond(403, "보안 토큰이 만료되었습니다. 설정 화면을 새로 열어주세요.")
                     return
                 known = {"active_mode"} | {
                     f"{mode}_{field}" for mode in MODES for field in

@@ -137,12 +137,12 @@ def test_stale_source_does_not_change_latest_issuer_or_price_watch(tmp_path):
     assert {f: (src/f).read_bytes() for f in before} == before
 
 
-def test_existing_publication_rejected_and_not_overwritten(tmp_path):
+def test_existing_publication_identical_replay_keeps_bytes_and_timestamp(tmp_path):
     result, args = choose(tmp_path)
-    before = (args["output"] / "report.json").read_bytes()
-    with pytest.raises(ValueError, match="MUST_BE_NEW"):
-        fallback.choose_and_publish(**args)
-    assert (args["output"] / "report.json").read_bytes() == before
+    before = {p.name: p.read_bytes() for p in args["output"].iterdir()}
+    replay = fallback.choose_and_publish(**args)
+    assert replay == result
+    assert {p.name: p.read_bytes() for p in args["output"].iterdir()} == before
 
 
 def test_unverified_baseline_returns_no_source_without_fabrication(tmp_path):

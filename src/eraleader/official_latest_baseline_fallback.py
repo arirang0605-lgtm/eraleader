@@ -190,7 +190,7 @@ def choose_and_publish(*, request_day: str, archived_roots: list[Path],
                 for x in codes)):
         raise ValueError("INVALID_FALLBACK_RESEARCH_SECURITIES")
     if (not isinstance(output, Path) or not output.is_absolute() or
-            output.is_symlink() or output.exists() or
+            output.is_symlink() or
             any(parent.is_symlink() for parent in output.parents) or
             not output.parent.is_dir() or
             output.parent.stat().st_uid != os.geteuid()):
@@ -273,6 +273,20 @@ def choose_and_publish(*, request_day: str, archived_roots: list[Path],
         "orders_enabled": False,
     }
     result["content_sha256"] = sha256(canonical(result)).hexdigest()
+    if output.exists():
+        from .official_latest_baseline_replay import verify_existing_publication
+        prior = verify_existing_publication(
+            output=output, proposed=result, now=now, render=_render,
+            allowed_reasons=frozenset(RECOVERABLE))
+        # The immutable source must still be identical to what was audited
+        # before serving a cached result; a replay never hides source damage.
+        again = _eligible(selected["root"], requested, now, codes)
+        if (again is None or
+                again["candidate"]["content_sha256"] != result["source_candidate_sha256"] or
+                again["industry"]["content_sha256"] != result["source_industry_sha256"] or
+                again["source"]["source_pins"] != result["source_official_first_receipts_sha256"]):
+            raise ValueError("FALLBACK_REPLAY_SOURCE_CHANGED_DURING_VERIFY")
+        return prior
     folder = Path(tempfile.mkdtemp(prefix=".fallback_inflight_", dir=output.parent))
     try:
         os.chmod(folder, 0o700)

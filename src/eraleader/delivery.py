@@ -15,7 +15,7 @@ table{border-collapse:collapse;background:white;width:100%;font-size:.95rem}th,t
 small{color:#63758b}h2{margin-top:25px}a{color:#1c5c91}
 footer{padding:20px;text-align:center} @media(max-width:670px){h1{font-size:1.6rem}th,td{padding:8px;font-size:.83rem}}"""
 
-def render_dashboard(snapshot: dict) -> str:
+def render_dashboard(snapshot: dict, *, show_news_research: bool = False) -> str:
     def v(value):
         if value is None:
             return "N/A"
@@ -43,7 +43,7 @@ def render_dashboard(snapshot: dict) -> str:
 <style>{BASE_CSS}</style></head><body>
 <header><h1>EraLeader · 시대의 대장주 검색기</h1>
 <div>한국·미국 주식, 미래 대장주 조기 발굴 연구 시스템 · 로컬 개발판</div>
-<nav><a href="kr.html">한국</a><a href="us.html">미국</a></nav></header>
+<nav><a href="kr.html">한국</a><a href="us.html">미국</a>{" <a href='er_nc08_research.html'>뉴스·테마 연구</a>" if show_news_research else ""}</nav></header>
 <main><h2>{escape(snapshot["source_market"])} 시장 · 관찰 목록</h2>
 <div class="note">⚠️ <strong>검증 전 관찰 화면</strong><br>{warning}<br>
 재무·산업 데이터와 상장폐지/기업행동 PIT 검증 전이므로 '잠재/확정 대장주'를 표기하지 않습니다.</div>
@@ -58,10 +58,10 @@ def render_dashboard(snapshot: dict) -> str:
 <p><small>현재 가격 관찰 순위는 투자 추천이나 확정 대장주 순위가 아닙니다.</small></p>
 </main><footer>EraLeader local-first · {api_note} · 매매/자동 주문 기능 없음</footer></body></html>"""
 
-def write_dashboard(snapshot: dict, site_dir: Path) -> Path:
+def write_dashboard(snapshot: dict, site_dir: Path, *, show_news_research: bool = False) -> Path:
     site_dir.mkdir(parents=True,exist_ok=True)
     path=site_dir/("kr.html" if snapshot["source_market"]=="KR" else "us.html")
-    path.write_text(render_dashboard(snapshot),encoding="utf-8")
+    path.write_text(render_dashboard(snapshot,show_news_research=show_news_research),encoding="utf-8")
     index=site_dir/"index.html"
     index.write_text("<!doctype html><html lang='ko'><meta charset='utf-8'>"
                      "<title>EraLeader</title><meta name='viewport' content='width=device-width, initial-scale=1'>"
@@ -69,7 +69,9 @@ def write_dashboard(snapshot: dict, site_dir: Path) -> Path:
                      "<h1>EraLeader 로컬 화면</h1><p>"+
                      ("공식 API 가격 관찰, PIT 인증 전 연구용입니다." if snapshot.get("official_api_evidence")
                       else "API 연결 전 연구용 가격 관찰 화면입니다.")+"</p>"
-                     "<a href='kr.html'>한국 시장</a> | <a href='us.html'>미국 시장</a></body></html>",
+                     "<a href='kr.html'>한국 시장</a> | <a href='us.html'>미국 시장</a>"
+                     + (" | <a href='er_nc08_research.html'>뉴스·테마 연구</a>" if show_news_research else "")
+                     + "</body></html>",
                      encoding="utf-8")
     return path
 

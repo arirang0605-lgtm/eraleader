@@ -1579,3 +1579,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **실측 테스트**: 신규 모듈42/42, CLI E2E 4/4, 합계 **46 PASS EXIT0**; 기존 뉴스 adapter/rotation/theme lifecycle/watch rotation/market regime 영향 테스트 포함 **총 7모듈 156 PASS EXIT0**. 재현 명령 및 차단 상세는 docs/ER_NC_06_BIDIRECTIONAL_NEWS_MARKET.md. 전체 수천 개 pytest는 ER-NC-10 통합 수락 시 수행.
 - **운영**: 지역 기사/유료 뉴스 수집0, 외부 API/메시지/주문0, 원본 데이터 쓰기0, 연구용 JSON만 stdout. 독립 KRX/DART/SEC 출처 PIT 인증·수익률·미래 주도주 성과 N/A. 06 초기 테스트 23 FAIL은 누락된 issuer 매핑 게이트를 보여준 의도적 red 단계이며, 최종 관련 156개 전부 PASS.
 - **다음**: ER-NC-08 기존 대시보드/DRY-RUN outbox/일·주·월 보고에 뉴스·테마 sidecar opt-in 최소 연결. 다른 feature 브랜치의 ER-NC-07 저자원형 4전략은 원출처 검증 필요; 독립 별도 브랜치로 유지. 일반적인 API 제외 로컬 EraLeader 본체 진행률은 약99%라는 이전 개발 추정치 유지, 뉴스 확장 및 공식 실사용 인증률과 혼동 금지.
+
+## 2026-10-13 KST | ER-NC-08 로컬 뉴스·테마 화면 + 일/주/월 보고 + 중복 제거 DRY-RUN 미리보기
+
+- 기존 B00 양 독립장치 복구 PASS를 선행. 기존 기능(main `a244002`) 및 미커밋 수정 `native_first_capture.py` 6추가1삭제, ER-NC-06 원래 미추적 파일 unchanged. 새 worktree `/Volumes/T5DATA/eraleader-ernc08-delivery-20261013`, 분기 `feature/er-nc-08-local-delivery-20261013` (ER-NC-06 검증 코드 `afef097360c16b0c08e3037e62be2bff0cd24142` 기반).
+- 최소 opt-in 기존 `delivery.render_dashboard/write_dashboard` default False nav 지원. NEWS OFF 시 실제 이전 Git `bbe9be5`의 `kr.html/index.html` 출력과 **바이트 단위 동일**. 기존 서비스/SQLite/외부 API/실전발송·매매0.
+- 신규 `news_theme_delivery.py` 연구용 HTML/현 snapshot 기반 daily·weekly·monthly Markdown 3개, deterministic dedup DRY-RUN alerts 1개, source_sha와 available_at 미래 정보 차단·공식 leader 신호0·저자 NO_ORDER만 표시. 신규 `scripts/run_er_nc08_delivery.py` 기본 OFF, 명시 ON·별도 SHA PIN/허가된 새 출력 디렉터리에서만 생성. 기존 출처/news/PIT 코드 중복 개발0.
+- 집중 신규 `test_news_theme_delivery.py` 22 PASS + `test_er_nc08_cli.py` 6 PASS = **28 PASS(EXIT0)**. 기존 ER-NC-01/04/05/06, 기존 WATCH/보고·대시보드/시장국면 10개 모듈 합계 **204/204 PASS EXIT0**, test E2E 신규 페이지/보고/알림, source/SHA/시점 차단, XSS/HTML escaping, 새 디렉터리 idempotency/덮어쓰기 거부. 상세 명령: `docs/ER_NC_08_NEWS_THEME_LOCAL_DELIVERY.md`.
+- 주의: 3개 보고서는 현재 한 장의 snapshot을 발행 주기별로 표시하며 역사 1주/1월 데이터를 집계한 것이 아님. 실제 뉴스 공급자 본격 연동·정식 20거래일 재현·저자 원형 규칙 수치/전향적 미래 적중률/지속성 있는 live outbox N/A. 전체 수천 건 확장 통합 회귀는 ER-NC-10 때 1회.
+- NEXT ER-NC-09 기존 frozen_holdout/backtest 재사용 NEWS_OFF vs NEWS_ON/시장 국면 게이트/테마 reactivation 차이 별도 PIT 비교(사전 고정), ER-NC-10 실뉴스 원본/권리+통합 검증. 다른 `feature/er-nc-07-20261013` 독립 원형 출처 연구 모듈은 아직 실행 규칙 불완전, 무단 병합 금지. 기본 EraLeader API 제외 로컬 구현 추정 약99%와 신규 확장 실운영 인증률 혼동 금지.

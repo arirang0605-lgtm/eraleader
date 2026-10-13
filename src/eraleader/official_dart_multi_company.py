@@ -98,6 +98,57 @@ def source_eligible_universe(evidence_file: Path, private_root: Path, *,
          "current_issuer_class_pit_certified":False}
 
 
+
+def choose_price_watch_company_batch(snapshot: dict, official_evidence: dict,
+                                     eligible: dict, *, start_rank: int = 1,
+                                     limit: int = 12) -> tuple[str, ...]:
+    """Reuse the existing real KRX price WATCH order to automate bounded CFS batches.
+
+    This is an API collection queue, never investment priority. An unmatched
+    share class is skipped rather than mapped to a similarly named company.
+    """
+    if (type(start_rank) is not int or not 1 <= start_rank <= 3000 or
+            type(limit) is not int or not 1 <= limit <= MAX_COMPANIES):
+        raise ValueError("Bounded price watch capture page required")
+    current = snapshot.get("official_api_evidence")
+    if (type(current) is not dict or
+            current != official_evidence or
+            current.get("historic_universe_pit_verified") is not False or
+            current.get("official_leaders") != 0 or
+            snapshot.get("classification_quality") !=
+            "PRICE_ONLY_RESEARCH_NOT_PIT_CERTIFIED"):
+        raise ValueError("Price-watch input not backed by the same official receipt")
+    rows = snapshot.get("rows")
+    if type(rows) is not list or not rows:
+        raise ValueError("Actual price-watch observation is required")
+    from .discovery import run_id_for
+    if (run_id_for("KR",snapshot["as_of_requested"],rows)
+            != snapshot.get("run_id")):
+        raise ValueError("Price-watch row integrity mismatch")
+    ordered = sorted(rows, key=lambda x:x["rank"])
+    if (len({r["rank"] for r in ordered}) != len(ordered) or
+            len({r["security_id"] for r in ordered}) != len(ordered)):
+        raise ValueError("Duplicate source observation rank/security")
+    if [r["rank"] for r in ordered] != list(range(1,len(ordered)+1)):
+        raise ValueError("Incomplete price-watch ordering")
+    choices=[]
+    for row in ordered:
+        if row["rank"] < start_rank:
+            continue
+        code=row["security_id"]
+        if code not in eligible:
+            continue
+        if row["name"] != eligible[code]["name"] or (
+                row["venue"] != eligible[code]["venue"]):
+            raise ValueError("Price-watch security/issuer identity mismatch")
+        if CODE.fullmatch(code):
+            choices.append(code)
+        if len(choices) == limit:
+            break
+    if not choices:
+        raise ValueError("No eligible current DART company in requested price page")
+    return tuple(choices)
+
 def collect_multi_company_cfs(*, evidence_file: Path, private_root: Path,
                               codes: tuple[str,...], credentials: dict,
                               years: tuple[int,...]=(2024,2025),

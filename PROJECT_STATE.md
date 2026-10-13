@@ -1935,3 +1935,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **현재 목표/다음:** 실제 공식 데이터로 대장주 선정·상태 변경의 실사용 가능 범위 확대 → EraLeader 소유 송신 디렉터리에 버전별 결과 발행/갱신. 수신 프로젝트 결정 및 수신기 개발은 사용자 지시 전까지 보류. 외부 프로젝트 원본, 사용자 비밀키·가격 원시자료·원본 main 미커밋 7줄 보호.
 
 - **D-030 실제 결과·Git:** 송신만 유지하고 수신 대상 미지정으로 안내/운용 문구 최소 수정(7파일), 선정/JSON 구조 변경0. 변경 테스트 `tests/test_strategy_handoff.py` **14 PASS / 0 FAIL / EXIT0**, Python compile PASS, 외부 프로젝트 경로/이름 하드코딩 **0건**, Git 공개 보안검사 staged7 suspicious0/diffcheck PASS. 커밋 `ab5036a76890392666f14497a968762db3f81bad` → `origin/feature/core-official-factor-coverage-20261013` push 성공, local/remote-tracking SHA 일치·feature worktree clean. 원본 EraLeader main `a244002`와 `native_first_capture.py` 미커밋 6+/1- 보존. 이 최종 증거 문장은 후속 docs-only commit/push에 기록.
+
+## 2026-10-14 KST | CONTINUE | 1_2·3_4·3_5·4_1·6_2 | KR 전체시장 KRX+CFS+산업 부분종합 화면·송신
+- **시작**: 기존 분리 worktree feature/core-official-factor-coverage-20261013 HEAD e8b0cf1 clean 상태에서 직전 세션 미커밋 7경로를 보존한 채 CONTINUE. 원본 main의 DECISIONS/PROJECT_STATE/native_first_capture.py 미커밋 변경, MarketOS/CoreAStock, 기존 WATCH/실주문 코드는 변경하지 않음.
+- **실제 추가 코드**: 공식 최초 SHA KRX 양시장 단일 관측 2,765종목 전부를 DART 현재 기업 코드와 부분 CFS·산업정보에 결합. 기존 CFS collector에 서명된 가격-WATCH 배치 자동 선택(3+12+5종목), 기존 DART 업종 collector에 공식 KRX+DART 코드 입력 경로 추가. 상장주권 문자코드 포함 2,765 원형 보존. CFS 28개사·업종 프로필 28개사 검증, 나머지 결측은 N/A.
+- **부분요소 실제 계산**: 가격 강도25 + 매출/영업 성장25의 **연구용 최대 50점** 비교, 20사만 평가 가능. 비교 TOP20 JSON/HTML 출판. 대장주 100점·실전 투자 1~20위/국면 확정은 N/A, 공식 대장주 0. 최근 거래관측 2026-10-08/수신 2026-10-12~14/현재 생성시각 각각 구분; 과거 시점 소급 금지.
+- **전략 송신 E2E**: 기존 project-neutral strategy_handoff.py에 whole-KRX research snapshot 옵션 추가, 검증된 WATCH20 observation JSON 전송/동일원천 재전달 멱등, 선택 0, 주문 권한 0. 수신 프로젝트 연결 미실행(별도 결정/차후 P5). output/strategy_handoff_marketwide_28f28i_20261014.json.
+- **검증**: 9개 변경영향 pytest 모듈 129 PASS/failure0/error0/skipped0; 실물 KRX+DART PIN/reports 재결합 및 연구용 JSON/HTML·전략 송신 검증 PASS. 로그 output/verification_logs/marketwide_full_scoped_20261014.xml. 반복 전체 회귀·장기 미래성과 검증은 미실행.
+- **공개정보 안전**: 기존 원시/API 인증자료/개인 SQLite git 제외. feature 브랜치만 선택적 commit/push; 상세 docs/154_KR_MARKETWIDE_PARTIAL_FACTOR_SCREEN_20261014.md. **NEXT P1→P2**: 업종 실질 성장/경쟁력/기관 외국인 수급 및 날짜 일치 추가 수집, 5요소 정식 TOP20+상태 판정 및 범용 송신 완료. 기존 역사 엄격 인수 38%는 현재 실사용 진행률 아님.

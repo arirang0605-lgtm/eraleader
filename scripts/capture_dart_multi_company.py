@@ -15,7 +15,10 @@ import sys
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from eraleader.official_api_capture import KEYS, credentials
-from eraleader.official_dart_multi_company import collect_multi_company_cfs
+from eraleader.official_dart_multi_company import (
+    collect_multi_company_cfs, choose_price_watch_company_batch, source_eligible_universe
+)
+from datetime import datetime, timezone
 
 
 def main(argv=None) -> int:
@@ -23,8 +26,12 @@ def main(argv=None) -> int:
     p.add_argument("--official-evidence",type=Path,required=True)
     p.add_argument("--capture-root",type=Path,
                    default=ROOT/"output"/"official_api_capture")
-    p.add_argument("--code",action="append",required=True,
+    p.add_argument("--code",action="append",
                    help="One present, first-received KRX+DART six-digit code; max 12")
+    p.add_argument("--auto-price-watch",type=Path,
+                   help="Existing signed KRX price WATCH snapshot, for automatic bounded CFS queue")
+    p.add_argument("--auto-start-rank",type=int,default=1)
+    p.add_argument("--auto-limit",type=int,default=12)
     p.add_argument("--year",type=int,action="append",default=[])
     p.add_argument("--out",type=Path,required=True,
                    help="NEW local research manifest, in git-ignored output/")
@@ -45,10 +52,25 @@ def main(argv=None) -> int:
                 a.out.suffix!=".json"):
             raise ValueError("Output manifest must be new absolute private JSON path")
         years=tuple(a.year) if a.year else (2024,2025)
+        if (a.code is None) == (a.auto_price_watch is None):
+            raise ValueError("Use explicit codes OR verified price-watch auto queue")
+        if a.auto_price_watch is not None:
+            if not a.auto_price_watch.is_absolute() or a.auto_price_watch.is_symlink():
+                raise ValueError("Price source path must be absolute regular source")
+            snapshot=json.loads(a.auto_price_watch.read_bytes())
+            evidence=json.loads(a.official_evidence.read_bytes())
+            market,_,_=source_eligible_universe(
+                a.official_evidence,a.capture_root,
+                decision=datetime.now(timezone.utc))
+            codes=choose_price_watch_company_batch(
+                snapshot,evidence,market,start_rank=a.auto_start_rank,
+                limit=a.auto_limit)
+        else:
+            codes=tuple(a.code)
         result=collect_multi_company_cfs(
             evidence_file=a.official_evidence,
             private_root=a.capture_root,
-            codes=tuple(a.code),years=years,
+            codes=codes,years=years,
             credentials={} if a.only_existing else credentials(user_creds),
             existing_only=a.only_existing,delay_seconds=a.delay)
         fd=os.open(a.out,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)

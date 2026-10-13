@@ -18,7 +18,7 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/"src"))
 from eraleader.strategy_handoff import (
     publish_handoff, research_cohort_handoff, state_history_handoff,
-    verify_handoff,
+    marketwide_research_handoff, verify_handoff,
 )
 
 
@@ -27,6 +27,8 @@ def main(argv=None) -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--research-cohort",type=Path,
                        help="Existing signed KR candidates+industry research folder")
+    group.add_argument("--marketwide-report",type=Path,
+                       help="Observed complete KRX price WATCH20 with available partial DART")
     group.add_argument("--state-ledger",type=Path,
                        help="Existing local Stage4 state_history.sqlite, read-only")
     parser.add_argument("--market",choices=["KR","US"],default="KR")
@@ -42,7 +44,12 @@ def main(argv=None) -> int:
         if as_of == "today":
             zone = ZoneInfo("Asia/Seoul" if args.market == "KR" else "America/New_York")
             as_of = datetime.now(zone).date().isoformat()
-        if args.research_cohort:
+        if args.marketwide_report:
+            if args.identity_ledger is not None or args.market != "KR" or len(as_of) != 10:
+                raise ValueError("MARKETWIDE_KR_RESEARCH_ONLY")
+            report = marketwide_research_handoff(args.marketwide_report,
+                                                 request_day=as_of)
+        elif args.research_cohort:
             if args.identity_ledger is not None:
                 raise ValueError("RESEARCH_COHORT_IDENTITY_LEDGER_NOT_APPLICABLE")
             if args.market != "KR" or len(as_of) != 10:

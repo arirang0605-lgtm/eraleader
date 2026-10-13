@@ -35,6 +35,7 @@ TRANSITIONS = {"POTENTIAL": "ADD_CANDIDATE",
                "EXITED": "EXITED_UNIVERSE",
                "WATCH": "WATCH_ONLY"}
 KR_CODE = re.compile(r"[0-9]{6}\Z")
+KRX_OBSERVED_CODE = re.compile(r"[A-Z0-9]{6}\Z")
 US_CODE = re.compile(r"[A-Z][A-Z0-9.\-]{0,14}\Z")
 INTERNAL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9:_.\-]{0,63}\Z")
 
@@ -161,6 +162,81 @@ def research_cohort_handoff(cohort: Path, *, request_day: str,
         "status": "WATCHLIST_ONLY_NO_VERIFIED_LEADER_SELECTION",
     }, now)
 
+
+
+def marketwide_research_handoff(path: Path, *, request_day: str,
+                                clock: datetime | None = None) -> dict:
+    """Forward current full-KRX price WATCH20; never promote incomplete factors."""
+    from .official_marketwide_coverage import SCHEMA as COVERAGE
+    now = _now(clock)
+    if (not path.is_absolute() or path.is_symlink() or not path.is_file() or
+            any(p.is_symlink() for p in path.parents) or
+            path.stat().st_uid != os.geteuid() or
+            path.stat().st_size > 5_000_000):
+        raise ValueError("HANDOFF_MARKETWIDE_FILE_UNSAFE")
+    def no_duplicate(pairs):
+        output = {}
+        for key,value in pairs:
+            if key in output:
+                raise ValueError("HANDOFF_MARKETWIDE_DUPLICATE_FIELD")
+            output[key] = value
+        return output
+    report = json.loads(path.read_bytes(),object_pairs_hook=no_duplicate,
+                        parse_constant=lambda _: (_ for _ in ()).throw(
+                            ValueError("HANDOFF_MARKETWIDE_NONFINITE")))
+    fingerprint = report.get("content_sha256")
+    original = dict(report)
+    original.pop("content_sha256",None)
+    if (report.get("schema") != COVERAGE or
+            fingerprint != sha256(canonical(original)).hexdigest() or
+            report.get("research_only") is not True or
+            report.get("full_market_composite_rank_available") is not False or
+            report.get("official_leaders") != 0 or
+            type(report.get("securities")) is not list or
+            len(report["securities"]) != report.get("official_krx_observed")):
+        raise ValueError("HANDOFF_MARKETWIDE_SOURCE_INVALID")
+    if (len(request_day) != 10 or
+            date.fromisoformat(request_day) > now.astimezone(
+                MARKET_ZONES["KR"]).date() or
+            _at(report["source_decision_at_utc"],"KR") > now or
+            _at(report["built_at_utc"],"KR") > now or
+            date.fromisoformat(report["market_session"]) >
+                date.fromisoformat(request_day)):
+        raise ValueError("HANDOFF_MARKETWIDE_FUTURE_DATA")
+    watch = []
+    for item in report["securities"]:
+        rank = item["price_top20_watch_rank"]
+        if rank is None:
+            continue
+        code = item["security_id"]
+        if (type(code) is not str or KRX_OBSERVED_CODE.fullmatch(code) is None):
+            raise ValueError("HANDOFF_MARKETWIDE_KRX_CODE_INVALID")
+        if (type(rank) is not int or not 1<=rank<=20 or
+                item.get("verified_leader_state") is not None or
+                item.get("formal_leader_score_100") is not None):
+            raise ValueError("HANDOFF_MARKETWIDE_FALSE_LEADER")
+        watch.append({
+            "market":"KR","security_id":code,"name":item["name"],
+            "selection_state":"WATCH",
+            "category":"RESEARCH_OBSERVATION_NOT_LEADER_SELECTION",
+            "research_order":rank,"score_100":None,
+            "source_market_session":report["market_session"],
+            "first_known_at_utc":report["source_decision_at_utc"],
+            "evidence":{"marketwide_coverage_sha256":fingerprint},
+        })
+    watch.sort(key=lambda x:x["research_order"])
+    if [x["research_order"] for x in watch] != list(range(1,len(watch)+1)):
+        raise ValueError("HANDOFF_MARKETWIDE_NONCONTIGUOUS_PRICE_ORDER")
+    return _finalize({
+        "market":"KR","source_kind":"MARKETWIDE_KRX_DART_COVERAGE_RESEARCH",
+        "as_of":request_day,"source_observed_as_of":report["market_session"],
+        "source_decision_at_utc":report["source_decision_at_utc"],
+        "source_sha256":fingerprint,
+        "data_stale":report["market_session"] != request_day,
+        "selected_candidates":[],"research_watchlist":watch,"state_changes":[],
+        "selection_count":0,"watchlist_count":len(watch),
+        "status":"WATCHLIST_ONLY_NO_VERIFIED_LEADER_SELECTION",
+    },now)
 
 def state_history_handoff(ledger: Path, *, market: str, as_of: str,
                           clock: datetime | None = None,
@@ -349,7 +425,13 @@ def verify_handoff(path: Path, *, expected_market: str | None = None) -> dict:
                 row.get("strategy_research_allowed") is not (ticker is not None)):
             raise ValueError("HANDOFF_SELECTED_ROW_INVALID")
     for row in payload["research_watchlist"]:
-        _symbol(row["security_id"],payload["market"])
+        if (payload["market"] == "KR" and payload.get("source_kind") ==
+                "MARKETWIDE_KRX_DART_COVERAGE_RESEARCH"):
+            if (type(row.get("security_id")) is not str or
+                    KRX_OBSERVED_CODE.fullmatch(row["security_id"]) is None):
+                raise ValueError("HANDOFF_WATCH_CODE_INVALID")
+        else:
+            _symbol(row["security_id"],payload["market"])
         if row.get("selection_state") != "WATCH" or row.get("score_100") is not None:
             raise ValueError("HANDOFF_WATCH_MISLABEL")
     return payload

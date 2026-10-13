@@ -1927,3 +1927,9 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **다음**: 공식 매일 실제 종합 대장주 선정 기능 구현 후 실물 선정 후보를 전달, 후속 CoreAStock의 기존 Candidate(code)/자체 상태·리스크에 수신기를 연결하는 별도 통합 E2E, 이후 새 날짜 파일 자동 갱신. 정상 작동 우선·변경 범위 테스트만. 기존 main a244002 / 미커밋 native_first_capture.py 6+/1- 및 다른 프로젝트 원본 보존. 신규 Git 코드 커밋 SHA/push 결과는 최종 checkpoint 확인.
 
 - **2026-10-14 GitHub 최종 기능배포 확인**: 선정종목 전달 기능 8경로(코드 src/eraleader/{strategy_handoff.py,cli.py}, scripts/export_strategy_handoff.py, tests/test_strategy_handoff.py, docs/153_STRATEGY_SELECTION_HANDOFF.md, DECISIONS.md, START_HERE_NEXT_CHAT.md, PROJECT_STATE.md)를 공개 보안 검사 scanned=8 suspicious=0, staged diffcheck PASS 및 변경 영향 48/48 PASS 후 commit `a694565643b44be64eca291d1bbe2ea7d1233b7e`으로 feature/core-official-factor-coverage-20261013 브랜치에 GitHub push 성공. `git ls-remote` 원격 SHA == local HEAD 위 값, feature 작업트리 clean, 원본 main a244002 및 native_first_capture.py 미커밋 6+/1- 그대로 보존. 이 원격 확인 문구 자체는 다음 docs-only checkpoint로 기록하며 원본 main push·병합하지 않음.
+
+## 2026-10-14 KST | D-030 | EraLeader 후속 전략 연결 정책 정정 — 범용 송신만 유지
+
+- **최신 사용자 명시 결정:** CoreAStock과의 연결을 전제로 하지 않는다. 대상은 여러 프로젝트 중 추후 선택하며, 현재는 EraLeader의 **공통 JSON 결과 생성·발행**만 개발. 외부 전략 프로젝트에 수신 어댑터·연동 코드·전송 배치 및 주문 경로 개발하지 않는다.
+- 기존 `strategy_handoff.py` / `scripts/export_strategy_handoff.py` / `offline-integrated --strategy-handoff-out`의 **프로젝트 중립 JSON 파일 내보내기 기능은 이미 구현·검증됨**. 특정 프로젝트명/경로 하드코딩 없음, 송신 산출물만 보존. 본 세션은 CLI 설명·모듈 주석과 D-030/AGENTS/START/docs153 우선 정책을 최소 수정하며 선정·파일 SHA/원장 정상 코드 재작성 없음.
+- **현재 목표/다음:** 실제 공식 데이터로 대장주 선정·상태 변경의 실사용 가능 범위 확대 → EraLeader 소유 송신 디렉터리에 버전별 결과 발행/갱신. 수신 프로젝트 결정 및 수신기 개발은 사용자 지시 전까지 보류. 외부 프로젝트 원본, 사용자 비밀키·가격 원시자료·원본 main 미커밋 7줄 보호.

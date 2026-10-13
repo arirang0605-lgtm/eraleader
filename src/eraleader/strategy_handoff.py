@@ -3,8 +3,9 @@
 EraLeader owns discovery and selection *information*, not execution. A receiver
 may use the watchlist for research or selected states for its independent
 strategy; neither grants permission to place orders. Only existing local
-registries or signed research snapshots are read. No cross-project writes by
-default; an operator supplies the downstream inbox file path explicitly.
+registries or signed research snapshots are read. No recipient is selected
+or coupled; an operator chooses a JSON publication file, normally within
+EraLeader output. Receiver-side integration will be decided later.
 """
 from __future__ import annotations
 
@@ -355,7 +356,7 @@ def verify_handoff(path: Path, *, expected_market: str | None = None) -> dict:
 
 
 def publish_handoff(report: dict, output: Path) -> dict:
-    """Publish immutable JSON in caller-selected destination (can be strategy inbox)."""
+    """Publish immutable receiver-neutral JSON at an explicit output location."""
     if (not output.is_absolute() or output.is_symlink() or
             not output.parent.is_dir() or output.parent.is_symlink() or
             any(p.is_symlink() for p in output.parents) or

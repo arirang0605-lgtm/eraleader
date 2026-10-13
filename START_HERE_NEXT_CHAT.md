@@ -903,3 +903,7 @@
 ## 2026-10-14 최신 개발 — D-029 선정 종목을 후속 매매전략에 전달
 
 사용자 확정: EraLeader는 실제 주문은 하지 않지만 **선정된 대장주를 매매전략 후속 프로젝트에 전달해야 한다**. `src/eraleader/strategy_handoff.py`, `scripts/export_strategy_handoff.py`, `src/eraleader/cli.py`의 `offline-integrated --strategy-handoff-out` opt-in 및 `tests/test_strategy_handoff.py`를 분리 feature 브랜치에서 구현. 관찰 WATCH와 전략 선정 POTENTIAL/CONFIRMED 분리, 약화·제외 이벤트 제공. 현재 실물 KRX/DART 10사는 WATCH 10·정식선정 0; 모의 PIT fixture로 진짜 선정상태 출력 경로 확인. 세부 증거·최신 SHA: docs/153_STRATEGY_SELECTION_HANDOFF.md 및 PROJECT_STATE.md 맨 아래. 다른 프로젝트 원본 코드, main 미커밋 7줄 보존.
+
+## 2026-10-14 최신 사용자 확정 — 수신 프로젝트 미지정 (D-030)
+
+EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발한다. 후속 수신 프로젝트는 CoreAStock/MarketOS 등으로 미리 정하지 않으며 연결은 **사용자가 추후 별도 결정**한다. 외부 프로젝트의 수신기·전략 연동·직접 전송 작업 금지. 기존 `strategy_handoff.py`와 JSON 발행기·대장주 상태이력을 재사용하고, 다음 작업은 EraLeader 자체 선정·발행/자동 갱신 기능으로 이어간다. 관련 최종 정책 DECISIONS.md D-030, docs/153_STRATEGY_SELECTION_HANDOFF.md.

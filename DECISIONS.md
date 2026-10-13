@@ -148,3 +148,11 @@
 - EraLeader 발굴·선정 상태/점수·근거/기준일을 1방향 JSON으로 내보내고, 후속 전략 프로젝트는 읽기 전용으로 받아 자체 종목 필터·매수/매도 전략·리스크/주문 판단을 한다. 어느 방향으로도 EraLeader에 직접 주문 권한을 주지 않는다.
 - 연구 WATCH(실제 공식 KRX/DART 원본이어도 정식 선정 전)는 전략 **selected_candidates와 분리**하여 observation만 제공. 기존 4단계 PIT StateHistory의 POTENTIAL/CONFIRMED는 선정 후보로, WEAKENING/PAUSED/EXITED는 상태 변화·후보 제외로 전송. 영구 종목ID/시장별 ticker/원래 시점/입력 SHA를 제공하고 ticker 미해결 종목의 전략 연구 사용을 막는다.
 - 기존 StateHistory/Prospective 원본 재작성 없이 `strategy_handoff.py`·`scripts/export_strategy_handoff.py`·`offline-integrated --strategy-handoff-out`로 구현. 외부 CoreAStock/MarketOS는 이번 단계에서 READ-ONLY, 인입 어댑터 실제 설치·자동 반복 스케줄은 다음 단계. 상세: `docs/153_STRATEGY_SELECTION_HANDOFF.md`.
+
+## D-030 — 2026-10-14 | 선정 종목 전달부만 개발, 수신 프로젝트·연결 방법은 추후 지정 (최신 확정)
+
+- **사용자 명시 결정:** "CoreAStock 프로젝트와 꼭 연결된다는 보장이 없고 다른 여러 프로젝트 중 하나에 연결될 수 있어. 보내는 부분만 개발하고 연결은 어느 프로젝트와 될지는 추후에 결정하자."
+- EraLeader **책임 범위**: 한국/미국 대장주 선별 결과, POTENTIAL·CONFIRMED 및 약화/제외 정보, 식별자·점수·선정 근거·시점·출처/품질을 **프로젝트 중립 JSON 송신 산출물로 생성·발행·이력 보존**한다. 발행 위치는 기본적으로 EraLeader 자체 output이며 특정 프로젝트 이름/경로/SDK/API/계좌에 종속시키지 않는다. 단일 수신 프로젝트도 사전에 확정하지 않는다.
+- **현 단계 개발 제외**: CoreAStock·MarketOS·ChampionStrategyLab 등 어느 외부 프로젝트에도 수신 어댑터/폴더 직접 쓰기/실시간 push·스케줄 연동·전략 투입 E2E를 만들지 않는다. 다른 프로젝트 코드는 읽기 전용 참고조차 연결 확정으로 취급하지 않는다.
+- **후속 결정 후만 수행**: 사용자가 수신 대상과 데이터 전달 방식(파일·로컬 API·메시지 등)을 지정하면 해당 프로젝트에서 읽기·검증/종목 매핑·후속 전략 연결을 별도 개발한다. 여러 대상 지원 가능성을 열어 두되 지금은 일반 송신 규격만 유지한다.
+- 이 결정은 D-029의 "CoreAStock 등 수신기 연결을 다음 개발로 진행" 문구보다 **우선**하며, D-027 기능 우선·D-028 EraLeader 주문 기능 없음은 그대로 유지한다. 현행 구현 `strategy_handoff.py`는 이미 프로젝트 중립적인 JSON 파일을 발행할 수 있으므로 정상 로직 재작성 없이 문구·일반 송신 규칙만 정리한다.

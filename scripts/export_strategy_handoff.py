@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export EraLeader candidate universe into a strategy project's JSON inbox.
+"""Publish EraLeader candidate universe to a receiver-neutral JSON outbox.
 
 Two source modes:
   --research-cohort : preliminary WATCH research, *never* qualified leaders.
@@ -35,7 +35,7 @@ def main(argv=None) -> int:
     parser.add_argument("--as-of",default="today",
                         help="Requested date or timezone-aware decision timestamp")
     parser.add_argument("--out",required=True,type=Path,
-                        help="New JSON file under an EraLeader or downstream strategy inbox")
+                        help="New EraLeader-owned JSON publication file; recipient integration is deferred")
     args = parser.parse_args(argv)
     try:
         as_of = args.as_of

@@ -834,3 +834,11 @@
 
 ## 2026-10-12 최신 전체 pytest 확정
 - 20파일 공식 KRX+DART 전체/법인코드/재무·SEC PIT 연구/실패시 원자 게시의 전체 `PYTHONPATH=src python3 -m pytest tests -q --tb=short` **2,450 PASS, 프로세스 EXIT=0, 마지막 100%**, 로그 `output/verification_logs/official_preoperations_full_20261012.txt`; 해당 전체 회귀는 실제 미래 선행 적중률/PIT 공식인증/20거래일 모의운용을 대체하지 못함. GitHub 최종 main/로컬 SHA 확인 후 CONTINUE; 네이티브 capture 미커밋 7줄 보존.
+
+## 2026-10-13 2_2·3_1·6_2 최신 개발 worktree — 원본 유지, 실제 Factor Coverage 신규
+
+- **별도 개발 workspace:** `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013` · `feature/core-official-factor-coverage-20261013`, 부모 `main/a244002`. 먼저 `PROJECT_STATE.md` 마지막 기록 및 `docs/135_OFFICIAL_FACTOR_COVERAGE_AND_CFS_SIDECAR.md`를 읽고 CONTINUE.
+- 변경 핵심: 공식 DART CFS 두 연도 현재기업 연구실적을 **가격 TOP20 밖**에서도 `official_financial_research_observations`와 새 `site/factor_readiness_kr.html`로 노출, 5요소 자료 충족도/결측을 보여준다. 투자 1~20위와 100점 모델 결선은 아직 미완료(정식 순위 **N/A**). 공식 KRX 실제2,765/현재 DART2,651/연속 CFS1(005930 FY 매출 YoY +10.88%, 가격 TOP20 제외) 실제 raw SHA 재검증. 새 8766 UI 로컬 PASS.
+- 자동회귀 관련 9모듈 129/129 PASS(EXIT0), 실제 공식 첫 receipt read-only E2E 2회 PASS. 추후 KRX-DART 공시 최초 공개·3개 연속 사업연도 성장가속/기관 수급·산업 데이터+법적 클래스 PIT 검증부터 이어서 구현.
+- 원본 main `src/eraleader/native_first_capture.py` 미커밋 6+1 유지 SHA `6d3139f0...`. 이번 확인에서 이전 `/Volumes/T5DATA/EraLeader_통합관리` 폴더 **부재** 및 이전 5개 worktree `prunable`; 지우거나 `git worktree prune`하지 말 것. B00 암호화 백업·이전 다른 기능 브랜치 소스는 별도 보호.
+- 완성 추정 95/99%는 전체 실사용 완료율로 **철회**. 기능별 독립 인증 결과로 개발 상태를 표현한다. 이후 GitHub branch SHA는 `PROJECT_STATE.md` 및 git log/latest origin에서 확인.

@@ -170,6 +170,10 @@ def test_watch_sqlite_dashboard_reports_and_dry_run_no_live_notification(packs,c
     assert (out/"site"/"official_api.html").is_file()
     assert (out/"site"/"kr.html").is_file()
     assert "공식 API" in (out/"site"/"index.html").read_text()
+    assert "factor_readiness_kr.html" in (out/"site"/"index.html").read_text()
+    assert "factor_readiness_kr.html" in (out/"site"/"kr.html").read_text()
+    assert (out/"site"/"factor_readiness_kr.html").is_file()
+    assert (out/"factor_readiness_kr.json").is_file()
     assert len(list((out/"reports").glob("*.md"))) == 3
     alert_rows=json.loads((out/"alerts_preview.json").read_text())
     assert len(alert_rows) == 2
@@ -265,3 +269,73 @@ def test_conservative_actual_dart_annual_research_join_never_promotes(
     assert "DART 매출 YoY" in (out/"site"/"kr.html").read_text()
     assert "20.0%" in (out/"site"/"kr.html").read_text()
     assert res["official_leaders"]==0
+
+
+def test_actual_two_year_cfs_outside_price_topn_gets_independent_research_page(
+        packs, cached, monkeypatch, tmp_path):
+    """A financially observed company is never erased merely by price TOP-N."""
+    from eraleader import official_dart_corp_directory as directory_mod
+    from eraleader import official_dart_financials as fin_mod
+    from eraleader.official_factor_readiness import factor_coverage_from_official_snapshot
+
+    original_history = bridge.read_market_bars
+
+    def differing_history(*args, **kwargs):
+        prices, quality = original_history(*args, **kwargs)
+        prices.loc[prices["security_id"] == "A23456", ["open", "high", "low", "close"]] = (
+            4200, 4300, 3900, 4100
+        )
+        return prices, quality
+
+    monkeypatch.setattr(bridge, "read_market_bars", differing_history)
+    monkeypatch.setattr(directory_mod, "verify_dart_corp_directory",
+        lambda *_a, **_k: {
+            "mapping": {"005930": "00126380"}, "ambiguous_stock_codes": set(),
+            "total_corporations": 100,
+            "listed_security_code_count": 1,
+            "first_local_received_at_utc": "2026-10-12T11:00:00+00:00",
+            "first_receipt_sha256": "f"*64,
+        })
+
+    def verified(_folder, pin, **_kwargs):
+        year = 2024 if pin == "a"*64 else 2025
+        return {
+            "stock_code": "005930", "corp_code": "00126380",
+            "report_code": "11011", "statement": "CFS", "year": year,
+            "first_local_received_at_utc": "2026-10-12T11:00:00+00:00",
+            "metrics": {
+                "revenue": {"value": 100 if year == 2024 else 120},
+                "operating_income": {"value": 15 if year == 2024 else 20},
+                "net_income": {"value": 9 if year == 2024 else 10},
+            },
+        }
+
+    monkeypatch.setattr(fin_mod, "verify_dart_financial", verified)
+    snap = bridge.build_official_price_snapshot(
+        kospi=packs[0], kosdaq=packs[1],
+        decision_at=DECISION, as_of="2026-10-12", top=1,
+        dart_directory=(tmp_path/"directory_receipt", "f"*64),
+        dart_financial_receipts=(
+            (tmp_path/"fy2024", "a"*64),
+            (tmp_path/"fy2025", "b"*64),
+        ),
+    )
+    assert snap["shown"] == 1 and snap["rows"][0]["security_id"] == "A23456"
+    financial = snap["official_financial_research_observations"]
+    assert len(financial) == 1 and financial[0]["security_id"] == "005930"
+    assert financial[0]["rank_in_price_top20"] is None
+    assert financial[0]["research_metrics"]["revenue_yoy"] == pytest.approx(.2)
+    result = factor_coverage_from_official_snapshot(snap)
+    assert result["annual_cfs_comparable_companies"] == 1
+    assert result["annual_cfs_in_price_top20"] == 0
+    assert result["valid_full_leader_scores"] == result["official_leaders"] == 0
+    out = tmp_path / "actual_research_data_flow"
+    finished = bridge.run_official_research(snap, out)
+    page = (out/"site"/"factor_readiness_kr.html").read_text()
+    assert "005930" in page and "+20.00%" in page
+    assert "투자 우선순위는 산출하지 않습니다" in page
+    assert "factor_readiness_kr.html" in (out/"site"/"index.html").read_text()
+    assert "20위 밖 실적 관찰 기업 보기" in (out/"site"/"kr.html").read_text()
+    assert finished["financial_comparables_not_in_price_top"] == 1
+    assert len(json.loads((out/"kr_latest.json").read_text())["rows"]) == 1
+    assert finished["official_leaders"] == finished["messages_sent"] == 0

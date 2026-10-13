@@ -298,6 +298,39 @@ def build_official_price_snapshot(*, kospi: tuple[Path, str],
                 else "current-directory"
             ) if row["observed_dart_corp_code"] else None
     snap["run_id"] = run_id_for("KR", as_of, snap["rows"])
+    # Preserve independently receipt-verified financial research for ALL
+    # observed KRX issues, not merely the top-20 price momentum screen.
+    # This separate list does not change original ranks, score or WATCH.
+    if dart_financial_receipts:
+        names = {r.security_id: (r.name, r.venue)
+                 for r in current.itertuples(index=False)}
+        financial_observations = []
+        for ticker, growth in sorted(dart_financial_stats.items()):
+            related = [entry for entry in dart_financial_receipts_info
+                       if entry["stock_code"] == ticker]
+            if len(related) != 2:
+                raise ValueError("Financial growth evidence requires two annual original receipts")
+            financial_observations.append({
+                "security_id": ticker, "name": names[ticker][0],
+                "venue": names[ticker][1],
+                "reported_financial_year": growth["year"],
+                "research_metrics": growth["research_metrics"],
+                "source_first_received_at_utc": max(
+                    entry["first_local_received_at_utc"] for entry in related),
+                "evidence_sha256": sha256(_canonical(
+                    {"pin_receipts": sorted(entry["first_receipt_sha256"]
+                                             for entry in related),
+                     "stock_code": ticker,
+                     "report_year": growth["year"]})).hexdigest(),
+                "historic_issuer_class_pit_certified": False,
+                "formal_score_100": None, "official_leader": False,
+                "rank_in_price_top20": next(
+                    (row["rank"] for row in snap["rows"]
+                     if row["security_id"] == ticker), None),
+            })
+        if len(financial_observations) != len(dart_financial_stats):
+            raise ValueError("Financial observational coverage count mismatch")
+        snap["official_financial_research_observations"] = financial_observations
     snap["official_api_evidence"] = {
         "schema": SCHEMA, "decision_at": decision.isoformat(),
         "api_observation_day": session.isoformat(),
@@ -345,6 +378,20 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
                for p in ("daily", "weekly", "monthly")]
     alerts = execute_alerts(Namespace(out=out))
     write_json(out / "official_api_pit_research.json", ev)
+    from .official_factor_readiness import (
+        factor_coverage_from_official_snapshot, write_factor_readiness,
+    )
+    readiness = factor_coverage_from_official_snapshot(snapshot)
+    factor_page, factor_json = write_factor_readiness(readiness, out / "site")
+    # A price-WATCH user must be able to reach the separate evidence screen
+    # directly, without treating price rank 1..20 as buy priority.
+    price_page = out / "site" / "kr.html"
+    price_html = price_page.read_text(encoding="utf-8")
+    if price_html.count("</main>") != 1:
+        raise ValueError("Cannot attach factor evidence link to malformed WATCH page")
+    price_page.write_text(price_html.replace(
+        "</main>", "<p><a href='factor_readiness_kr.html'>실제 데이터 확보 현황·"
+        "20위 밖 실적 관찰 기업 보기</a></p></main>"), encoding="utf-8")
     if joined is not None:
         write_json(out / "official_pit_integrated_research.json", joined)
         write_integrated_dashboard(joined, out / "site")
@@ -385,7 +432,8 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
     index = out / "site" / "index.html"
     pit_link = (" <a href='research_kr.html'>PIT 원장·가격 시점결합 연구</a>" if joined is not None else "")
     index.write_text(index.read_text(encoding="utf-8").replace(
-        "</body>", "<p><a href='official_api.html'>공식 API 최초 수신·PIT 제한</a>"+pit_link+"</p></body>"),
+        "</body>", "<p><a href='official_api.html'>공식 API 최초 수신·PIT 제한</a>"+pit_link+
+        " | <a href='factor_readiness_kr.html'>5요소 실제 자료 충족도·실적 관찰</a></p></body>"),
         encoding="utf-8")
     return {"status": "OFFICIAL_API_TO_RESEARCH_WATCH_AND_REPORTS",
             "krx_rows": sum(s["row_count"] for s in c if s["source"].startswith("krx")),
@@ -405,4 +453,9 @@ def run_official_research(snapshot: dict, out: Path, *, pit_ledger: Path | None 
                 if ev.get("dart_current_directory") else 0),
             "pit_company_count": joined["company_count"] if joined is not None else 0,
             "evidence_json": str(out / "official_api_pit_research.json"),
+            "factor_coverage_html": str(factor_page),
+            "factor_coverage_json": str(factor_json),
+            "financial_comparables_not_in_price_top": (
+                readiness["annual_cfs_comparable_companies"] -
+                readiness["annual_cfs_in_price_top20"]),
             "api_first_observation": ev["decision_at"]}

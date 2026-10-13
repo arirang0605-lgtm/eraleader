@@ -1839,3 +1839,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 실제 수신 시각이 배치 시작시각보다 늦어 정상 자료가 미래정보로 차단되는 것을 발견→**전체 응답 수신 이후 batch decision_at 결정**으로 수정. 개별 보고는 후행 정보였으므로 과거 공인 PIT나 대장주 승격 불가. 하나라도 공급자/검증 실패 시 게시0, 날짜 중복 사전 차단. 내부 키/원시 HTTP 응답 Git 제외.
 - 변경 영향 7개 테스트 모듈 `88/88 PASS` (JUnit failures0/errors0/skipped0; EXIT0), output ignored `output/verification_logs/kiwoom_daily_batch_20261013.{xml,log}`. 독립 테스트는 API 모의 서버를 필수로 요구하지 않음; 실제 모의 수신·UI HTTP은 별도로 수행. 전체 회귀 미실행. 실계좌/주문 미사용. 스케줄 자동 설치 안 함.
 - 계속: 실제 KRX/DART/SEC 법인·주권/기업행동·상폐공시 PIT와 5_5 전향 검증, 필요 시 선정종목 일별 배치 스케줄을 보수적으로 opt-in. 사용자 데이터/원래 WATCH/PIT 원장은 변경 없이 독립 research sidecar로 운영.
+
+## 2026-10-13 KST | 2_5·4_2·5_5·6_2·6_5 | 키움 모의 수급 당일 신선도·중복 실행·SHA 링크 복구 게이트
+
+- 기존 feature branch 시작 `64bbc97ce80dd9de06b67cef0e60028eab160f54`, 원본 main `a244002`와 원래 미커밋 `src/eraleader/native_first_capture.py` 7줄 **수정/스테이징 제외**. 공통 `SharedBrokerAPI`·주문/실계좌·MarketOS·원본 KRX/DART/미래 WATCH 원장 변경0.
+- 추가 `src/eraleader/kiwoom_daily_runner.py`, `scripts/run_shared_kiwoom_daily.py`, `tests/test_kiwoom_daily_runner.py`, `docs/142_KIWOOM_DEMO_SCHEDULE_RECOVERY_GATE.md`. 기존 동일 날짜 배치/회사별 sidecar **재작성0**. 원본 후보+산업 SHA 및 판단 가능 UTC, KST 오늘/평일/18시 이후여야 조회 허용; 기본은 네트워크0 점검. `--apply`만 SharedBrokerAPI 소켓 접근; 연구 모의 전용·주문/점수 변경 불가.
+- 안전한 1시간 반복 실행 준비: 파일 잠금으로 동시 실행 거부, 이미 게시된 SHA 검증 후 API0 중복 건너뛰기, 기존 정상 원장+개인 JSON·HTML을 검증한 뒤 메인 링크만 빠진 장애 복구, 원본 변조/무결성·미확정 scratch 시 보존 후 fail-closed. 다른 날짜/사용자 파일 삭제·자동 복구키/SSD 물리 분리0.
+- 실제 Mac 명시 `--apply` 시험에서 현재 공식 baseline은 **2026-10-08**(현재 10-13과 불일치): `SKIPPED_STALE_OR_FUTURE_BASELINE` / `network_calls=0` / `orders_enabled=false`, 원본 비변경. 모델 입력의 과거 소급 금지. `--generate-plist` 새 파일 생성·Owner-only mode **0700**(T5DATA 마운트 표현), 3600s, `launchd_loaded=false`, 자동잡 **설치·활성화 안 함**. 실전 키/토큰·로컬 주문/메시지0.
+- 8개 변경 영향 테스트 모듈 **105 PASS / F0 E0 SKIP0 / EXIT0**, evidence `output/verification_logs/kiwoom_schedule_scoped_20261013.{log,xml}`, Python compile/보안 검증 후 Git. 초기 집중 테스트 2실패(가짜 기준일 pre-asof, JSON 뒤 공백 변경 통과)를 수정해 최종 105 PASS; 전체 장기 회귀 미실행.
+- **NEXT**: 공식 일별 KRX/DART 최신 원천→오늘자 분석 cohort 자동 갱신/휴장 캘린더+주권/기업행동 PIT 정합성, 이후에만 launchd 잡 실제 로드·재부팅/회복 운영 검증(D-021 최종), 실제 전향 1~12개월 WATCH/Top-K 성과 성숙. **API 제외 약99%는 과거 주관적 추정**이며 실전 발굴/PIT 인증 N/A.

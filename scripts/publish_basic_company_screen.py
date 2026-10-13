@@ -87,8 +87,10 @@ def publish_basic_company_screen(
               if sha256(p.read_bytes()).hexdigest()==d["manifest_sha256"]]
     if len(complete)!=1:
         raise ValueError("Official DART complete-day manifest must be pinned")
+    fiscal_years=research.get("fiscal_years")
     if (research.get("companies_requested")!=len(research.get("companies",[])) or
             not 2<=research["companies_requested"]<=12 or
+            fiscal_years not in ([2024,2025],[2023,2024,2025]) or
             research.get("official_market",{}).get("market_session")!=d["market_day"]):
         raise ValueError("Financial cohort and KRX day mismatch")
     used=set()
@@ -102,7 +104,7 @@ def publish_basic_company_screen(
             continue
         annual=company["annual_reports"]
         if sorted(row["fiscal_year"] for row in annual)!=research["fiscal_years"]:
-            raise ValueError("Company statements differ from fixed two-year official cohort")
+            raise ValueError("Company statements differ from pinned fiscal-year cohort")
         for year in annual:
             if (year["status"]!="FINANCIAL_ROWS_RECEIVED_RESEARCH_ONLY" or
                     year.get("pit_certified") is not False or
@@ -112,8 +114,10 @@ def publish_basic_company_screen(
             if path.name!=year["capture_id"]:
                 raise ValueError("FY original PIN identity differs from receipt")
             financial.append((path,pin))
-    if len(financial)<4 or len(financial)>24:
-        raise ValueError("At least two independently verified CFS companies required")
+    if (len(financial)<2*len(fiscal_years) or
+            len(financial)>12*len(fiscal_years) or
+            len(financial)%len(fiscal_years)!=0):
+        raise ValueError("Two to twelve complete independently verified CFS companies required")
     now=clock or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("Research clock must be timezone aware")

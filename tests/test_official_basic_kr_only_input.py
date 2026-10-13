@@ -11,7 +11,7 @@ from scripts import publish_basic_company_screen as subject
 NOW = datetime(2026, 10, 13, 12, 0, tzinfo=timezone.utc)
 
 
-def setup(tmp_path, *, lone_sec=False):
+def setup(tmp_path, *, lone_sec=False, years=(2024,2025), codes=("005930","000660")):
     private = tmp_path / "first"
     private.mkdir()
     pins = {}
@@ -28,8 +28,8 @@ def setup(tmp_path, *, lone_sec=False):
     for tag in ("krx-kospi", "krx-kosdaq", "dart-disclosures"):
         first(tag)
     first("dart_directory")
-    for stock in ("005930", "000660"):
-        for year in (2024, 2025):
+    for stock in codes:
+        for year in years:
             first("dart_fin_" + sha256((stock + str(year)).encode()).hexdigest()[:32])
     manifest = private / "dart_full_x"
     manifest.mkdir()
@@ -53,9 +53,9 @@ def setup(tmp_path, *, lone_sec=False):
         "dart_full_day": {"market_day": "2026-10-13", "manifest_sha256": full_sha},
     }))
     companies = []
-    for stock in ("005930", "000660"):
+    for stock in codes:
         annual = []
-        for year in (2024, 2025):
+        for year in years:
             name = "dart_fin_" + sha256((stock + str(year)).encode()).hexdigest()[:32]
             annual.append({
                 "fiscal_year": year,
@@ -71,8 +71,8 @@ def setup(tmp_path, *, lone_sec=False):
     research.write_bytes(canonical({
         "schema": subject.MULTI_SCHEMA, "research_only": True,
         "real_investment_leader_ranked": False,
-        "companies_requested": 2, "companies": companies,
-        "fiscal_years": [2024, 2025],
+        "companies_requested": len(codes), "companies": companies,
+        "fiscal_years": list(years),
         "official_market": {"market_session": "2026-10-13"},
     }))
     return official, research, private
@@ -115,3 +115,54 @@ def test_partial_sec_receipt_rejected_before_research_writes(tmp_path, monkeypat
             official_source=official, financial_manifest=research,
             private_root=private, new_output=tmp_path / "blocked", clock=NOW)
     assert not (tmp_path / "blocked").exists()
+
+
+def test_three_fy_nine_companies_accepts_27_pinned_financial_originals(
+        tmp_path, monkeypatch):
+    codes = tuple(f"{i:06d}" for i in range(1, 10))
+    original, finance, private = setup(
+        tmp_path, years=(2023, 2024, 2025), codes=codes)
+    matched = []
+
+    def build(**kwargs):
+        matched.extend(kwargs["dart_financial_receipts"])
+        return {
+            "official_financial_research_observations": [{}] * len(codes),
+            "research_candidate_price_factors": [{}] * len(codes),
+        }
+
+    monkeypatch.setattr(subject, "build_official_price_snapshot", build)
+    monkeypatch.setattr(subject, "run_official_research",
+                        lambda snapshot, out, *, basic_candidates: {
+                            "official_leaders": 0, "messages_sent": 0,
+                            "basic_candidate_html": str(out / "site" / "basic_candidates_kr.html"),
+                            "krx_rows": 100, "dart_full_rows": 10,
+                            "dart_financial_comparable_companies": len(codes),
+                            "basic_candidate_evaluable": len(codes),
+                            "watch_count": 20, "reports": 3,
+                        })
+    result = subject.publish_basic_company_screen(
+        official_source=original, financial_manifest=finance,
+        private_root=private, new_output=tmp_path / "triple_financial_screen",
+        clock=NOW)
+    assert len(matched) == 27
+    assert len({folder for folder, pin in matched}) == 27
+    assert result["annual_cfs_research_companies"] == len(codes)
+    assert result["official_leaders"] == 0
+    assert result["research_only"] is True
+
+
+@pytest.mark.parametrize("years", [
+    (2022, 2023), (2022, 2023, 2024), (2022, 2023, 2024, 2025),
+    (2025, 2024, 2023),
+])
+def test_unsupported_year_ranges_block_before_price_research(
+        tmp_path, monkeypatch, years):
+    original, finance, private = setup(tmp_path, years=years)
+    monkeypatch.setattr(subject, "build_official_price_snapshot",
+                        lambda **kw: pytest.fail("unsupported FY must not publish"))
+    with pytest.raises(ValueError, match="Financial cohort"):
+        subject.publish_basic_company_screen(
+            official_source=original, financial_manifest=finance,
+            private_root=private, new_output=tmp_path / "invalid",
+            clock=NOW)

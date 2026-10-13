@@ -1832,3 +1832,10 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 다음: 위 증거가 실제 서비스 화면과 대시보드 진입 링크에서 계속 가시적인지 운영 확인, 새로운 날짜/선정종목 자료의 품질/비연속성 감독, 미국 전종목 가격 공급·공시 발행시각/법인·주권 class PIT 결선. Git commit 및 origin feature tracking SHA는 실제 Git을 확인하여 후속 기록.
 
 - **Git 완료 증거(후속)**: 신규 4파일+상태 문서 정확히 5경로 보안 스캐너 `suspicious=0`, `git diff --cached --check` PASS. feature branch commit `ba4cc7f57bc900cd19f658306eed889b2d104853`, `git push origin feature/core-official-factor-coverage-20261013` **성공**, `git ls-remote` 원격 SHA == 로컬 SHA. 보호 원본 main `a244002`은 병합/스테이징하지 않음; 이 상태 문서는 별도 docs-only checkpoint로 기록.
+
+## 2026-10-13 KST | 2_5·4_2·5_5·6_2·6_5 | 키움 모의 수급 2종목 일별 원자 배치 + CLI direct 경로 교정
+- 기준 feature branch `feature/core-official-factor-coverage-20261013` 최신 이전 `2f394d6`. 새 `src/eraleader/kiwoom_shared_daily_batch.py`, `scripts/publish_shared_kiwoom_daily.py`, `tests/test_kiwoom_shared_daily_batch.py`, `docs/141_SHARED_KIWOOM_DAILY_ATOMIC_RESEARCH.md`, 기존 `scripts/publish_shared_kiwoom_flow.py` import 경로 한 줄 수정. 원본 main/별도 `native_first_capture.py` 미커밋 7줄 untouched.
+- Mac 모의 `ka10059` 실제 2026-10-13 005930+000660 2사/각 최근20 관측, batch 신규 `output/official_basic_multicompany_20261013/site/kiwoom_daily_20261013_399be95b54aa` 성공, total SHA `399be95b54aac812c72bf3de78753ae948f87702761a0e8291aef23921c28550`; baseline SHA 2건 불변, 기존 순위/점수 변경0, 주문0. 기존 index와 batch HTML/JSON 5경로 HTTP200; link 정확히1, manifest SHA 일치.
+- 실제 수신 시각이 배치 시작시각보다 늦어 정상 자료가 미래정보로 차단되는 것을 발견→**전체 응답 수신 이후 batch decision_at 결정**으로 수정. 개별 보고는 후행 정보였으므로 과거 공인 PIT나 대장주 승격 불가. 하나라도 공급자/검증 실패 시 게시0, 날짜 중복 사전 차단. 내부 키/원시 HTTP 응답 Git 제외.
+- 변경 영향 7개 테스트 모듈 `88/88 PASS` (JUnit failures0/errors0/skipped0; EXIT0), output ignored `output/verification_logs/kiwoom_daily_batch_20261013.{xml,log}`. 독립 테스트는 API 모의 서버를 필수로 요구하지 않음; 실제 모의 수신·UI HTTP은 별도로 수행. 전체 회귀 미실행. 실계좌/주문 미사용. 스케줄 자동 설치 안 함.
+- 계속: 실제 KRX/DART/SEC 법인·주권/기업행동·상폐공시 PIT와 5_5 전향 검증, 필요 시 선정종목 일별 배치 스케줄을 보수적으로 opt-in. 사용자 데이터/원래 WATCH/PIT 원장은 변경 없이 독립 research sidecar로 운영.

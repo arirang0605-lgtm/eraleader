@@ -6,6 +6,8 @@ import json
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+# Direct `python scripts/...py` must also resolve the existing `scripts` package.
+sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, "/Volumes/T5DATA/SharedBrokerAPI/src")
 from eraleader.kiwoom_shared_research_sidecar import publish

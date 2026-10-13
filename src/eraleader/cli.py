@@ -437,6 +437,16 @@ def _execute_integrated_inner(args,policy) -> dict:
         response['provider_quality_dashboard']=str(quality_page)
     if quality_history is not None:
         response['provider_quality_history']=quality_history
+    # Optional one-way selection handoff AFTER the existing state/history
+    # registry is committed. The downstream strategy receives symbols and
+    # selection changes only; EraLeader never touches orders or positions.
+    handoff_out=getattr(args,'strategy_handoff_out',None)
+    if handoff_out is not None:
+        from .strategy_handoff import state_history_handoff, publish_handoff
+        snapshot=state_history_handoff(
+            Path(args.out)/'state_history.sqlite',market=args.market,
+            as_of=args.as_of, identity_ledger=Path(args.out)/'offline.sqlite')
+        response['strategy_handoff']=publish_handoff(snapshot,Path(handoff_out))
     return response
 
 def execute_validation(args) -> dict:
@@ -1134,6 +1144,8 @@ def main(argv=None):
     join.add_argument('--as-of',required=True)
     join.add_argument('--price-json')
     join.add_argument('--out',default=str(OUT))
+    join.add_argument('--strategy-handoff-out',
+                      help='Opt-in downstream strategy candidate inbox JSON (no trade/orders)')
     join.add_argument('--provider-atomic-pair-root',help='Existing private first-published 0700 pair root')
     join.add_argument('--provider-first-pair-sha256',help='Separately retained original pair receipt SHA256')
     join.add_argument('--provider-ledger-a',help='Optional first local PIT source ledger; all four flags required')

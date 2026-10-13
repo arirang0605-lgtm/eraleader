@@ -899,3 +899,7 @@
 ## 2026-10-14 최신 사용자 지시 — 기능 구현 우선·실제운용 수준 (D-027·D-028)
 
 모든 EraLeader 개발·설계·검증·백업·보안·운영의 기준은 **실제 미래 대장주 검색 시스템 운영에 필요한 수준**. 기능 구현 > 최소 변경 테스트·실데이터 E2E > 필요한 운영 안정화 > 장기 인증. 과거 38% 엄격 기준은 기록만 유지하고 최신 실사용률로 보고하지 말 것. 실매매·자동주문 기능 없음; 실거래 방지 반복 검증·주문 E2E는 범위 밖. 키움 모의/실계좌는 조회 자료 프로파일만 분리하고 연결 변경 시 read-only만 확인. 원본 main/별도 미커밋 7줄 보존, 정상 코드 재작성 금지. 최신 기능 브랜치 /Volumes/T5DATA/eraleader-core-factor-coverage-20261013, 진행상태는 해당 PROJECT_STATE.md 최하단/최신 Git 기준. 코드 변경과 실측 증거: docs/152_REAL_USE_KR_COMPANY_EXPLORER.md.
+
+## 2026-10-14 최신 개발 — D-029 선정 종목을 후속 매매전략에 전달
+
+사용자 확정: EraLeader는 실제 주문은 하지 않지만 **선정된 대장주를 매매전략 후속 프로젝트에 전달해야 한다**. `src/eraleader/strategy_handoff.py`, `scripts/export_strategy_handoff.py`, `src/eraleader/cli.py`의 `offline-integrated --strategy-handoff-out` opt-in 및 `tests/test_strategy_handoff.py`를 분리 feature 브랜치에서 구현. 관찰 WATCH와 전략 선정 POTENTIAL/CONFIRMED 분리, 약화·제외 이벤트 제공. 현재 실물 KRX/DART 10사는 WATCH 10·정식선정 0; 모의 PIT fixture로 진짜 선정상태 출력 경로 확인. 세부 증거·최신 SHA: docs/153_STRATEGY_SELECTION_HANDOFF.md 및 PROJECT_STATE.md 맨 아래. 다른 프로젝트 원본 코드, main 미커밋 7줄 보존.

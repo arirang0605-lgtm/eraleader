@@ -141,3 +141,10 @@
 - EraLeader는 **실제 매수·매도 주문 기능이 없으며 개발 대상도 아니다.** 키움증권 REST 모의/실계좌 분리는 각각의 **조회 데이터 프로파일** 선택이고, MarketOS 자동매매와 완전히 분리한다.
 - 주문·체결·잔고 변경의 E2E, 주문 방지 전용 반복 테스트, 실계좌 주문 리허설·자동매매 복구 시나리오를 EraLeader의 진행률·완료 조건으로 **추가하지 않는다**. 공통 API 연결/권한 변경 때에만 해당 조회 경로의 read-only 여부를 좁게 확인한다. 키·권한 유출 등 필수 데이터 보안 검증은 유지한다.
 - 기존 상태/점수 데이터의 투자신호 인증 기준과 EraLeader 연구 기능은 구별한다. 신규 정식 매수/매도 서비스나 주문은 사용자 별도 프로젝트 결정 전까지 만들지 않는다.
+
+## D-029 — 2026-10-14 | EraLeader 선정 대장주 → 다음 매매전략 종목 전달은 필수 기능
+
+- 사용자 확인: 대장주가 선정되면 EraLeader 이후 매매전략 단계에 종목을 보내야 한다. 이전 D-028의 **실주문 기능 제외**는 유지하지만, **선정·약화·제외 종목 전달**은 EraLeader 필수 범위에 포함한다. D-028을 전달 불필요라는 뜻으로 해석하지 않는다.
+- EraLeader 발굴·선정 상태/점수·근거/기준일을 1방향 JSON으로 내보내고, 후속 전략 프로젝트는 읽기 전용으로 받아 자체 종목 필터·매수/매도 전략·리스크/주문 판단을 한다. 어느 방향으로도 EraLeader에 직접 주문 권한을 주지 않는다.
+- 연구 WATCH(실제 공식 KRX/DART 원본이어도 정식 선정 전)는 전략 **selected_candidates와 분리**하여 observation만 제공. 기존 4단계 PIT StateHistory의 POTENTIAL/CONFIRMED는 선정 후보로, WEAKENING/PAUSED/EXITED는 상태 변화·후보 제외로 전송. 영구 종목ID/시장별 ticker/원래 시점/입력 SHA를 제공하고 ticker 미해결 종목의 전략 연구 사용을 막는다.
+- 기존 StateHistory/Prospective 원본 재작성 없이 `strategy_handoff.py`·`scripts/export_strategy_handoff.py`·`offline-integrated --strategy-handoff-out`로 구현. 외부 CoreAStock/MarketOS는 이번 단계에서 READ-ONLY, 인입 어댑터 실제 설치·자동 반복 스케줄은 다음 단계. 상세: `docs/153_STRATEGY_SELECTION_HANDOFF.md`.

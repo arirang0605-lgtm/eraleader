@@ -1830,3 +1830,5 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 변경 영향 6개 테스트 모듈 `tests/test_kiwoom_shared_research_sidecar.py` 등: **JUnit 75 tests / failures0 / errors0 / skipped0 / 프로세스 EXIT0**. 로그 `output/verification_logs/shared_kiwoom_research_scoped_20261013.{log,xml}`. Python compile 통과. Mac loopback HTTP `/index.html`, `/kiwoom_shared_.../index.html`, `/kiwoom_shared_.../report.json` **각 200** 확인. 전체 수천개 회귀는 이 소규모 코드 변경에서 재실행하지 않음.
 - 보수적 한계: KRX/DART 2026-10-08 원본 자료가 키움 gateway보다 먼저 연구일로 존재하더라도 새 수급 최초 수신은 2026-10-13; 과거 예측의 가용 정보로 간주 금지. 독립 공인 PIT, 미국 전체시장 가격, 시장전체 수급 KRW, 전향적 대장주 성숙 성과 N/A. 실계좌 키 미등록/실주문0.
 - 다음: 위 증거가 실제 서비스 화면과 대시보드 진입 링크에서 계속 가시적인지 운영 확인, 새로운 날짜/선정종목 자료의 품질/비연속성 감독, 미국 전종목 가격 공급·공시 발행시각/법인·주권 class PIT 결선. Git commit 및 origin feature tracking SHA는 실제 Git을 확인하여 후속 기록.
+
+- **Git 완료 증거(후속)**: 신규 4파일+상태 문서 정확히 5경로 보안 스캐너 `suspicious=0`, `git diff --cached --check` PASS. feature branch commit `ba4cc7f57bc900cd19f658306eed889b2d104853`, `git push origin feature/core-official-factor-coverage-20261013` **성공**, `git ls-remote` 원격 SHA == 로컬 SHA. 보호 원본 main `a244002`은 병합/스테이징하지 않음; 이 상태 문서는 별도 docs-only checkpoint로 기록.

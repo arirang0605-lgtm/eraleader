@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from hashlib import sha256
 import json
 import os
@@ -46,7 +47,8 @@ def reuse_dart_directory(private_root: Path, first_sha: str) -> tuple[Path, str]
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--day", required=True, help="ISO YYYY-MM-DD")
+    p.add_argument("--day", required=True,
+                   help="ISO YYYY-MM-DD or today (automatically resolves the Mac KST date)")
     p.add_argument("--official-out", type=Path, required=True)
     p.add_argument("--cohort-root", type=Path, required=True)
     p.add_argument("--codes", required=True)
@@ -59,8 +61,32 @@ def main(argv=None) -> int:
     p.add_argument("--legacy-root", type=Path,
                    default=Path("/Volumes/T5DATA/CycleOS-Lab_BacktestEngine"))
     p.add_argument("--credentials-file", type=Path)
+    p.add_argument("--fallback-source", type=Path, action="append", default=[],
+                   help="Explicit, previously completed price+CFS+industry research folders")
+    p.add_argument("--fallback-history-dir", type=Path,
+                   help="Auto-discover completed research folders in this local archive directory")
+    p.add_argument("--fallback-out", type=Path,
+                   help="New immutable research-only HTML+JSON directory on unavailable today")
     args = p.parse_args(argv)
     try:
+        if args.day == "today":
+            args.day = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+        def dated(path):
+            # Stable daily scheduler argv may include a {date} token; a new
+            # result folder is still mandatory and never overwritten.
+            return (None if path is None else
+                    Path(str(path).replace("{date}", args.day.replace("-", ""))))
+        args.official_out = dated(args.official_out)
+        args.cohort_root = dated(args.cohort_root)
+        args.fallback_out = dated(args.fallback_out)
+        fallback_enabled = bool(args.fallback_source or args.fallback_history_dir)
+        if fallback_enabled != bool(args.fallback_out):
+            raise ValueError("EXPLICIT_FALLBACK_SOURCE_AND_NEW_OUTPUT_REQUIRED")
+        archives = list(args.fallback_source)
+        if args.fallback_history_dir:
+            from eraleader.official_latest_baseline_fallback import discover_archived_cohorts
+            archives.extend(discover_archived_cohorts(args.fallback_history_dir))
+        archives = list(dict.fromkeys(archives))
         capture = None
         if args.dart_directory_first_sha and not args.capture_official:
             raise ValueError("DART_DIRECTORY_PIN_REQUIRES_EXPLICIT_CAPTURE")
@@ -93,12 +119,19 @@ def main(argv=None) -> int:
             sys.path.insert(0, "/Volumes/T5DATA/SharedBrokerAPI/src")
             from shared_broker_api.client import ReadOnlyClient
             factory = lambda: ReadOnlyClient("eraleader")
-        result = advance(
+        opts = dict(
             market_day=args.day, official_out=args.official_out,
             cohort_root=args.cohort_root, codes=args.codes.split(","),
             capture_official=capture, apply_capture=args.capture_official,
             apply_kiwoom=args.apply_demo_flow, client_factory=factory,
         )
+        if fallback_enabled:
+            from eraleader.official_latest_baseline_fallback import advance_with_fallback
+            result = advance_with_fallback(
+                **opts, archived_roots=archives,
+                fallback_out=args.fallback_out)
+        else:
+            result = advance(**opts)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, ImportError):

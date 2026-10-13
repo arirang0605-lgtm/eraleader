@@ -15,10 +15,14 @@ import re
 import stat
 
 from .official_api_capture import _decoded, SCHEMA as RAW_SCHEMA
+from .official_dart_daily import verify_dart_day
 from .kiwoom_investor_flow import canonical, utc, verify_flow
 
 SCHEMA="eraleader.kr_three_provider_same_session_gate.v1"
 SOURCES=("krx-kospi","krx-kosdaq","dart-disclosures")
+# Full DART claims must come from the strict original SHA/page verifier,
+# never a caller-supplied summary dict passed directly into evaluate().
+_DART_VERIFIED_TOKEN=object()
 
 def normalized_day(value: str) -> str:
     if type(value) is not str:
@@ -34,7 +38,9 @@ def normalized_day(value: str) -> str:
     return parsed.strftime("%Y%m%d")
 
 def evaluate(*, requested_day: str, security_id: str, originals: dict[str,dict],
-             flow: dict, decision_at: datetime) -> dict:
+             flow: dict, decision_at: datetime,
+             complete_dart: dict | None = None,
+             _verified_dart_token: object | None = None) -> dict:
     if (type(security_id) is not str or not re.fullmatch(r"[0-9]{6}",security_id)
             or set(originals)!=set(SOURCES) or type(flow) is not dict):
         raise ValueError("Exactly three provider first receipts and selected issue required")
@@ -92,21 +98,51 @@ def evaluate(*, requested_day: str, security_id: str, originals: dict[str,dict],
             positive_close=int(close.replace(",",""))>0
     krx_nonempty=(bool(kospi) and bool(kosdaq))
     dart=sources["dart-disclosures"]
-    complete_dart=(dart["quality"]=="ROWS_RECEIVED_NOT_PIT_CERTIFIED")
+    full_dart_verified=False
+    dart_complete_counts=None
+    if complete_dart is not None:
+        if _verified_dart_token is not _DART_VERIFIED_TOKEN:
+            raise ValueError("Unverified full DART summary cannot unlock research")
+        if (type(complete_dart) is not dict or
+                normalized_day(complete_dart.get("market_day"))!=session or
+                type(complete_dart.get("total_rows")) is not int or
+                complete_dart["total_rows"] < dart["provider_row_count"] or
+                type(complete_dart.get("total_pages")) is not int or
+                complete_dart["total_pages"] < 1 or
+                type(complete_dart.get("rows")) is not list or
+                len(complete_dart["rows"])!=complete_dart["total_rows"] or
+                complete_dart.get("issuer_class_pit_verified") is not False or
+                complete_dart.get("financial_pit_verified") is not False or
+                type(complete_dart.get("manifest_sha256")) is not str or
+                not re.fullmatch("[0-9a-f]{64}",complete_dart["manifest_sha256"]) or
+                utc(complete_dart.get("last_received_at_utc")) > decision):
+            raise ValueError("Complete DART first-received proof invalid")
+        full_dart_verified=True
+        dart_complete_counts={
+            "total_count":complete_dart["total_rows"],
+            "total_pages":complete_dart["total_pages"],
+            "manifest_sha256":complete_dart["manifest_sha256"],
+            "last_received_at_utc":complete_dart["last_received_at_utc"],
+        }
+    dart_day_covered=(full_dart_verified or
+                      dart["quality"]=="ROWS_RECEIVED_NOT_PIT_CERTIFIED")
     flow_mature=(flow["latest_observed_day"]==session and
                  flow["flow_20_observed_sessions"]["combined_net_shares"] is not None)
     failures=[]
     if not krx_nonempty:failures.append("KRX_ONE_OR_BOTH_MARKETS_EMPTY")
     if issue is None:failures.append("SELECTED_ISSUE_NOT_IN_SAME_DAY_KRX")
     elif not positive_close:failures.append("SELECTED_ISSUE_CLOSE_UNAVAILABLE")
-    if not complete_dart:failures.append("DART_DAY_NOT_COMPLETE_OR_PROVIDER_NO_DATA")
+    if not dart_day_covered:failures.append("DART_DAY_NOT_COMPLETE_OR_PROVIDER_NO_DATA")
     if not flow_mature:failures.append("KIWOOM_DEMO_FLOW_WINDOW_INCOMPLETE")
     flags={
         "same_market_session":True,
         "provider_received_by_decision":True,
         "two_krx_markets_nonempty":krx_nonempty,
         "selected_issue_krx_ohlc_present":positive_close,
-        "dart_first_page_complete_for_day":complete_dart,
+        "dart_first_page_complete_for_day":(
+            dart["quality"]=="ROWS_RECEIVED_NOT_PIT_CERTIFIED"),
+        "dart_full_listing_sha_verified":full_dart_verified,
+        "dart_day_coverage_verified":dart_day_covered,
         "kiwoom_20_observation_window":flow_mature,
         "provider_demo_not_production":True,
     }
@@ -114,6 +150,7 @@ def evaluate(*, requested_day: str, security_id: str, originals: dict[str,dict],
         "schema":SCHEMA,"market":"KR","security_id":security_id,
         "session":session,"decision_at_utc":decision.isoformat(),
         "source_receipts":sources,
+        "dart_complete_daily_proof":dart_complete_counts,
         "kiwoom_demo_original_sha256":flow["content_sha256"],
         "kiwoom_first_received_utc":flow["source_first_locally_received_at_utc"],
         "flags":flags,
@@ -181,13 +218,28 @@ def verify_live_captures(*, krx_kospi:tuple[Path,str],
                          krx_kosdaq:tuple[Path,str],
                          dart_disclosures:tuple[Path,str],
                          market_day:str,security_id:str,
-                         flow:dict,decision_at:datetime) -> dict:
+                         flow:dict,decision_at:datetime,
+                         dart_complete:tuple[Path,str]|None=None) -> dict:
     originals={}
     for source,reference in zip(SOURCES,(krx_kospi,krx_kosdaq,dart_disclosures)):
         receipt,body=verified_local_capture(Path(reference[0]),source,reference[1],decision_at)
         originals[source]={**receipt,"first_receipt_sha256":reference[1],"body":body}
+    complete=None
+    if dart_complete is not None:
+        folder,pin=dart_complete
+        original_name=Path(dart_disclosures[0]).name
+        mirror=Path(folder).parent/original_name
+        # Strict 0600 verifier on the Mac copied original plus full-page
+        # manifest SHA. Matching original first SHA is separately verified
+        # from the SSD above; the original files remain untouched.
+        complete=verify_dart_day(Path(folder),pin,first_folder=mirror,
+                                 first_sha=dart_disclosures[1],
+                                 decision_at=decision_at)
     return evaluate(requested_day=market_day,security_id=security_id,
-                    originals=originals,flow=flow,decision_at=decision_at)
+                    originals=originals,flow=flow,decision_at=decision_at,
+                    complete_dart=complete,
+                    _verified_dart_token=(_DART_VERIFIED_TOKEN if complete is not None
+                                          else None))
 
 def render(report:dict) -> str:
     data=dict(report)

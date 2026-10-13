@@ -20,7 +20,8 @@ from eraleader.kiwoom_investor_flow import canonical
 
 def publish(*,kospi:tuple[Path,str],kosdaq:tuple[Path,str],
             dart:tuple[Path,str],manifest:Path,day:str,code:str,
-            site:Path,decision:datetime|None=None)->dict:
+            site:Path,decision:datetime|None=None,
+            dart_complete:tuple[Path,str]|None=None)->dict:
     site=Path(site)
     if (not site.is_absolute() or not site.is_dir() or site.is_symlink() or
             any(parent.is_symlink() for parent in site.parents)):
@@ -33,8 +34,11 @@ def publish(*,kospi:tuple[Path,str],kosdaq:tuple[Path,str],
         krx_kosdaq=(Path(kosdaq[0]).absolute(),kosdaq[1]),
         dart_disclosures=(Path(dart[0]).absolute(),dart[1]),
         market_day=day,security_id=code,flow=flows[code],
+        dart_complete=((Path(dart_complete[0]).absolute(),dart_complete[1])
+                       if dart_complete is not None else None),
         decision_at=decision or datetime.now(timezone.utc))
-    slug="provider_session_"+normalized_day(day)
+    slug="provider_session_"+normalized_day(day)+(
+        "_dart_full" if dart_complete is not None else "")
     target=site/slug
     if target.exists() or target.is_symlink():
         raise FileExistsError("Existing same-day audit is immutable")
@@ -87,18 +91,24 @@ def main() ->int:
     parser.add_argument("--krx-kosdaq-sha",required=True)
     parser.add_argument("--dart-folder",type=Path,required=True)
     parser.add_argument("--dart-sha",required=True)
+    parser.add_argument("--dart-full-folder",type=Path)
+    parser.add_argument("--dart-full-sha")
     parser.add_argument("--kiwoom-manifest",type=Path,required=True)
     parser.add_argument("--day",required=True)
     parser.add_argument("--code",required=True)
     parser.add_argument("--site",type=Path,required=True)
     args=parser.parse_args()
     try:
+        if (args.dart_full_folder is None)!=(args.dart_full_sha is None):
+            raise ValueError("DART full folder and independently pinned SHA required together")
         result=publish(
             kospi=(args.krx_kospi_folder,args.krx_kospi_sha),
             kosdaq=(args.krx_kosdaq_folder,args.krx_kosdaq_sha),
             dart=(args.dart_folder,args.dart_sha),
             manifest=args.kiwoom_manifest,day=args.day,
-            code=args.code,site=args.site)
+            code=args.code,site=args.site,
+            dart_complete=((args.dart_full_folder,args.dart_full_sha)
+                           if args.dart_full_folder is not None else None))
         print(json.dumps(result,sort_keys=True,ensure_ascii=False))
         return 0
     except (ValueError,TypeError,KeyError,OSError) as exc:

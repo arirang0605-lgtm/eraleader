@@ -1570,3 +1570,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **실제 전체 테스트 PASS**: `cd /Volumes/T5DATA/eraleader && PYTHONPATH=src python3 -m pytest tests -q --tb=short` (stdout/err는 ignored `output/verification_logs/official_preoperations_full_20261012.txt` 보관). Python pytest 테스트 진행 로그의 개별 성공 점 **2,450개**, 마지막 `[100%]`, F/E 없음. 도구 쉘에서 `TEST_EXIT=0`, 프로세스 자체 **exit code 0**, 실제 약 897.51초 경과. 전부 변경된 실제 코드의 테스트이며 이전 체크포인트의 2,403건을 현재 수치로 혼동하지 않음.
 - API 새 인증·실전 발송/주문·20거래일 전향적 실험을 검증했다는 뜻 **아님**. 본 세션의 원자 게시 변경은 mocked synthetic/실패주입 검증, 기존 2026-10-12 라이브 KRX/DART/CFS/SEC 증거는 `docs/134_OFFICIAL_DART_SEC_PREOPERATIONS.md` 참조. DART/KRX issuer·주권 클래스/상폐/기업행동 PIT/미래 적중률 N/A.
 - 코드 배포 main `0ce3aad87d60f31a1c51b5d88f6b5f3224a0f9bb`, 전 단계 상태 docs checkpoint `8282a25a214159d7d6f2ffd86368862091ae75e3`가 GitHub와 일치 확인. 이번 테스트 종료 증거 문서는 후속 별도 문서 커밋 후 SHA 확인. `src/eraleader/native_first_capture.py` unstaged 6+/1- 계속 보존.
+
+## 2026-10-13 KST | ER-NC-06 — 기존 뉴스↔시장 미커밋 코드 이어 완성
+
+- **선행**: ER-NC-B00 원본 main 및 feature 작업물 양 독립 저장소 암호화 백업/격리 SHA 복원 PASS. 기존 main `a24400237f6a454b788ed1802ff6859c6a7a5c66`; 기존 뉴스 feature `bbe9be5d7ce0bd60e663a93c94163ee38a821f64` 유지. 기존 미커밋 `native_first_capture.py` 6추가1삭제 및 해당 feature의 기존 미추적 `news_market_response.py` 원형 수정0.
+- **새 작업트리/브랜치**: `/Volumes/T5DATA/eraleader-ernc06-complete-20261013` / `feature/er-nc-06-complete-20261013` (기준 bbe9be5). 미완성 news_market_response 원형을 사본으로 가져와 SHA/PIT/정정/issuer 구분·빈티지 정렬·독립 커버리지 PIN 계약 집중 보완; 기존 score/WATCH/시장 원본 변경0.
+- **이번 코드/테스트**: `src/eraleader/news_market_response.py`, `scripts/run_er_nc06_research.py`, `tests/test_news_market_response.py`, `tests/test_er_nc06_cli.py`, `docs/ER_NC_06_BIDIRECTIONAL_NEWS_MARKET.md`; 본 상태 문서.
+- **실측 테스트**: 신규 모듈42/42, CLI E2E 4/4, 합계 **46 PASS EXIT0**; 기존 뉴스 adapter/rotation/theme lifecycle/watch rotation/market regime 영향 테스트 포함 **총 7모듈 156 PASS EXIT0**. 재현 명령 및 차단 상세는 docs/ER_NC_06_BIDIRECTIONAL_NEWS_MARKET.md. 전체 수천 개 pytest는 ER-NC-10 통합 수락 시 수행.
+- **운영**: 지역 기사/유료 뉴스 수집0, 외부 API/메시지/주문0, 원본 데이터 쓰기0, 연구용 JSON만 stdout. 독립 KRX/DART/SEC 출처 PIT 인증·수익률·미래 주도주 성과 N/A. 06 초기 테스트 23 FAIL은 누락된 issuer 매핑 게이트를 보여준 의도적 red 단계이며, 최종 관련 156개 전부 PASS.
+- **다음**: ER-NC-08 기존 대시보드/DRY-RUN outbox/일·주·월 보고에 뉴스·테마 sidecar opt-in 최소 연결. 다른 feature 브랜치의 ER-NC-07 저자원형 4전략은 원출처 검증 필요; 독립 별도 브랜치로 유지. 일반적인 API 제외 로컬 EraLeader 본체 진행률은 약99%라는 이전 개발 추정치 유지, 뉴스 확장 및 공식 실사용 인증률과 혼동 금지.

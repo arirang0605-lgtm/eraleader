@@ -866,3 +866,9 @@
 - **실제 isolated decrypt restore-test PASS**: SQLite integrity, 이벤트3/chain SHA, 각 첫 등록 이전0/이후1 as-of 확인, 평문 복원파일 남김0. 키는 Mac `~/Library/Application Support/EraLeader/recovery-keys/dart_cfs_20261013/`에 RSA3072 owner0600, **Mac 분실 대비 키의 독립 암호화 에스크로/오프라인 복구는 미완료**. AES ciphertext 두개가 있어도 개인키 없으면 복구 불가! 키 원문/경로/암호문을 Public Git에 절대 복사하지 말 것.
 - 신규 9개 포함 DART/KRX/SEC 관련 **14모듈/187 pytest PASS(EXIT0)**, 전체 2450+ 재실행은 이번엔 하지 않음. 추가 코드/상태 SHA는 `git rev-parse HEAD`와 GitHub origin에서 확인.
 - **다음 개발**: 키 독립 보관 승인·암호화 복구 시험, 공식 DART 최초 공시 공개시간/전체 정정 원본·영구 issuer/share-class 상폐 기업행동 PIT와 산업·외국인 기관수급 데이터 공통 시점 확대. 전향적 미래 대장주 성능/종합100점 N/A, 과거 99% 전체 진행률 추정은 폐기.
+
+## 2026-10-13 6_5 다음 체크포인트 — 외부 복구 개인키 공개키 에스크로 구현됨, 실제 OFFLINE 키 수탁 대기
+
+- 최신 core worktree `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013` → `START_HERE_NEXT_CHAT.md→AGENTS.md→PROJECT_STATE.md(맨 아래)→DECISIONS.md→docs/139_DART_CFS_EXTERNAL_OFFLINE_KEY_ESCROW.md` 확인. 기존 main/미커밋/기본 CFS DB 원본 절대 재작성 금지.
+- `dart_cfs_external_key_escrow.py`, `scripts/run_dart_cfs_external_escrow.py`: **별개의 오프라인 수탁자 RSA 공개 인증서**로 기존 Mac CFS 복구 개인키 AES-256-GCM/RSA-OAEP 암호문 외장 저장, SHA 봉인, 외부키로 두 단계 CFS SQLite 독립 restore-test 계약. 코드+합성 외부키 실제 암호학 복원, 신규 11 테스트 포함 관련 15모듈 **198/198 pytest PASS EXIT0**. 인증서가 미설정이므로 실물 외부 offline 복구키 수탁/패키지 발행/실제 키 복원은 **미완료**. 외부 개인키를 이 Mac에서 임의 생성해 완료 선언하지 말 것.
+- 다음 개발 타깃: 사용자가 별도 오프라인 장치에서 생성/보관한 private escrow key와 공개 인증서를 확보하면 **공개 cert만** Mac에 넣어 실제 SHA 암호화 escrow 발행/감사/독립 DR drill. 지금은 전국/미국 주권 클래스/상폐/공시 공개시각·정정 PIT+산업/수급 실데이터 확대를 우선. CFS 백업 슬롯 `cfs_20261013T051710Z_fe24a7df3513` 및 original Mac DB는 이전 restore-test verified 상태로 보존. 전체 95/99% 진행률 추정은 폐기.

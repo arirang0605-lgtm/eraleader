@@ -1770,3 +1770,8 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **원본 실제 수집 검증**: `output/kiwoom_live_research_20261013_005930_v2/` (Git ignored/private), `manifest.json` + `005930.json`, SHA256 pin/contents/first-received/verify_flow PASS. 5관측 외국인 -11,523,559주·기관 -5,769,067주, 20관측 외국인 -33,643,418주·기관 -558,385주(모의서버 반환 관측량이며 거래소 정식 집계 아님). 자동 대장주 순위 생성0, 실거래0. 과거 원본 발행시각/PIT, 데이터 대표성·실시장 일자 정합성 N/A.
 - **코드/검증**: `src/eraleader/kiwoom_investor_flow.py`, `scripts/capture_kiwoom_investor_flow.py`, `tests/test_kiwoom_investor_flow.py` 변경. `PYTHONPATH=src python3 -m pytest tests/test_kiwoom_investor_flow.py tests/test_kiwoom_gateway_cli.py tests/test_kiwoom_publication.py -q --tb=short` **30/30 PASS EXIT0**, py_compile+diffcheck PASS. 기존 미커밋 `native_first_capture.py` 및 main 원본 무변경.
 - **NEXT**: 실제 종목 수급 연구 결과를 기존 업종/재무/가격 보고에 연계하되 오늘 관측일과 이전 DART/KRX 자료 시점 불일치면 N/A로 표시, 모의 서버 숫자로 투자 순위/매매 자동화하지 말 것. 사용자의 실계좌/API 주문 사용 승인 없음.
+
+## 2026-10-13 KST | 공식 키움 모의 수급 실제 수신 코드 배포
+- 실수신 정상 저장 및 SHA/시점·수량 필드 확인 후 코드/테스트/문서 4경로를 Public Git 보안검사 `scanned=4 suspicious=0`, `git diff --cached --check` PASS로 검사.
+- 기능 커밋 `94828d4c6c4ab52676e88ee02e6dc39f64e8c1ec` → 원격 `origin/feature/core-official-factor-coverage-20261013` push 성공, remote SHA 일치. 보호된 main 워크트리의 `native_first_capture.py` 별도 미커밋 6+/1- 보존. 실계좌 주문·거래 기능 0.
+- 모의 공급자 수급은 실제 HTTP 응답이지만 실계좌 생산 데이터 대표성을 인증하지 않았으며, 모든 기록/점수는 계속 연구용으로 표시.

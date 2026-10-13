@@ -1578,3 +1578,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 4개 남석관/유목민 단기·중기 독립 규칙 원본출처 검증 계약, 미래 정보/PIT 시각 차단, 중복 SHA 및 JSON 안전성, NO_ORDER/NOT_READY 연구 전용. 저자 원본 익절·손절 수치나 매매 신호 임의 생성0.
 - 새 집중 tests/test_author_strategy_rules.py **25 PASS EXIT0**; ER-NC-01/05 뉴스·기존 회전 영향 검증 3개 테스트 모듈 합계 **63 PASS EXIT0**. 기존 전체 회귀는 ER-NC 통합 수락 시 한 번 검증.
 - 다음: ER-NC-06 진행중 미추적 파일 주인 세션과 병합 충돌 없이 결선; ER-NC-07 실제 1차 서지/강연 원문 검증 후 각 저자 단기·중기 로직 분리 구현 및 PIT 테스트. 미확정 원형 NOT_EXECUTABLE, 전체 실전 성능 N/A.
+
+## 2026-10-13 KST | ER-NC-07 GitHub feature checkpoint (검증된 현황)
+
+- 신규 구현 4개 파일(`src/eraleader/author_strategy_rules.py`, `tests/test_author_strategy_rules.py`, `docs/ER_NC_07_AUTHOR_RULE_PROVENANCE.md`, `PROJECT_STATE.md`) 첫 커밋 `68f0b75eb1d84cbe606903df6a865a1bf893f1a5`.
+- `git push -u origin feature/er-nc-07-20261013` 성공 및 `git ls-remote origin refs/heads/feature/er-nc-07-20261013` 확인; 원격 SHA 위와 일치. main merge/push 없음.
+- 단계별 테스트: ER-NC-07 신규 25/25 PASS EXIT0, 뉴스 PIT 어댑터·기존 WATCH 회전 영향 63/63 PASS EXIT0. 전체 확장 통합 회귀는 별도 08~10 및 미완료 원문 검증 후로 유예.
+- Git Public scanner staged 4 suspicious0, diff --cached --check PASS.
+- 보호 미커밋 `src/eraleader/native_first_capture.py` SHA 6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6 불변; 원래 main status 추가 변경0. 별도 ER-NC-06 기존 미완성 news_market_response.py SHA 8431010c3eacb33a780e00fe72c6367f8dfb80942a4bbc78b63b423ee0dd71b1 불변.
+- 다음: ER-NC-06 owner 작업 중단/완결 여부 확인 후 독립 검증, ER-NC-07 4개 저자 원형 출처 공식 확인 후 실제 규칙 모듈 검증. 사용자 승인 전 임의 전략 수치나 주문 금지. 실전 PIT 성과 N/A.

@@ -887,3 +887,11 @@
 - `official_api_pit_bridge.build_official_price_snapshot(...basic_candidate_screen=True)` opt-in 가격 전체 관찰+실적10개 근거 별도 추출, `official_basic_candidates.py`/ `scripts/publish_basic_company_screen.py`으로 기본 후보 연구표 사이트 `http://127.0.0.1:8770/basic_candidates_kr.html` HTTP200. **10개 모두 가격·실적 계산 가능**, 3방향(3개월 가격+매출+영업익) +일치 **0개**; 이를 숨기지 말고 표시. 연구용 비교순서만 제공/공인 100점·매수순위/추가 PIT·전향적 적중률 **N/A**. 기존 가격 TOP20 WATCH/일주월 보고/모든 API 원본 그대로.
 - 직접 영향범위 7개 모듈 **96/96 pytest PASS EXIT0**, 합성 신규 collector/candidate 및 기존 공식/API 브리지 opt-in 회귀 E2E; 실제 KRX+DART first PIN 다시 verify 후 새로운 result `/Volumes/T5DATA/eraleader/output/official_basic_multicompany_20261013`에만 게시. 상세 `docs/141_KR_OFFICIAL_MULTI_COMPANY_BASIC_CANDIDATES.md`와 PROJECT_STATE 최하단 확인. 원본 main 미커밋 `native_first_capture.py` SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6` 건드리지 말 것.
 - 다음 실제 본기능: 공식 산업 성장·기관외국인 수급·동일 산업 peer 비교, 실제 시점별 DART 수정/기업class/상폐/기업행동 PIT를 연결한 후보/기초순위; 새 security/backup side-project 확대 금지. 인수 진척률 38%(45/120) 유지, 이번 일부 종목 확대만으로 완료율 상향 금지.
+
+## 2026-10-13 새 핵심 개발 — 공식 DART 업종 첫 수신 + 업종 대분류별 후보 실제 비교
+
+- 개발 feature `/Volumes/T5DATA/eraleader-core-factor-coverage-20261013` / branch `feature/core-official-factor-coverage-20261013`; 원본 main 미커밋 `native_first_capture.py` SHA `6d3139f0bf7d594812fca62e77ccb1648b31e283c563898e6a7f706361ca43b6` 보호. `PROJECT_STATE.md` 최신과 `docs/142_DART_INDUSTRY_PEER_ACTUAL_DATA.md` 먼저 확인.
+- 기존 10종목 FY2024/25 DART 재무+가격 후보에 **공식 DART company.json 현재 업종코드 10건 첫SHA** 연결(세부9코드, 대분류7), 실제 표본에서 2개 이상 비교 가능한 3개 대분류(26 전자/29 기계/30 자동차), 합계 6종목의 업종 내 매출·영업익·3개월 주가 상대 순서. 원형 한국 PRICE WATCH20/일주월 보고/주문0 보존, 공식 대장주100점·투자1~20위 N/A. 첫 수신 2026-10-13을 과거 2026-10-08 예측으로 소급 금지.
+- 실제 대시보드 `http://127.0.0.1:8770/industry_peers_kr.html`, DART 실제 시장/재무·업종 원본 PIN SHA 검증, HTTP200·Chrome 오픈 PASS. 상세 `docs/142_DART_INDUSTRY_PEER_ACTUAL_DATA.md`.
+- 신규 테스트+기존 공식 DART/CFS/가격 브리지 영향범위 **9모듈 124/124 pytest PASS(EXIT0)**, 전체 2450+ 회귀 재실행은 미수행. 전체 실사용 인수 38%(45/120) 유지: 일부 샘플 업종 연결로 시장 전체 PIT 인수합격을 과장하지 않음.
+- 다음 기본 기능 우선: 산업내 대표기업 3~5개로 확장/산업 실제 통계·기관외국인 수급 최초 원본 연결/단계별 동종 비교와 종합 후보 도출. 사용자 요청 따라 추가 백업·에스크로·보안 부가 기능 개발 후순위.

@@ -102,3 +102,10 @@
 - 해당 점수는 코딩 파일 수나 사용자 자산 성과·남은 달력일 예측을 의미하지 않는 **사전 정의 수락 관문에 따른 추정치**다. 2026-10-08 KR 원시 일봉 하루와 삼성전자 3년 CFS는 전종목/전시장 PIT을 대신하지 못함. 20거래일 자동 운영 및 장기 후보의 실제 성과 확인 이전에는 전체 기술 완료·성능 입증 선언 금지.
 - 단일 세부 근거와 임시 현황: `docs/140_Eraleader_OVERALL_ACCEPTANCE_PROGRESS_20261013.md`, `src/eraleader/development_progress.py`·`scripts/publish_development_progress.py`, 실제 로컬 `/Volumes/T5DATA/eraleader/output/official_core_cfs_vintage_dashboard_20261013/site/development_progress_20261013.html`. 매 ID의 점수는 새 사실을 실행하고 테스트로 입증한 후에만 변경. 요건 또는 가중치를 사후에 느슨하게 바꾸지 않음.
 - 운영상 Git `main` 별개 보호·미커밋 `native_first_capture.py` 변경 금지, 뉴스 기능 다른 feature 브랜치의 단일 core/main 미통합 상태 유지, 사용자 원시 금융 자료/API 키·암호화 개인키의 public push 금지.
+
+## D-024 — 2026-10-13: EraLeader BASIC-FIRST 실사용 본기능 개발 우선
+
+- 사용자 최신 지시 `기본 기능 먼저 해라`에 따라 추가 암호화 백업/외부키 에스크로·수천 테스트 반복보다 **실제 미래 대장주 후보 분석**에 개발 자원을 우선 사용한다.
+- 순서: 실제 업종·재무/실적가속·가격 데이터 비교 → 대표산업 동종기업 peer → 기관·외국인 공식 수급/산업통계 연동 → 근거 있는 후보 관찰/정식 종합평가 → 전향 성과·상폐/기업행동 PIT 검증 → 자동 운영 인수. 이미 정상 작동하는 보조·백업 모듈은 REWRITE/불필요한 확장 금지.
+- 2026-10-13 현재 FY2024/25 실제 기업 10개와 DART current 업종 첫SHA profile 10건을 연결한 peer 화면에서 **전자/기계/자동차 3개 산업 대분류의 6개 기업간 매출·가격 차이**를 표시한다. 2자리 산업 대분류는 직접 경쟁사 보증도 과거 PIT 업종 소속 증거도 아니며, 표본 기업 하나면 N/A.
+- 진척 38%=45/120은 기존 검증 기준 유지. 진짜 전종목 공식 종합 리더 100점/투자 우선순위/전향 Precision@K의 검증 이전 완료 선언 금지.

@@ -834,3 +834,11 @@
 
 ## 2026-10-12 최신 전체 pytest 확정
 - 20파일 공식 KRX+DART 전체/법인코드/재무·SEC PIT 연구/실패시 원자 게시의 전체 `PYTHONPATH=src python3 -m pytest tests -q --tb=short` **2,450 PASS, 프로세스 EXIT=0, 마지막 100%**, 로그 `output/verification_logs/official_preoperations_full_20261012.txt`; 해당 전체 회귀는 실제 미래 선행 적중률/PIT 공식인증/20거래일 모의운용을 대체하지 못함. GitHub 최종 main/로컬 SHA 확인 후 CONTINUE; 네이티브 capture 미커밋 7줄 보존.
+
+
+## 2026-10-13 ER-NC-09 최신 기능 작업트리 인계 (main과 별도)
+
+- 개발 브랜치 `feature/er-nc-09-frozen-ablation-20261013`, SSD `/Volumes/T5DATA/eraleader-ernc09-ablation-20261013`, ER-NC-08 `d0dd1c1`에서 CONTINUE. 원래 `main` 및 보호된 두 미커밋 소스에 손대지 않음.
+- `docs/ER_NC_09_FROZEN_ABLATION.md`: 원래 `frozen_holdout`/실제 최초 WATCH 등록을 재사용하여 B0 동일원형/B1 정보전용/B2 테마 PIT/B3 엄격상승장 신규진입 필터의 후보군을 **outcome 라벨 없이 사전 별도 SHA 봉인**한 뒤 성숙 라벨만 검증. B4/B5 저자 원형 증거 부족 `NOT_READY`. 실제 뉴스·정식 역사 PIT/실전 발굴성과 **N/A** 유지.
+- 신규 모듈/CLI/pytest 및 보호 샘플은 새 브랜치에만. 변경 영향 11개 모듈 **232 PASS EXIT0**. 변경 파일 SHA 및 GitHub push SHA는 이 브랜치 `PROJECT_STATE.md` 최신 기록 및 Git 상태 확인. 전체 대규모 회귀는 ER-NC-10 수락 시.
+- NEXT ER-NC-10 실제 허가된 NewsCatalystOS 빈티지 export 권리·first-received SHA·PIT/장애 대응, NEWS_OFF 원본 화면/신호 불변, 5/20거래일 자연 관측. 원형 저자규칙 4개는 별도 feature/er-nc-07 브랜치에서 검증 대기. REWRITE 아닌 CONTINUE.

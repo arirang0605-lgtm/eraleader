@@ -1756,3 +1756,8 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - `tests/test_kiwoom_profile_settings.py` 직접 영향 테스트 확장: 정상 Origin 생략·null·localhost 저장, 외부 Origin/Referer/교차 사이트 차단, 기존 모의·실계좌 분리 보존. 변경 범위 `tests/test_kiwoom_profile_settings.py tests/test_kiwoom_gateway_cli.py tests/test_kiwoom_investor_flow.py` 실제 실행 PASS/EXIT0, py_compile/Git diffcheck PASS.
 - 이전 UI 프로세스(PID 54081)임을 확인한 뒤 종료하고 수정된 소스로 PID 65438의 `127.0.0.1:8782` HTTP200 재가동. Mac Chrome에 새로운 설정 화면을 열었음. **새로운 실사용 키를 모델/로그로 읽지 않았고 아직 등록 파일 없음**. 사용자가 새 화면에서 정상 저장 후 다음 read-only `demo ka10059` 005930 1일분 검증 가능.
 - 원본 EraLeader main 미커밋 `native_first_capture.py` 수정 보호, 주문 기능/별도 보안 프로젝트 수정0. 실전 키는 요청하지 않으며 모의키 먼저 설정.
+
+## 2026-10-13 KST | Kiwoom UI 저장 오류 수정 배포 체크포인트
+- 변경 3파일(kiwoom_profile_settings.py/test_kiwoom_profile_settings.py/PROJECT_STATE.md), 테스트 **37/37 PASS EXIT0**, py_compile·cached diffcheck PASS, Public Git 안전스캔 scanned=3 suspicious=0.
+- 기능 코드 커밋 `10057c8685f841bbef70e3c503f6679cd59a4d77` → `origin/feature/core-official-factor-coverage-20261013` push 성공, 로컬/원격 SHA 일치. **main에는 병합/푸시하지 않음**.
+- 수정 버전 로컬 UI PID 65438, `http://127.0.0.1:8782/` HTTP200/Chrome 새 탭 오픈. 사용자 입력 비밀키 원문을 읽거나 로그로 출력하지 않음. 새 버전 점검 시 Kiwoom 프로필 파일은 아직 존재하지 않음, 따라서 실제 공급자 라이브 인증0/수급 수신0. 사용자가 새 UI에서 App Key+Secret 저장 후 demo 조회 가능.

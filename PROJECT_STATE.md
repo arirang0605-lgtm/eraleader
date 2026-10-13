@@ -1887,3 +1887,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 실물 T5DATA read-only archive 2벌에서 완성 SHA/PIT 등록시각 검증 후 당일 2026-10-13 공식 코스피/코스닥 미확보를 기존 2026-10-08 관측 연구로 표시. `output/latest_verified_market_baseline_20261013_v2/index.html`+`report.json` 발행, **달력 5일·평일 기준 추정3일·경고 true**, 삼성전자/하이닉스 2개사 기존 가격/실적/연간 성장가속 관찰값 변경 없음. JSON content SHA 일치, loopback HTTP HTML/JSON **200/200**, API/키움 외부 신규 HTTP0/실주문0.
 - 변경 영향 14개 모듈 `output/verification_logs/latest_baseline_fallback_final_20261013.xml`의 **189 PASS, failures0, errors0, skipped0, TEST_EXIT=0**. 미래정보/원장변조/파일오염/업종 시차/주말·휴장 추정/미완·로그/원본 불변/기존 키움 정확한 당일 경계 모두 포함. 현물 장기 전향 테스트 및 모든 2450+ 기존 회귀는 미실행. 상세 `docs/149_LATEST_VERIFIED_KR_BASELINE_FALLBACK.md`, 결정 `DECISIONS.md D-025`.
 - **NEXT:** 공식 교환 세션 달력/거래중단·공시 첫 공개시각 검증으로 정확한 T-1/T-2와 업종·연도 PIT 보강, 공식 KRX 양시장 실제 날짜별 row>0가 되면 DART+3FY 실적/업종 동일시점 자동 수집으로 대체. 실제 스케줄 자동 적용·20거래일 관측·전향 Top-K은 별도 남음. 사용자 검증 인수 진행율 고정 **45/120=38%**, 이번 세부 기능 구현만으로 관문 자동 상향하지 않음. Git 최종 SHA/원격 일치·보안 검증은 실제 commit 이후 확인.
+
+## 2026-10-14 KST | D-026 | 실사용 기준으로 검증 우선순위 변경
+
+- 사용자 최신 운영 지시 "개발에 필요한 검증은 실사용 기준으로 하자" 적용. 최근 KRX/DART 원본 수신→가격·실적·산업 후보→WATCH 이력→웹·보고·알림 흐름이 실제 운영에서 작동하는지 우선한다. 반복 수천 회귀·모든 역사 데이터 독립 공증을 기능 개발의 일반 차단조건으로 두지 않는다.
+- 모듈 인수 기본: 변경 영향 테스트 PASS + 실제 공식 자료/기존 검증 캐시 E2E + 현실적인 공급자 0행/자료 지연·중복/복구 실패 처리 + 화면 상태/경고/원장·비밀정보 불변 점검. 주요 릴리스 단계에서 전체 통합회귀·반복 운영 인수.
+- 연구용 검색은 PIT 공인 인증 미완료를 투명하게 표시하면서 서비스 가능; 과거 적중률 주장·실거래 신호·자동주문은 해당 의사결정 PIT/상폐/기업행동·키 권한 등 필수 안전 인수 이전 금지. 기존 WATCH/재무/주가 원본 SHA 누락·미래정보 혼입은 계속 차단.
+- 이미 완료된 실데이터 단위의 운영 스모크 재확인: `output/latest_verified_market_baseline_20261013_v2/{report.json,index.html}` 두 파일 존재, 보고 SHA 일치, 요청 2026-10-13/실제 관측 2026-10-08 분리, 지연 경고 true, broker 조회0·orders false·후보 순위 변경 false. **이것은 저장된 현물 스모크를 다시 확인한 결과이며 신규 실수신·전시장 백테스트가 아니다.**
+- 상세 수락기준 `docs/150_REAL_USE_ACCEPTANCE_POLICY.md`; 결정 `DECISIONS.md D-026`. 기존 45/120(38%)는 이전 수락규칙의 과거 평가로 보존, 다음 기능별 실사용 관문에서 근거 확보한 점수만 반영. 코드 변경0/프로젝트 main·원시 DB·기존 미커밋 파일 불변. 최종 Git SHA는 별도 커밋 증거.

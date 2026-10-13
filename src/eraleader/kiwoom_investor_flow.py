@@ -103,14 +103,16 @@ def access_token(*, appkey: str, secretkey: str, post=None) -> str:
 
 def fetch_ka10059(*, code: str, as_of: str, token: str,
                   post=None, max_pages: int = 8,
-                  received_at: datetime | None = None, environment_mode: str = "demo") -> dict:
+                  received_at: datetime | None = None, environment_mode: str = "demo",
+                  recent_window_only: bool = False) -> dict:
     """Return verified read-only, SHARE-unit net-buy rows, not trade instructions."""
     if type(code) is not str or not STOCK.fullmatch(code):
         raise ValueError("KR 6-digit security identifier required")
     day(as_of)
     if environment_mode not in API_HOSTS:
         raise ValueError("Unknown provider environment")
-    if not token or type(token) is not str or not callable(post) or not 1 <= max_pages <= 12:
+    if (not token or type(token) is not str or not callable(post)
+            or not 1 <= max_pages <= 12 or type(recent_window_only) is not bool):
         raise ValueError("Shared read-only transport and bounded pagination required")
     now = received_at or datetime.now(timezone.utc)
     if now.utcoffset() is None:
@@ -123,6 +125,7 @@ def fetch_ka10059(*, code: str, as_of: str, token: str,
     by_date = {}
     pages = []
     cursor = None
+    historical_pagination_complete = True
     for _ in range(max_pages):
         headers = {"authorization": "Bearer " + token, "api-id": TR}
         if cursor is not None:
@@ -158,6 +161,15 @@ def fetch_ka10059(*, code: str, as_of: str, token: str,
         cont = meta.get("cont-yn", "N")
         if cont not in ("Y", "N", ""):
             raise ValueError("Unknown provider continuation state")
+        # Real ka10059 can expose hundreds of old pages. For explicitly
+        # selected 5/20-observation research, stop once the newest page
+        # contains enough descending, unique dated observations. Never
+        # report that historical pagination was exhausted.
+        if recent_window_only and len(by_date) >= 20:
+            if page_dates != sorted(page_dates, reverse=True):
+                raise ValueError("Recent-window page is not newest-first")
+            historical_pagination_complete = cont != "Y"
+            break
         if cont != "Y":
             break
         cursor = meta.get("next-key")
@@ -181,6 +193,8 @@ def fetch_ka10059(*, code: str, as_of: str, token: str,
         "unit": "shares", "trade_type": "NET_BUY", "unit_code": "1",
         "amount_quantity_code": "2", "page_count": len(pages),
         "api_response_page_hashes": pages, "observed_rows": len(ordered),
+        "historical_pagination_complete": historical_pagination_complete,
+        "recent_window_only": recent_window_only,
         "rows": ordered, "flow_5_observed_sessions": {
             "foreign_net_shares": window(5, "foreign_net_shares"),
             "institution_net_shares": window(5, "institution_net_shares"),
@@ -194,9 +208,13 @@ def fetch_ka10059(*, code: str, as_of: str, token: str,
         "historical_publication_time_pit_certified": False,
         "historic_issuer_class_pit_certified": False, "official_leader": False,
         "investment_rank": None,
-        "completeness": ("COMPLETE_20_OBSERVED_ROWS_NOT_CALENDAR_CERTIFIED"
-                         if latest == as_of and window(20, "combined_net_shares") is not None
-                         else "PARTIAL_FLOW_RESEARCH"),
+        "completeness": (
+            "RECENT_20_OBSERVED_HISTORY_PAGINATION_PARTIAL_RESEARCH"
+            if not historical_pagination_complete and
+               latest == as_of and window(20, "combined_net_shares") is not None
+            else "COMPLETE_20_OBSERVED_ROWS_NOT_CALENDAR_CERTIFIED"
+            if latest == as_of and window(20, "combined_net_shares") is not None
+            else "PARTIAL_FLOW_RESEARCH"),
     }
     result["content_sha256"] = sha256(canonical(result)).hexdigest()
     return result

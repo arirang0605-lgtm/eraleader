@@ -187,3 +187,49 @@ def test_mismatched_trading_session_keeps_flow_na():
     side=build_overlay(basic,industry,flows={"005930":r},decision_at=NOW)
     assert side["comparisons"][0]["flow_status"]=="FLOW_SESSION_MISMATCH_NOT_USABLE"
     assert side["comparisons"][0]["combined_net_5_observed_shares"] is None
+
+
+def test_recent_window_uses_one_provider_page_without_claiming_full_history():
+    rows=fake_pages(30)
+    calls=[]
+    def firstpage(path,body,headers):
+        calls.append(headers)
+        return {"return_code":0,"stk_invsr_orgn":rows},{"cont-yn":"Y","next-key":"older_history"}
+    report=fetch_ka10059(
+        code="005930",as_of="20261008",token="SYNTHETIC",
+        received_at=NOW,post=firstpage,max_pages=1,recent_window_only=True)
+    assert len(calls)==1
+    assert report["observed_rows"]==30
+    assert report["page_count"]==1
+    assert report["historical_pagination_complete"] is False
+    assert report["recent_window_only"] is True
+    assert report["completeness"]=="RECENT_20_OBSERVED_HISTORY_PAGINATION_PARTIAL_RESEARCH"
+    assert report["flow_20_observed_sessions"]["combined_net_shares"]==200
+    assert report["historic_issuer_class_pit_certified"] is False
+    assert report["investment_rank"] is None
+    assert verify_flow(report,decision_at=NOW)==report
+    with pytest.raises(ValueError, match="Pagination cap"):
+        fetch_ka10059(code="005930",as_of="20261008",token="SYNTHETIC",
+                      received_at=NOW,post=firstpage,max_pages=1)
+
+
+def test_recent_window_does_not_truncate_when_less_than_20_rows():
+    calls=[]
+    def page(path,body,headers):
+        calls.append(headers)
+        if len(calls)==1:
+            return {"return_code":0,"stk_invsr_orgn":fake_pages(10)},{"cont-yn":"Y","next-key":"page2"}
+        return {"return_code":0,"stk_invsr_orgn":fake_pages(20)[10:]},{"cont-yn":"N"}
+    result=fetch_ka10059(code="005930",as_of="20261008",token="SYNTHETIC",
+                         received_at=NOW,post=page,max_pages=2,
+                         recent_window_only=True)
+    assert len(calls)==2
+    assert result["historical_pagination_complete"] is True
+
+
+def test_recent_window_rejects_out_of_order_first_page():
+    def wrong_order(path,body,headers):
+        return {"return_code":0,"stk_invsr_orgn":list(reversed(fake_pages(20)))},{"cont-yn":"Y","next-key":"next"}
+    with pytest.raises(ValueError,match="newest-first"):
+        fetch_ka10059(code="005930",as_of="20261008",token="SYNTHETIC",
+                      received_at=NOW,post=wrong_order,max_pages=1,recent_window_only=True)

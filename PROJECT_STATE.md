@@ -1761,3 +1761,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 변경 3파일(kiwoom_profile_settings.py/test_kiwoom_profile_settings.py/PROJECT_STATE.md), 테스트 **37/37 PASS EXIT0**, py_compile·cached diffcheck PASS, Public Git 안전스캔 scanned=3 suspicious=0.
 - 기능 코드 커밋 `10057c8685f841bbef70e3c503f6679cd59a4d77` → `origin/feature/core-official-factor-coverage-20261013` push 성공, 로컬/원격 SHA 일치. **main에는 병합/푸시하지 않음**.
 - 수정 버전 로컬 UI PID 65438, `http://127.0.0.1:8782/` HTTP200/Chrome 새 탭 오픈. 사용자 입력 비밀키 원문을 읽거나 로그로 출력하지 않음. 새 버전 점검 시 Kiwoom 프로필 파일은 아직 존재하지 않음, 따라서 실제 공급자 라이브 인증0/수급 수신0. 사용자가 새 UI에서 App Key+Secret 저장 후 demo 조회 가능.
+
+## 2026-10-13 KST | 1_2·3_2·6_2 | 키움 모의 API 최초 실수신 및 최근 20관측 연구 기능
+
+- **사용자 로컬 등록 확인**: `scripts/capture_kiwoom_investor_flow.py --check-config`에서 demo `credentials_configured=true`, SharedBrokerAPI UNIX socket `gateway_reachable=true`, `orders_enabled=false`. Secret/AppKey/OAuth/token은 출력·복사·Git 업로드 0.
+- **실제 Mac 키움 모의 API 수신**: 2026-10-13 삼성전자 005930 요청, `ka10059` 응답코드 0·선택 1종목 최신 일자 20261013·100개 관측행. 구조의 일자·foreign/institution 수급 필드 확인, 서버가 `cont-yn=Y`로 더 오래된 페이지 존재 알림. 모의서버 표본은 실계좌 시장 원본/공인 PIT 인증과 다르므로 **연구용**.
+- **발견·수정한 정상 동작 오류**: 기존 EraLeader CLI가 수급 5/20관측치만 필요한데 과거 전체 페이지가 완료돼야만 수집 허용해, 한 종목 100개 행 이상 이력에서 `Pagination cap hit` 실패. `fetch_ka10059(...,recent_window_only=True)` 명시 옵션 추가, 페이지가 시간 내림차순·중복 없음·최소 20관측행을 확보하면 과거 페이지가 남아도 연구용 완료. 기존 전체 이력 모드 기본값은 **엄격한 계속수집 계약 유지**. 결과의 `historical_pagination_complete=false`와 `RECENT_20_OBSERVED_HISTORY_PAGINATION_PARTIAL_RESEARCH`로 모든 이력 완전성/역사 PIT 주장 차단.
+- **원본 실제 수집 검증**: `output/kiwoom_live_research_20261013_005930_v2/` (Git ignored/private), `manifest.json` + `005930.json`, SHA256 pin/contents/first-received/verify_flow PASS. 5관측 외국인 -11,523,559주·기관 -5,769,067주, 20관측 외국인 -33,643,418주·기관 -558,385주(모의서버 반환 관측량이며 거래소 정식 집계 아님). 자동 대장주 순위 생성0, 실거래0. 과거 원본 발행시각/PIT, 데이터 대표성·실시장 일자 정합성 N/A.
+- **코드/검증**: `src/eraleader/kiwoom_investor_flow.py`, `scripts/capture_kiwoom_investor_flow.py`, `tests/test_kiwoom_investor_flow.py` 변경. `PYTHONPATH=src python3 -m pytest tests/test_kiwoom_investor_flow.py tests/test_kiwoom_gateway_cli.py tests/test_kiwoom_publication.py -q --tb=short` **30/30 PASS EXIT0**, py_compile+diffcheck PASS. 기존 미커밋 `native_first_capture.py` 및 main 원본 무변경.
+- **NEXT**: 실제 종목 수급 연구 결과를 기존 업종/재무/가격 보고에 연계하되 오늘 관측일과 이전 DART/KRX 자료 시점 불일치면 N/A로 표시, 모의 서버 숫자로 투자 순위/매매 자동화하지 말 것. 사용자의 실계좌/API 주문 사용 승인 없음.

@@ -129,7 +129,8 @@ def main(argv=None) -> int:
         result = capture(
             codes=args.codes.split(","), market_day=args.day, out=args.out,
             token="INTERNAL_LOCAL_GATEWAY_NO_PROVIDER_TOKEN",
-            environment_mode=args.profile, post=post)
+            environment_mode=args.profile, post=post,
+            fetch=lambda **kw: fetch_ka10059(**kw, recent_window_only=True))
         print(json.dumps(result, sort_keys=True))
         return 0
     except (ValueError, KeyError, TypeError, OSError) as exc:

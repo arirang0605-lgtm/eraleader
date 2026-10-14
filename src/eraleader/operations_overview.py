@@ -365,6 +365,62 @@ def _latest_peer_flow(root:Path, now:datetime) -> dict|None:
     return max(found,key=lambda row:row[:3])[-1] if found else None
 
 
+def _latest_flow_coverage(root:Path, now:datetime) -> dict|None:
+    from .marketwide_flow_coverage import SCHEMA as COVERAGE,_render
+    folder=root/"marketwide_flow_coverage"
+    if folder.is_symlink() or not folder.is_dir():
+        return None
+    found=[]
+    for batch in list(folder.iterdir())[:500]:
+        if (batch.is_symlink() or not batch.is_dir() or
+                not re.fullmatch(r"KR_[0-9]{8}_[a-f0-9]{16}_[a-f0-9]{12}",batch.name)):
+            continue
+        metadata=batch/"manifest.json"
+        page=batch/"index.html"
+        if (metadata.is_symlink() or page.is_symlink() or
+                not metadata.is_file() or not page.is_file()
+                or metadata.stat().st_size>2_000_000 or
+                page.stat().st_size>2_000_000):
+            continue
+        try:
+            doc=json.loads(metadata.read_bytes())
+            without=dict(doc)
+            pin=without.pop("content_sha256",None)
+            if (doc.get("schema")!=COVERAGE or doc.get("market")!="KR"
+                    or doc.get("mode")!="demo" or
+                    doc.get("selected_stocks_research_only") is not True or
+                    doc.get("orders_enabled") is not False or
+                    doc.get("formal_leaders")!=0 or
+                    doc.get("investment_flow_score_available") is not False or
+                    pin!=sha256(canonical(without)).hexdigest() or
+                    metadata.read_bytes()!=canonical(doc)+b"\n" or
+                    page.read_bytes()!=_render(doc)):
+                continue
+            market=date.fromisoformat(doc["source_market_session"])
+            built=datetime.fromisoformat(doc["source_built_at_utc"])
+            if (market>now.date() or built.tzinfo is None or
+                    built.astimezone(timezone.utc)>now):
+                continue
+            pins=doc.get("batch_sha256")
+            if type(pins) is not list or doc.get("published_batches")!=len(pins):
+                continue
+            digest=sha256(canonical({
+                "source":doc["source_marketwide_sha256"],"batches":pins
+            })).hexdigest()[:12]
+            if batch.name!="KR_"+market.strftime("%Y%m%d")+"_"+doc["source_marketwide_sha256"][:16]+"_"+digest:
+                continue
+            found.append((market,len(pins),batch.name,{
+                "href":"../../marketwide_flow_coverage/"+batch.name+"/index.html",
+                "market_session":market.isoformat(),
+                "collected_stocks":doc["collected_stocks"],
+                "complete_20":doc["complete_20_observed_sessions"],
+                "orders":0,
+            }))
+        except (KeyError,TypeError,ValueError,OSError,OverflowError,UnicodeError):
+            continue
+    return max(found,key=lambda x:x[:3])[-1] if found else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -383,6 +439,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "modes":modes,
         "kr_marketwide_search":_latest_marketwide_search(root,now),
         "kr_peer_flow_research":_latest_peer_flow(root,now),
+        "kr_marketwide_flow_coverage":_latest_flow_coverage(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -455,6 +512,23 @@ def render_operations_overview(snapshot:dict) -> str:
                    +str(peer["revenue_peers"])+'사 · 영업성장 순위 '
                    +str(peer["operating_peers"])+'사 · 원시 수급 '
                    +str(peer["raw_flow"])+'사 · 정식 성장/경쟁력/수급 점수 N/A</p>')
+    coverage=snapshot.get("kr_marketwide_flow_coverage")
+    if coverage is None:
+        coverage_html="<p>키움 누적 선택종목 수급: 검증된 발행본 없음 (N/A).</p>"
+    else:
+        if (type(coverage) is not dict or
+                set(coverage)!={"href","market_session","collected_stocks",
+                                "complete_20","orders"}
+                or coverage["orders"]!=0 or
+                type(coverage["collected_stocks"]) is not int or
+                type(coverage["complete_20"]) is not int or
+                not 0<=coverage["complete_20"]<=coverage["collected_stocks"] or
+                not re.fullmatch(r"\.\./\.\./marketwide_flow_coverage/KR_[0-9]{8}_[a-f0-9]{16}_[a-f0-9]{12}/index\.html",coverage["href"])):
+            raise ValueError("Unsafe marketwide flow coverage link")
+        coverage_html=('<p><a href="'+escape(coverage["href"],quote=True)+'">'
+                       '키움 기관·외국인 누적 관찰 보기</a> · 원시 수급 '
+                       +str(coverage["collected_stocks"])+'종목 · 20관측 완성 '
+                       +str(coverage["complete_20"])+'종목 · 연구용 / 주문 0</p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -487,7 +561,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

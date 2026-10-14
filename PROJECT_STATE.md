@@ -2024,3 +2024,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 실물 2026-10-13 KRX 2,761종목 보관: 현재 industry 프로필49 / 동종 매출 성장순위21 / 동종 영업성장 순위16 / 같은 거래일 기관외국인 원시수급1, 3사 이상 관찰업종2개. `output/sector_peer_flow/KR_20261013_a59b7ecdfaa0b707` 생성 및 manifest SHA 검증, 운영 화면·보고서 로컬 HTTP 각각200, 재실행 ALREADY_PUBLISHED. 회사정보 출처 날짜와 PIT 한계 표기.
 - 변경영향 `output/verification_logs/sector_peer_flow_scoped_20261014.xml` **83 PASS/0 FAIL/0 ERROR/0 SKIP**, Python compile/git diffcheck PASS. 상세 `docs/168_KR_SECTOR_PEER_FLOW_RESEARCH_20261014.md`. 과거 38% 엄격 진행률/99% 추정치를 현재 실제 실사용 진행률로 오용 금지, 현재 재산정 전.
 - 다음 우선 미구현: 시장일별 장기 수급의 종목 확장/표준화, 산업 내 수요/성장성·시장점유율/경쟁력 근거, 실운영 점수 모델 확정→5요소 후보 정식 상태·중립 JSON. 브랜치 merge/실제 전향적 미래성과 검증 미실시.
+
+## 2026-10-14 KST | CONTINUE | 1_2·3_3·3_4·3_5·6_2·6_4 | 공유 Kiwoom 다종목 수급 증분수집·누적현황
+
+- Mac `SHMOONui-MacBookAir.local` Online, T5DATA mounted. `feature/kr-marketwide-search-20261014` 시작 HEAD `0cec7e9` clean. 원본 main `a244002`과 기존 미커밋 `native_first_capture.py` 및 문서/PNG·타 브랜치/공통 API 코드/계좌키 보존.
+- `marketwide_flow_batch.py`, `run_marketwide_flow_batch.py` 추가: 실 KRX+DART SHA 보고를 가격 WATCH/50점 연구/거래대금 순서로 증분 수급 요청 계획. 기본 네트워크0, opt-in `--apply-demo`에서만 SharedBrokerAPI `ReadOnlyClient(eraleader)`의 모의 selected_flow_research를 1~5종목씩 호출, no real/no orders. 수신 코드/모드/시장일/first gateway receipt/PIT false/원문SHA 교차검증 후 전체 원자발행. 일부 실패 배치 미게시, 이전 수집 종목 건너뜀.
+- `marketwide_flow_coverage.py` 추가: 완료 소배치 SHA 재검사→5/20관측 기관외국인 누적 순매매주수(점수 아님) JSON/HTML. 운영 `render_local_operations.py --marketwide-flow-coverage` opt-in과 `operations_overview.py` 검증 링크 연결, 과거 원본 UI/원장 불변.
+- **실제 모의 API 읽기 전용 수집 성공**: KRX 2026-10-13 시장 관측 2,761주권 중 새 417840·446540 2종목 최초수신 성공, 3개 묶음 시도는 실패 시 소배치 발행0, 후속 006110 단독 성공 → **누적 3종목/20관측 각각3**. 별도 현재시장일 이후 2026-10-14 최초수신, 역사적 거래 판단용 PIT 미인증. 출판 `output/marketwide_flow_batches/KR_20261013_a59b7ecdfaa0b707_*`, 누적 `output/marketwide_flow_coverage/KR_20261013_a59b7ecdfaa0b707_cb0321344c41` SHA/동일버전 멱등 PASS, 대시보드 연결. 다음 미수집 순서 042510·092870·098120. 정식 leader0, 수급 점수0/N/A, 실거래0.
+- 변경영향 `output/verification_logs/kiwoom_marketwide_incremental_scope_20261014.xml` **137 PASS/0 FAIL/0 ERROR/0 SKIP**, 실제 모의 API 수신/누적 및 HTTP 로컬 보고, Python compile/미커밋 보호 체크. 상세 `docs/169_KR_MARKETWIDE_SHARED_KIWOOM_FLOW_BATCH_20261014.md`. 다음 산업/경쟁력과 flow 모델 실제 계산근거 확대·5요소 정식 상태 연결. API 제외 개발진행률 구 추정치 아닌 새 실사용 기준 재산정 전.

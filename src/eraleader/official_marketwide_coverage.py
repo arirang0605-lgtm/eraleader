@@ -559,6 +559,204 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
 
 
 
+
+def extend_saved_marketwide_factors(
+        source_file: Path, official_evidence: Path, capture_root: Path, *,
+        financial_manifests: tuple[Path,...],
+        industry_manifests: tuple[Path,...] = (),
+        clock: datetime | None = None) -> dict:
+    """Expand a verified existing whole-market snapshot with *new* DART facts.
+
+    Reuses existing KRX market-wide prices and ranks, avoiding an unnecessary
+    price-cache pass or rewriting the original WATCH/ledger. First SHA originals
+    are verified per issuer and only later receipt-time research is published.
+    """
+    issued=clock or datetime.now(timezone.utc)
+    if (not isinstance(issued,datetime) or issued.tzinfo is None or
+            issued.utcoffset() is None):
+        raise ValueError("MARKETWIDE_EXTENSION_CLOCK_MUST_BE_AWARE")
+    now=issued.astimezone(timezone.utc)
+    if (not source_file.is_absolute() or not source_file.is_file() or
+            source_file.is_symlink() or
+            any(part.is_symlink() for part in source_file.parents) or
+            not official_evidence.is_absolute() or not official_evidence.is_file() or
+            official_evidence.is_symlink() or
+            not capture_root.is_absolute() or not capture_root.is_dir() or
+            capture_root.is_symlink() or
+            not financial_manifests or len(financial_manifests)>8 or
+            len(industry_manifests)>8):
+        raise ValueError("MARKETWIDE_EXTENSION_SOURCE_UNSAFE_OR_EMPTY")
+    def unique(pairs):
+        result={}
+        for k,v in pairs:
+            if k in result: raise ValueError("MARKETWIDE_EXTENSION_DUPLICATE_JSON_FIELD")
+            result[k]=v
+        return result
+    source=json.loads(source_file.read_bytes(),object_pairs_hook=unique)
+    original=dict(source)
+    previous_pin=original.pop("content_sha256",None)
+    if (source.get("schema")!=SCHEMA or
+            previous_pin!=sha256(canonical(original)).hexdigest() or
+            source.get("research_only") is not True or
+            source.get("official_leaders")!=0 or
+            source.get("full_market_composite_rank_available") is not False or
+            type(source.get("securities")) is not list or
+            len(source["securities"]) != source.get("official_krx_observed") or
+            datetime.fromisoformat(source["built_at_utc"])>now):
+        raise ValueError("MARKETWIDE_EXTENSION_SOURCE_INVALID")
+    covered={}
+    for row in source["securities"]:
+        code=row.get("security_id")
+        if (type(code) is not str or code in covered or
+                row.get("formal_leader_score_100") is not None or
+                row.get("verified_leader_state") is not None):
+            raise ValueError("MARKETWIDE_EXTENSION_SECURITY_OR_LEADER_CONFLICT")
+        covered[code]=row
+    matched,directory,audit=source_eligible_universe(
+        official_evidence,capture_root,decision=now)
+    if (audit["market_session"]!=source["market_session"] or
+            audit["krx_rows"]!=len(covered) or
+            len(matched)!=source["current_dart_directory_matched"]):
+        raise ValueError("MARKETWIDE_EXTENSION_MARKET_OR_CORP_DIRECTORY_MISMATCH")
+    for code,reference in matched.items():
+        old=covered.get(code)
+        if (old is None or old["name"]!=reference["name"] or
+                old["venue"]!=reference["venue"] or
+                old["current_dart_directory_matched"] is not True):
+            raise ValueError("MARKETWIDE_EXTENSION_ISSUER_MISMATCH")
+    pins=_all_pinned(capture_root)
+    updated=set()
+    incomplete=set()
+    prior_cfs=set(source.get("extra_cfs_manifests_sha256",[]))
+    cfs_pins=[]
+    for path in financial_manifests:
+        if (not path.is_absolute() or path.is_symlink() or not path.is_file() or
+                any(d.is_symlink() for d in path.parents)):
+            raise ValueError("MARKETWIDE_EXTENSION_CFS_FILE_UNSAFE")
+        raw=path.read_bytes()
+        seal=sha256(raw).hexdigest()
+        if seal in prior_cfs or seal in cfs_pins:
+            raise ValueError("MARKETWIDE_EXTENSION_REPEATED_CFS_MANIFEST")
+        manifest=json.loads(raw,object_pairs_hook=unique)
+        if (manifest.get("schema")!="eraleader.dart_bounded_multi_company_cfs.v1" or
+                manifest.get("official_market",{}).get("market_session") !=
+                source["market_session"] or
+                manifest.get("research_only") is not True or
+                manifest.get("real_investment_leader_ranked") is not False or
+                manifest.get("companies_requested")!=len(manifest.get("companies",[]))):
+            raise ValueError("MARKETWIDE_EXTENSION_CFS_CONTRACT_INVALID")
+        cfs_pins.append(seal)
+        for firm in manifest["companies"]:
+            code=firm["stock_code"]
+            row=covered.get(code)
+            if (code in updated or code in incomplete or code not in matched or
+                    row is None or row["name"]!=firm["name"] or
+                    row["revenue_yoy"] is not None):
+                raise ValueError("MARKETWIDE_EXTENSION_CFS_ISSUER_ALREADY_KNOWN")
+            if not firm["research_annual_cfs_complete"]:
+                incomplete.add(code)
+                continue
+            reports={}
+            for receipt in firm["annual_reports"]:
+                pin=receipt["first_receipt_sha256"]
+                fy=receipt["fiscal_year"]
+                if pin not in pins or fy in reports:
+                    raise ValueError("MARKETWIDE_EXTENSION_CFS_PIN_MISSING")
+                actual=verify_dart_financial(pins[pin],pin,
+                    decision_at=now,directory=directory)
+                if (actual["stock_code"]!=code or actual["year"]!=fy or
+                        actual["statement"]!="CFS" or
+                        actual["report_code"]!="11011"):
+                    raise ValueError("MARKETWIDE_EXTENSION_CFS_ISSUER_OR_FY_BAD")
+                reports[fy]=actual
+            years=sorted(reports)
+            if len(years)!=2 or years[1]!=years[0]+1:
+                raise ValueError("MARKETWIDE_EXTENSION_CFS_YEARS_INVALID")
+            growth=annual_growth_diagnostic(reports[years[0]],reports[years[1]])
+            row["revenue_yoy"]=growth["research_metrics"]["revenue_yoy"]
+            row["operating_income_yoy"]=growth["research_metrics"]["operating_income_yoy"]
+            row["financial_receipt_years"]=years
+            updated.add(code)
+    prior_ind=set(source.get("extra_industry_manifests_sha256",[]))
+    ind_pins=[]
+    profile_updated=set()
+    for path in industry_manifests:
+        if (not path.is_absolute() or path.is_symlink() or not path.is_file() or
+                any(d.is_symlink() for d in path.parents)):
+            raise ValueError("MARKETWIDE_EXTENSION_INDUSTRY_FILE_UNSAFE")
+        raw=path.read_bytes()
+        seal=sha256(raw).hexdigest()
+        if seal in prior_ind or seal in ind_pins:
+            raise ValueError("MARKETWIDE_EXTENSION_INDUSTRY_DUPLICATE_MANIFEST")
+        manifest=json.loads(raw,object_pairs_hook=unique)
+        if (manifest.get("schema")!="eraleader.dart_industry_profile_cohort.v1" or
+                manifest.get("source_directory_sha256")!=directory[1] or
+                manifest.get("historic_industry_pit_certified") is not False or
+                manifest.get("current_classification_only") is not True or
+                manifest.get("companies_requested")!=len(manifest.get("companies",[]))):
+            raise ValueError("MARKETWIDE_EXTENSION_INDUSTRY_INVALID")
+        ind_pins.append(seal)
+        for company in manifest["companies"]:
+            code=company["stock_code"]
+            if code in profile_updated or code not in updated:
+                raise ValueError("MARKETWIDE_EXTENSION_INDUSTRY_NOT_NEW_CFS")
+            profile_updated.add(code)
+            pin=company.get("first_receipt_sha256")
+            if pin is None:
+                continue
+            if pin not in pins:
+                raise ValueError("MARKETWIDE_EXTENSION_INDUSTRY_PIN_NOT_FOUND")
+            checked=verify_company_profile(pins[pin],pin,
+                directory=directory,decision_at=now)
+            if (checked["stock_code"]!=code or
+                    checked["current_dart_industry_code"]!=
+                    company.get("current_dart_industry_code")):
+                raise ValueError("MARKETWIDE_EXTENSION_INDUSTRY_ISSUER_BAD")
+            covered[code]["industry_code"]=checked["current_dart_industry_code"]
+    # Use precisely the existing research 25+25 formula, never zero-fill.
+    ordered=[]
+    for row in covered.values():
+        row["earnings_research_25"]=None
+        row["two_factor_research_50"]=None
+        row["two_factor_research_rank"]=None
+        a,b,p=row["revenue_yoy"],row["operating_income_yoy"],row["price_strength_25"]
+        if any(v is None for v in (a,b,p)):continue
+        if any(type(v) not in (int,float) or not math.isfinite(v)
+               for v in (a,b,p)) or not 0<=p<=25:
+            raise ValueError("MARKETWIDE_EXTENSION_NONFINITE_SCORE")
+        earnings=round(12.5*min(max(a,0)/0.40,1)+
+                       12.5*min(max(b,0)/0.60,1),6)
+        row["earnings_research_25"]=earnings
+        row["two_factor_research_50"]=round(p+earnings,6)
+        ordered.append(row)
+    ordered.sort(key=lambda row:(-row["two_factor_research_50"],
+                                -row["price_strength_25"],row["security_id"]))
+    for rank,row in enumerate(ordered,1):
+        row["two_factor_research_rank"]=rank
+    source["two_factor_research_top20"]=[
+        {"research_order":row["two_factor_research_rank"],
+         "security_id":row["security_id"],"name":row["name"],
+         "observed_score_50":row["two_factor_research_50"],
+         "official_leader":False}
+        for row in ordered[:20]]
+    source["two_factor_research_evaluable"]=len(ordered)
+    source["financial_factors_observed"]+=len(updated)
+    source["incomplete_additional_financial_companies"]=(
+        source.get("incomplete_additional_financial_companies",0)+len(incomplete))
+    source["extra_cfs_manifests_sha256"]=(source.get(
+        "extra_cfs_manifests_sha256",[])+cfs_pins)
+    source["extra_industry_manifests_sha256"]=(source.get(
+        "extra_industry_manifests_sha256",[])+ind_pins)
+    source["industry_factors_observed"]=sum(
+        row["industry_code"] is not None for row in covered.values())
+    source.update(attach_observed_industry_peers(covered))
+    source["previous_research_sha256"]=previous_pin
+    source["built_at_utc"]=now.isoformat()
+    source["warning"]+=" New DART CFS/company facts are forward received, not retroactively known at market close."
+    source.pop("content_sha256")
+    source["content_sha256"]=sha256(canonical(source)).hexdigest()
+    return source
+
 def refresh_saved_marketwide_flow(source_file: Path, flow_folder: Path, *,
                                   clock: datetime | None = None) -> dict:
     """Reuse the already-published *checksum-verified* KRX/DART snapshot.

@@ -922,3 +922,8 @@ EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발
 - 분리 작업 브랜치 `feature/core-official-factor-coverage-20261013`, 실제 HEAD/remote 최신 먼저 확인. `docs/157_LATEST_KR_OFFICIAL_SESSION_WATCH_ROTATION_20261014.md` + PROJECT_STATE 맨 끝 참고, 원본 main의 기존 미커밋 native_first_capture.py/증빙 변경 금지.
 - 한국 KRX 실제 2026-10-13 2,761종목, DART공시456건, 가격 RS2,263, 비교가능 CFS/산업 각18, 50점 부분요소 평가11사, 동일일 Kiwoom read-only 관측 1사. 가격 WATCH 10/08→10/13 새4/이탈4/순위변경14, 실제 이력/JSON 별도 연구표/송신. 정식 100점/STATE 선정과 투자성과 N/A, 주문/특정 수신기 없음.
 - P1 전시장 업종·기관/외국인·경쟁력 실데이터 확대, P2 기존 종합100점/정식 TOP20, P3 StateHistory/신호 전달을 순서대로. 정상 코드 REWRITE 금지, 작은 변경 테스트+실데이터 E2E 후 Git.
+
+## 2026-10-14 최신 P1 CONTINUE | 원본시장 2,761 + 현재 재무/산업 30사 증분 연결
+- 마지막 검증 정상 코드 `feature/core-official-factor-coverage-20261013`에서 계속. 정확한 SHA는 `git rev-parse HEAD`; 기존 main의 미커밋 native_first_capture.py/원본 비밀키·시장자료 불변.
+- `docs/158_INCREMENTAL_KR_FINANCIAL_INDUSTRY_CONTINUE_20261014.md` 참고. 기존 KRX 2026-10-13 2,761 일봉/RS 2,263/재무·산업 18/수급 1 연구 본을 DART FY2024/25 원본 12사 + 업종 12사로 증분 확장하여 재무30/산업30/50점 연구22. 원형 WATCH20·기존 SQLite 변경하지 않음. 추가 실적은 10/14 첫 인지 자료이므로 가격관측일 과거 매수신호로 소급 금지.
+- 최신 output/kr_20261013_marketwide_30f30i_20261014 JSON+HTML 및 receiver-neutral strategy_outbox (price WATCH20/연구20/정식 선정0) E2E 실행. 다음 P1 데이터 확대→P2 기존 5요소 실제 종합 선정·P3 상태/송신. 사용자 수신 프로젝트 결정 전 외부 수신 어댑터 연결 금지.

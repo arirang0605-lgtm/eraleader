@@ -1969,3 +1969,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 실제 산출물 Git 제외 `output/kr_20261013_marketwide_flow_delivery_20261014/{index.html,marketwide_kr.json}` + `output/strategy_outbox/KR_20261013_b33e26987690_00e164ca58a1.json`. 실제 source SHA/시장관측일/최초수신·게시시각 구분. 상세 `docs/157_LATEST_KR_OFFICIAL_SESSION_WATCH_ROTATION_20261014.md`.
 - 검증: 관련 11개 테스트 모듈 `output/verification_logs/kr_latest_same_session_scoped_20261014.xml` 173 PASS, failure0/errors0/skipped0 EXIT0. 과거 파일·외부 CoreAStock/MarketOS 주문 권한 변경0, D-030 준수. 전체 엄격 PIT/성과 인수 N/A.
 - NEXT: 한국 시장 실제 전체재무/산업/경쟁력/수급 충족→5요소 100점 정식 선정→기존 StateHistory 자동 변동→프로젝트 중립 송신, 동일세션 자동 일정/운영체계. 현행 실사용 진행률 정량 재산정 전(과거 38% 실사용률 아님).
+
+## 2026-10-14 KST | CONTINUE P1 | 공식 전체시장 KRX 2,761 기반 DART CFS/산업 18→30 증분 결합
+- 시작 기존 분리 `feature/core-official-factor-coverage-20261013` HEAD `1e2f21342a23f95549274b28a580bf0247a9cb89` clean. 원본 main과 기존 미커밋 native_first_capture.py, 원시 첫 SHA, 외부 CoreAStock/MarketOS/NewsCatalystOS/SharedBrokerAPI 변경하지 않음.
+- 기존 거래대금 기반 CFS 우선 큐 사용, 2026-10-13 KRX-DART 현재동일 issuer 12사 FY2024/25 연속 원본 완전 확인(기존 캐시+공식 수신); 산업 company.json 10 기존+2 신규 본원 SHA로 12사 완전. 첫수신시각(2026-10-14)과 주가 관측일(2026-10-13) 분리. 오래된 분기 재무를 10/13 당시 공개 PIT로 위장하지 않음.
+- `official_marketwide_coverage.extend_saved_marketwide_factors`와 `publish_official_marketwide_coverage.py --extend-marketwide-report --official-evidence --capture-root --extra-cfs-manifest --extra-industry-manifest` 구현. 원형 전체가격보고 SHA·first KRX/DART·중복 issuer/FY·같은 거래일 확인 후 기존 보고와 WATCH를 변경하지 않고 *새* JSON/HTML만 게시. 동일 25/25 연구모델 재사용, 누락값 N/A. 기존 범용 strategy outbox 자동 발행 옵트인 재사용.
+- 실제 E2E: `output/kr_20261013_marketwide_30f30i_20261014/{index.html,marketwide_kr.json}` 2,761 KRX, 재무30, 산업30, 상대강도2,263, 50점 연구 가능22, Kiwoom 일치 수급1. `output/strategy_outbox/KR_20261013_a37aa3f6978c_6d6d702983cb.json` price WATCH20+연구20+selected0, 주문0; 멱등 재발행 ALREADY_DELIVERED.
+- 관련 `tests/test_official_marketwide_coverage.py` 및 8개 변경영향 모듈 125 PASS, 실패/오류0 (결과 `output/verification_logs/kr_fast_incremental_factors_scope_20261014.xml`). 상세 `docs/158_INCREMENTAL_KR_FINANCIAL_INDUSTRY_CONTINUE_20261014.md`. 최종 Git SHA는 실제 `git rev-parse HEAD`, 테스트 후 feature에만 안전 push.
+- NEXT: 더 많은 실제 기업 CFS·산업·시장세션 일치 수급/경쟁력 증거 수집→5요소 100점 공식 TOP20 결선→StateHistory 실제 상태 자동 갱신→프로젝트 독립 전략 JSON. 구 38%는 과거 엄격 인수 점수이고 현행 실사용 완료율 아님.

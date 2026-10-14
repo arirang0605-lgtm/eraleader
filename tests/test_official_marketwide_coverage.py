@@ -657,3 +657,84 @@ def test_marketwide_rotations_handoff_as_observations_not_state_transitions(
     out2.write_bytes(module.canonical(corrupted)+b"\n")
     with pytest.raises(ValueError,match="TECHNICAL_CHANGE_ROW_INVALID"):
         verify_handoff(out2)
+
+
+def test_fast_cfs_industry_extension_preserves_observed_prices_and_watch(
+        tmp_path,monkeypatch):
+    cohort,root,*_=fixture(tmp_path,monkeypatch)
+    baseline=module.build_marketwide_coverage(cohort,root,clock=NOW)
+    for row in baseline["securities"]:
+        if row["security_id"]==CODE_C:
+            row["price_strength_25"]=20.0
+    baseline.pop("content_sha256")
+    baseline["content_sha256"]=sha256(module.canonical(baseline)).hexdigest()
+    saved,_=module.publish_marketwide_coverage(baseline,tmp_path/"previous")
+    original_bytes=saved.read_bytes()
+    originals=module._all_pinned(root)
+    monkeypatch.setattr(module,"source_eligible_universe",
+        lambda *a,**kw:({
+            CODE_A:{"name":"삼성전자","venue":"KOSPI"},
+            CODE_C:{"name":"SK하이닉스","venue":"KOSDAQ"}},
+            (root/"directory","d"*64),
+            {"market_session":"2026-10-08","krx_rows":3}))
+    monkeypatch.setattr(module,"_all_pinned",lambda path:{
+        **originals,"a"*64:root/"fy2024",
+        "b"*64:root/"fy2025","c"*64:root/"industry"})
+    monkeypatch.setattr(module,"verify_dart_financial",
+        lambda path,pin,**kw:{"stock_code":CODE_C,
+            "year":2024 if pin=="a"*64 else 2025,
+            "statement":"CFS","report_code":"11011"})
+    monkeypatch.setattr(module,"annual_growth_diagnostic",
+        lambda a,b:{"research_metrics":{
+            "revenue_yoy":0.20,"operating_income_yoy":0.30}})
+    monkeypatch.setattr(module,"verify_company_profile",
+        lambda path,pin,**kw:{"stock_code":CODE_C,
+            "current_dart_industry_code":"261"})
+    financial={"schema":"eraleader.dart_bounded_multi_company_cfs.v1",
+        "official_market":{"market_session":"2026-10-08"},
+        "research_only":True,"real_investment_leader_ranked":False,
+        "companies_requested":1,"companies":[{
+            "stock_code":CODE_C,"name":"SK하이닉스",
+            "research_annual_cfs_complete":True,
+            "annual_reports":[
+                {"fiscal_year":2024,"first_receipt_sha256":"a"*64},
+                {"fiscal_year":2025,"first_receipt_sha256":"b"*64}]}]}
+    industry={"schema":"eraleader.dart_industry_profile_cohort.v1",
+        "source_directory_sha256":"d"*64,
+        "historic_industry_pit_certified":False,
+        "current_classification_only":True,
+        "companies_requested":1,
+        "companies":[{"stock_code":CODE_C,
+            "current_dart_industry_code":"261",
+            "first_receipt_sha256":"c"*64}]}
+    f=tmp_path/"f.json"
+    i=tmp_path/"i.json"
+    f.write_text(json.dumps(financial))
+    i.write_text(json.dumps(industry))
+    extended=module.extend_saved_marketwide_factors(
+        saved,cohort/"official_api_pit_research.json",root,
+        financial_manifests=(f,),industry_manifests=(i,),
+        clock=NOW+timedelta(minutes=15))
+    assert saved.read_bytes()==original_bytes
+    assert extended["financial_factors_observed"]==2
+    assert extended["industry_factors_observed"]==2
+    assert extended["official_krx_observed"]==baseline["official_krx_observed"]
+    assert extended["previous_research_sha256"]==baseline["content_sha256"]
+    assert extended["two_factor_research_evaluable"]==1
+    enriched=next(x for x in extended["securities"] if x["security_id"]==CODE_C)
+    assert enriched["industry_code"]=="261"
+    assert enriched["two_factor_research_50"] == 32.5
+    assert enriched["formal_leader_score_100"] is None
+    newfile,_=module.publish_marketwide_coverage(extended,tmp_path/"extended")
+    assert json.loads(newfile.read_text())==extended
+    with pytest.raises(ValueError,match="REPEATED_CFS_MANIFEST"):
+        module.extend_saved_marketwide_factors(
+            newfile,cohort/"official_api_pit_research.json",root,
+            financial_manifests=(f,),clock=NOW+timedelta(minutes=20))
+    damaged=tmp_path/"damaged.json"
+    damaged.write_text(saved.read_text().replace('"research_only":true',
+                                                  '"research_only":false'))
+    with pytest.raises(ValueError,match="SOURCE_INVALID"):
+        module.extend_saved_marketwide_factors(
+            damaged,cohort/"official_api_pit_research.json",root,
+            financial_manifests=(f,),clock=NOW+timedelta(minutes=20))

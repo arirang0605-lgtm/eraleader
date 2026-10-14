@@ -14,7 +14,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/"src"))
 from eraleader.official_marketwide_coverage import (
     build_marketwide_coverage, publish_marketwide_coverage,
-    refresh_saved_marketwide_flow,
+    refresh_saved_marketwide_flow,extend_saved_marketwide_factors,
 )
 
 
@@ -22,9 +22,13 @@ def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     source=p.add_mutually_exclusive_group(required=True)
     source.add_argument("--cohort",type=Path)
+    source.add_argument("--extend-marketwide-report",type=Path,
+                        help="Read-only fast append of original-verified financial/industry cohorts")
     source.add_argument("--verified-marketwide-report",type=Path,
                         help="Reuse existing SHA-verified KR marketwide report to join new Kiwoom flow")
     p.add_argument("--capture-root",type=Path)
+    p.add_argument("--official-evidence",type=Path,
+                   help="Official same-session KRX+DART first receipt summary for fast expansion")
     p.add_argument("--out",type=Path,required=True)
     p.add_argument("--strategy-outbox-dir",type=Path,
                    help="Optional existing EraLeader output-only immutable research handoff outbox")
@@ -51,10 +55,21 @@ def main(argv=None):
     if a.verified_marketwide_report is not None:
         if (a.kiwoom_flow_folder is None or a.capture_root is not None or
                 a.extra_cfs_manifest or a.extra_industry_manifest or
-                a.full_price_lookback or a.previous_price_watch is not None):
+                a.full_price_lookback or a.previous_price_watch is not None or
+                a.official_evidence is not None):
             p.error("Saved report mode only accepts --kiwoom-flow-folder and --out")
         result=refresh_saved_marketwide_flow(
             a.verified_marketwide_report,a.kiwoom_flow_folder)
+    elif a.extend_marketwide_report is not None:
+        if (a.capture_root is None or a.official_evidence is None or
+                not a.extra_cfs_manifest or a.full_price_lookback or
+                a.previous_price_watch is not None or
+                a.kiwoom_flow_folder is not None):
+            p.error("Fast marketwide extension requires --capture-root, --official-evidence, and extra CFS manifests")
+        result=extend_saved_marketwide_factors(
+            a.extend_marketwide_report,a.official_evidence,a.capture_root,
+            financial_manifests=tuple(a.extra_cfs_manifest),
+            industry_manifests=tuple(a.extra_industry_manifest))
     else:
         if a.capture_root is None:
             p.error("Official KRX/DART capture-root is required")

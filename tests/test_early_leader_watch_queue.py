@@ -215,3 +215,64 @@ def test_forged_earnings_component_blocked_even_when_assessment_sha_is_recompute
     with pytest.raises(ValueError,match="FINANCIAL_NOT_MARKET_VERIFIED"):
         publish(project,market,forged)
     assert not list((project/"output").glob("early_leader_watch_queue/KR_*"))
+
+
+def test_same_industry_dart_growth_reaches_watch_fields_only_when_observed(tmp_path):
+    from eraleader.early_leader_watch_queue import _observed_peer_context
+    rows=[
+        {"security_id":"100001","industry_code":"2612",
+         "current_dart_directory_matched":True,"revenue_yoy":0.30,
+         "operating_income_yoy":0.40},
+        {"security_id":"100002","industry_code":"2612",
+         "current_dart_directory_matched":True,"revenue_yoy":0.10,
+         "operating_income_yoy":0.20},
+        {"security_id":"100003","industry_code":"2613",
+         "current_dart_directory_matched":True,"revenue_yoy":0.80,
+         "operating_income_yoy":0.40},
+        {"security_id":"100004","industry_code":"2612",
+         "current_dart_directory_matched":False,"revenue_yoy":0.99,
+         "operating_income_yoy":0.99},
+    ]
+    enriched=_observed_peer_context({"securities":rows})
+    assert set(enriched)=={"100001","100002"}
+    first=enriched["100001"]
+    assert first["industry_sample_peer_count"]==2
+    assert first["industry_sample_revenue_growth_median_pct"]==20.0
+    assert first["company_revenue_growth_pct"]==30.0
+    assert first["company_revenue_growth_vs_peers_pp"]==10.0
+    assert first["company_operating_growth_vs_peers_pp"]==10.0
+    assert enriched["100002"]["company_revenue_growth_vs_peers_pp"]==-10.0
+
+
+def test_missing_operating_yoy_keeps_competitive_execution_as_na():
+    from eraleader.early_leader_watch_queue import _observed_peer_context
+    pair=[
+        {"security_id":"100001","industry_code":"29271",
+         "current_dart_directory_matched":True,"revenue_yoy":0.20,
+         "operating_income_yoy":None},
+        {"security_id":"100002","industry_code":"29271",
+         "current_dart_directory_matched":True,"revenue_yoy":0.10,
+         "operating_income_yoy":0.30},
+    ]
+    got=_observed_peer_context({"securities":pair})
+    assert got["100001"]["industry_sample_revenue_growth_median_pct"]==15.0
+    assert got["100001"]["company_operating_growth_vs_peers_pp"] is None
+    assert got["100002"]["company_operating_growth_vs_peers_pp"] is None
+
+
+def test_peer_enriched_watch_still_retains_nil_industry_and_competitive_scores(tmp_path):
+    from eraleader.early_leader_watch_queue import SECTOR_CONTEXT
+    _,project,market,partial=setup(tmp_path)
+    made=publish(project,market,partial)
+    doc=_validated(Path(made["manifest"]),clock=NOW)
+    assert doc["sector_peer_context_method"]==SECTOR_CONTEXT
+    assert doc["sector_peer_comparable_in_watch"]==0
+    assert doc["company_operating_peer_comparable_in_watch"]==0
+    for row in doc["review_queue"]:
+        assert row["industry_and_competitive_score_20_available"] is False
+        assert row["industry_sample_growth_is_entire_industry"] is False
+        assert row["independent_competitive_moat_verified"] is False
+        assert "industry" in row["missing_for_5factor"]
+        assert "competitiveness" in row["missing_for_5factor"]
+    html=Path(made["site"]).read_text()
+    assert "업종표본 매출성장 중간" in html

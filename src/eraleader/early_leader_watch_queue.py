@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from html import escape
 from pathlib import Path
+from statistics import median
 from zoneinfo import ZoneInfo
 import json
 import math
@@ -26,12 +27,61 @@ from .factor_selection_pipeline import _read_assessment, _validate
 SCHEMA="eraleader.kr_early_watch_queue.v1"
 FOLDER="early_leader_watch_queue"
 MAX_WATCH=100
+SECTOR_CONTEXT="CURRENT_DART_EXACT_CODE_OBSERVED_PEER_MEDIAN_V1_NOT_INDUSTRY_GROWTH_OR_MOAT"
 TIERS=(
     "A_PRICE_EARNINGS_OBSERVED",
     "B_PRICE_FLOW_OBSERVED",
     "C_KRX_PRICE_TOP20",
     "D_PRICE_STRENGTH_OBSERVED",
 )
+
+
+def _observed_peer_context(market:dict)->dict[str,dict]:
+    """Exact current DART industry peers only, not the whole listed industry.
+
+    Return actual sample revenue/operating YoY observation and company-relative
+    spreads (percentage points). Neither is an approved 20pt factor score.
+    """
+    groups={}
+    for row in market["securities"]:
+        kind=row.get("industry_code")
+        revenue=row.get("revenue_yoy")
+        if (not kind or row.get("current_dart_directory_matched") is not True
+                or revenue is None):
+            continue
+        if (type(kind) is not str or type(revenue) not in (float,int)
+                or not math.isfinite(revenue)):
+            raise ValueError("EARLY_WATCH_DART_REVENUE_INVALID")
+        operating=row.get("operating_income_yoy")
+        if operating is not None and (type(operating) not in (int,float)
+                                       or not math.isfinite(operating)):
+            raise ValueError("EARLY_WATCH_DART_OPERATING_INVALID")
+        groups.setdefault(kind,[]).append(row)
+    context={}
+    for peers in groups.values():
+        if len(peers)<2:
+            continue
+        rev_med=median([r["revenue_yoy"] for r in peers])
+        operating_values=[r["operating_income_yoy"] for r in peers
+                          if r["operating_income_yoy"] is not None]
+        operating_med=median(operating_values) if len(operating_values)>=2 else None
+        for company in peers:
+            own_operating=company["operating_income_yoy"]
+            context[company["security_id"]]={
+                "industry_sample_peer_count":len(peers),
+                "industry_sample_revenue_growth_median_pct":round(100*rev_med,4),
+                "company_revenue_growth_pct":round(100*company["revenue_yoy"],4),
+                "company_revenue_growth_vs_peers_pp":
+                    round(100*(company["revenue_yoy"]-rev_med),4),
+                "industry_sample_operating_growth_median_pct":
+                    round(100*operating_med,4) if operating_med is not None else None,
+                "company_operating_growth_pct":
+                    round(100*own_operating,4) if own_operating is not None else None,
+                "company_operating_growth_vs_peers_pp":
+                    round(100*(own_operating-operating_med),4)
+                    if own_operating is not None and operating_med is not None else None,
+            }
+    return context
 
 
 def _clock(clock):
@@ -64,6 +114,7 @@ def create_early_watch(*,marketwide:Path,project:Path,
     original={r["security_id"]:r for r in market["securities"]}
     if len(original)!=len(market["securities"]):
         raise ValueError("EARLY_WATCH_DUPLICATE_SOURCE_CODE")
+    peer_context=_observed_peer_context(market)
     entries=[]
     tier_counts=dict.fromkeys(TIERS,0)
     for item in verified:
@@ -115,6 +166,17 @@ def create_early_watch(*,marketwide:Path,project:Path,
                                                if v is not None),6),
             "observed_component_count":quality,
             "observed_industry_code":observed["industry_code"],
+            "industry_and_competitive_score_20_available":False,
+            "industry_sample_growth_is_entire_industry":False,
+            "independent_competitive_moat_verified":False,
+            **{field:(peer_context.get(code) or {}).get(field) for field in (
+                "industry_sample_peer_count",
+                "industry_sample_revenue_growth_median_pct",
+                "company_revenue_growth_pct",
+                "company_revenue_growth_vs_peers_pp",
+                "industry_sample_operating_growth_median_pct",
+                "company_operating_growth_pct",
+                "company_operating_growth_vs_peers_pp")},
             "observed_same_industry_revenue_rank":
                 observed.get("peer_revenue_yoy_rank"),
             "observed_same_industry_revenue_denominator":
@@ -144,10 +206,15 @@ def create_early_watch(*,marketwide:Path,project:Path,
         "source_first_assessed_at_utc":asof.isoformat(),
         "watch_published_at_utc":now.isoformat(),
         "candidate_tiers_order":list(TIERS),
+        "sector_peer_context_method":SECTOR_CONTEXT,
         "tier_available_counts":tier_counts,
         "eligible_price_factor_candidates":len(entries),
         "review_candidates":len(selections),
         "requested_top":top,
+        "sector_peer_comparable_in_watch":sum(
+            r["industry_sample_peer_count"] is not None for r in selections),
+        "company_operating_peer_comparable_in_watch":sum(
+            r["company_operating_growth_vs_peers_pp"] is not None for r in selections),
         "review_queue":selections,
         "receiver_project":None,
         "receiver_neutral":True,
@@ -179,7 +246,9 @@ def _html(doc:dict)->bytes:
           '<p class="note">실제 확보된 가격·실적·수급 관측자료의 검토 순서입니다. '
           'A/B/C/D 그룹 간 점수·순위는 직접 비교되지 않으며 시장의 '
           '투자1~50위나 공식 대장주 확정이 아닙니다. 산업 성장·경쟁력 '
-          '미확보, 역사 PIT·기업행동 미인증. 직접 매매주문과 연결하지 않습니다.</p>'
+          '성장률은 확인된 일부 DART 기업의 세부업종 표본 중간값일 뿐 업종 전체가 아닙니다. '
+          '회사 실적 우위는 경쟁우위·해자 인증이 아닙니다. '
+          '역사 PIT·기업행동 미인증. 직접 매매주문과 연결하지 않습니다.</p>'
           '<p>KRX 기준일 '+escape(doc["source_market_session"])
           +' · 우선 검토 '+str(doc["review_candidates"])
           +'종목 · 관측 가능 '+str(doc["eligible_price_factor_candidates"])
@@ -187,7 +256,10 @@ def _html(doc:dict)->bytes:
           '<div class="scroll"><table><thead><tr>'+''.join(
               "<th>"+x+"</th>" for x in (
                   "검토순","종목","코드","그룹","가격25","실적25",
-                  "수급연구10","동업종 매출순위","미확보 요소"))+
+                  "수급연구10","동업종 매출순위","업종표본 수",
+                  "업종표본 매출성장 중간(%)","회사 매출성장(%)",
+                  "동업종표본 대비 매출(pp)","동업종표본 대비 영업익(pp)",
+                  "미확보 요소"))+
           '</tr></thead><tbody>')
     cells=[]
     for row in doc["review_queue"]:
@@ -198,7 +270,12 @@ def _html(doc:dict)->bytes:
         vals=(row["review_priority_position"],row["name"],row["security_id"],
               row["watch_tier"],row["price_strength_25"],
               row["earnings_research_25"],row["flow_research_10"],
-              peer,",".join(row["missing_for_5factor"]))
+              peer,row["industry_sample_peer_count"],
+              row["industry_sample_revenue_growth_median_pct"],
+              row["company_revenue_growth_pct"],
+              row["company_revenue_growth_vs_peers_pp"],
+              row["company_operating_growth_vs_peers_pp"],
+              ",".join(row["missing_for_5factor"]))
         cells.append('<tr>'+''.join(
             '<td>'+escape("N/A" if v is None else str(v))+'</td>'
             for v in vals)+'</tr>')
@@ -232,6 +309,7 @@ def _validated(path:Path,*,clock=None)->dict:
             or doc.get("order_instruction") is not False
             or doc.get("execution_authority") is not False
             or doc.get("investment_priority_certified") is not False
+            or doc.get("sector_peer_context_method")!=SECTOR_CONTEXT
             or instant.tzinfo is None or instant.astimezone(timezone.utc)>now):
         raise ValueError("EARLY_WATCH_VERSION_TAMPER_OR_AUTHORITY")
     rows=doc.get("review_queue")
@@ -246,7 +324,10 @@ def _validated(path:Path,*,clock=None)->dict:
                 row.get("eligible_to_order") is not False or
                 type(row.get("security_id")) is not str or
                 not re.fullmatch(r"[A-Z0-9]{6}",row["security_id"]) or
-                row.get("watch_tier") not in TIERS):
+                row.get("watch_tier") not in TIERS or
+                row.get("industry_and_competitive_score_20_available") is not False or
+                row.get("industry_sample_growth_is_entire_industry") is not False or
+                row.get("independent_competitive_moat_verified") is not False):
             raise ValueError("EARLY_WATCH_ROW_AUTHORITY_INVALID")
     return doc
 
@@ -271,6 +352,7 @@ def publish_early_watch(*,marketwide:Path,project:Path,
         "market":payload["source_marketwide_sha256"],
         "factor":payload["source_factor_assessment_sha256"],
         "top":payload["requested_top"],
+        "peer_method":SECTOR_CONTEXT,
     })).hexdigest()[:16]
     destination=folder/("KR_"+payload["source_market_session"].replace("-","")
                         +"_"+version)

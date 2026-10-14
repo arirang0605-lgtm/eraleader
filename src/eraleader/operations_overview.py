@@ -615,6 +615,39 @@ def _latest_dated_exact_volume(root:Path, now:datetime, *, all_stocks:bool=False
     return max(found,key=lambda v:v[:4])[-1]
 
 
+def _latest_flow_research_score(root:Path, now:datetime)->dict|None:
+    from .marketwide_flow_research_score import read_flow_research
+    folder=root/"research_flow10_assessments"
+    if folder.is_symlink() or not folder.is_dir():
+        return None
+    valid=[]
+    for f in list(folder.iterdir())[:400]:
+        if (f.is_symlink() or not f.is_file() or
+                not re.fullmatch(r"KR_[0-9]{8}_[a-f0-9]{16}\.json",f.name)):
+            continue
+        try:
+            raw=json.loads(f.read_bytes())
+            statement=read_flow_research(
+                f,expected_market_sha=raw["source_marketwide_sha256"],
+                clock=now)
+            dt=datetime.fromisoformat(statement["computed_at_utc"])
+            if (dt.tzinfo is None or dt.astimezone(timezone.utc)>now or
+                    date.fromisoformat(statement["source_market_session"])>now.date()):
+                continue
+            rows=statement["rows"]
+            scores=[{"code":r["security_id"],"research_score_10":r["research_score_10"]}
+                    for r in rows]
+            valid.append((dt,statement["content_sha256"],{
+                "source_market_session":statement["source_market_session"],
+                "computed_at_utc":statement["computed_at_utc"],
+                "research_scores":scores,
+                "formal_scores_available":False,"orders":0,
+            }))
+        except (OSError,ValueError,KeyError,TypeError,OverflowError,UnicodeError):
+            continue
+    return max(valid,key=lambda x:x[:2])[-1] if valid else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -638,6 +671,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "kr_marketwide_volume_alignment":_latest_volume_alignment(root,now),
         "kr_marketwide_dated_exact_volume":_latest_dated_exact_volume(root,now),
         "kr_marketwide_dated_all_stocks":_latest_dated_exact_volume(root,now,all_stocks=True),
+        "kr_flow10_heuristic_research":_latest_flow_research_score(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -814,6 +848,41 @@ def render_operations_overview(snapshot:dict) -> str:
                         '대장주 순위·정식 수급10점이 아닙니다.</small></p>')
     else:
         all_dated_html="<p>종목별 검증된 날짜별 수급 보고서가 없습니다 (N/A).</p>"
+    heuristic=snapshot.get("kr_flow10_heuristic_research")
+    if heuristic is None:
+        heuristic_html="<p>기간별 수급 가중 연구점수: 검증된 평가자료 없음 (N/A).</p>"
+    else:
+        if (type(heuristic) is not dict or
+                set(heuristic)!={"source_market_session","computed_at_utc",
+                                "research_scores","formal_scores_available","orders"}
+                or heuristic["formal_scores_available"] is not False
+                or heuristic["orders"]!=0
+                or type(heuristic["research_scores"]) is not list
+                or len(heuristic["research_scores"])>20):
+            raise ValueError("Unsafe flow research score overview")
+        score_rows=[]
+        seen=set()
+        for item in heuristic["research_scores"]:
+            if (type(item) is not dict or
+                    set(item)!={"code","research_score_10"} or
+                    type(item["code"]) is not str or
+                    not re.fullmatch(r"[0-9]{6}",item["code"]) or
+                    item["code"] in seen or
+                    type(item["research_score_10"]) not in (int,float) or
+                    not 0<=item["research_score_10"]<=10):
+                raise ValueError("Unsafe flow research score row")
+            seen.add(item["code"])
+            score_rows.append('<tr><td>'+escape(item["code"])+'</td><td>'
+                              +escape(str(item["research_score_10"]))+
+                              '/10 (연구용)</td></tr>')
+        heuristic_html=('<p>시장 관측일 '+escape(heuristic["source_market_session"])+
+                        ' · 최초 연구평가시각 '+escape(heuristic["computed_at_utc"])+
+                        ' · 산업/경쟁력 미충족, 공식 수급10점 N/A</p><div class="wrap">'
+                        '<table><thead><tr><th>종목코드</th><th>가중 수급 연구점수</th>'
+                        '</tr></thead><tbody>'+''.join(score_rows)+
+                        '</tbody></table></div>'
+                        '<p><small>검증된 날짜별 순매매/거래량을 임시 고정 산식으로 '
+                        '변환했을 뿐 대장주 순위·실전 매수/매도 신호가 아닙니다.</small></p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -846,7 +915,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>가중 수급 연구점수 (정식 10점 아님)</h2>\n{heuristic_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

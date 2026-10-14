@@ -2076,3 +2076,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 기존 ReadOnlyClient Kiwoom demo로 006110/446540 각각 날짜별 20행 1회 읽기 전용 수신, 기존 누적 영수증SHA/5·20합계 검증. 기존 KRX first 양시장 수신 10/06·07·08·12·13 이용해 두 종목 5/5,20/20 거래량 일자 정확매칭. 저스템417840 포함 총3개 20/20, flow10 N/A/공식대장주0/실주문0.
 - 기존 operations_overview의 동일 SHA+HTML 검증 로직을 종목별 최고 커버리지 선택에도 사용. output/operations/site/index.html 세 종목 개별 링크, 기본 단일 링크 및 다른 코드 보존. test_operations_dated_flow_all_stocks 등 58 PASS/0 FAIL/ERR/SKIP, 실물운영 리플레이 링크3개·전체20/20 확인. 상세 docs/175_KR_3STOCK_DATED_FLOW_20OF20_DASHBOARD_20261014.md.
 - NEXT: 전향적 수급 정식10점 판정자료·산업성장20·기업경쟁력20 실원천 및 공식 issuer/PIT 추가 연결. 현재 5요소 정식 선정 미완, API 제외 진척률 신기준 재산정 전.
+
+## 2026-10-14 KST | CONTINUE | 3_5·4_1·6_2 | KRX/Kiwoom 5·20 관측 3종목 연구 수급10점 임시 V1 + 5요소 입력 결선
+
+- T5DATA 맥북 연결. feature/kr-marketwide-search-20261014 시작 HEAD `b5683af` clean, 기존 정상 `marketwide_dated_volume`/StateHistory/_validate/partials/operations-overview 재사용. 원본 main 사용자 미커밋 native_first_capture.py/PROJECT_STATE/DECISIONS 및 공시 참고 PNG/MarketOS/SharedBrokerAPI raw·keys 수정0.
+- 신규 `marketwide_flow_research_score.py`, `derive_marketwide_flow_research.py`: 공식 KRX SHA 및 기존 키움 모의20행 날짜/거래량 raw 공급자 SHA를 **다시 검증한 후** 0.60×5관측 + 0.40×20관측 총 기관외국인 순매매/동기간 거래량%의 neutral5 + 0.5배 클립0~10 **연구 V1 수급임시점수**. 006110=8.0409, 417840=7.8648, 446540=4.3062, 모든 날짜/잔여분모5/5·20/20. 공식 10점/투자신호 검증/PIT 독립인증 아니며 state/order0.
+- 기존 SHA 잠금 `partial_factor_inputs/KR_20261013_a59b7ecdfaa0b707_PARTIAL_500.json` 불변 상태에서 500개 가격/38 실적/3 수급 *연구* 점수 및 실제시각(2026-10-14T09:41:07+00:00) 1개 새 버전 생성. industry/competitiveness null, PIT false. 이미 등록된 오늘 `five_factor_local_state_history.sqlite` 당일 이력 immutable 보호를 위해 호출하지 않고 `_validate` 500행 정상 PASS, 정식 리더0.
+- 기존 `operations_overview`에서 최신 SHA검증된 연구 수급점수3개를 정식10점이 아님을 명시해 표시, 기존 화면/실매매 경로 미변경. 실제 Git-ignored `output/verification_logs/flow_research_real_20261014.json`, `output/research_flow10_assessments/KR_20261013_a2514d74812e5df3.json`, `output/partial_factor_inputs/KR_20261013_a59b7ecdfaa0b707_FLOWV1_2080b026ae1bef1e.json`.
+- 변경영향 `output/verification_logs/flow10_research_combined_20261014.xml` **103 PASS/0 FAIL/ERR/SKIP**, Python compile/Git stagecheck 완료. 명세 `docs/176_KR_MARKETWIDE_RESEARCH_FLOW10_5FACTOR_JOIN_20261014.md`. NEXT: 산업성장·기업경쟁력 실제 증거 추가, 수급 임시규칙 전향적 안정성/종목 커버리지 확대, 동시점 PIT 확보 후 본래 대장주 상태선정·프로젝트 중립 송신, 실거래 없음.

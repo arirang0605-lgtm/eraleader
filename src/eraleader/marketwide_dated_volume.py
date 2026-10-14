@@ -29,7 +29,8 @@ PERIODS=(5,20)
 
 def evaluate_exact_volume(*,marketwide:Path,project:Path,code:str,
                           legacy_root:Path=LEGACY_DEFAULT,
-                          clock:datetime|None=None)->dict:
+                          clock:datetime|None=None,
+                          official_volume_overlay:Path|None=None)->dict:
     now=clock or datetime.now(timezone.utc)
     if not isinstance(now,datetime) or now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("EXACT_VOLUME_AWARE_CLOCK_REQUIRED")
@@ -75,6 +76,28 @@ def evaluate_exact_volume(*,marketwide:Path,project:Path,code:str,
                 daily[key]=int(v) if int(v)==v else float(v)
         except (ValueError,FileNotFoundError):
             daily={}
+    added_official=set()
+    overlay_sha=None
+    if official_volume_overlay is not None:
+        from .official_krx_volume_overlay import read_volume_overlay
+        official=read_volume_overlay(
+            official_volume_overlay,expected_code=code,
+            expected_source=source["content_sha256"],clock=now)
+        if (official["source_market_session"]!=source["market_session"]
+                or official["dated_kiwoom_sha256"]!=witness["content_sha256"]
+                or official["orders_enabled"] is not False):
+            raise ValueError("EXACT_VOLUME_OFFICIAL_OVERLAY_IDENTITY_MISMATCH")
+        overlay_sha=official["content_sha256"]
+        for observed in official["rows"]:
+            day=observed["session"]
+            volume=observed["volume"]
+            if day in daily:
+                if daily[day]!=volume:
+                    raise ValueError("EXACT_VOLUME_KRX_LEGACY_VOLUME_CONFLICT")
+                continue
+            if volume>0:
+                daily[day]=volume
+                added_official.add(day)
     first=witness["rows"][0]["session"]
     if first!=source["market_session"]:
         raise ValueError("EXACT_VOLUME_MARKET_SESSION_MISMATCH")
@@ -97,6 +120,7 @@ def evaluate_exact_volume(*,marketwide:Path,project:Path,code:str,
                 round(100*quantity/denominator,6)
                 if denominator is not None and quantity is not None else None)
         periods[str(n)]={
+            "official_first_receipt_added_days":sorted(added_official.intersection(expected_dates)),
             "dated_flow_observations":n,
             "matched_price_volume_days":n-len(missing),
             "missing_price_volume_dates":missing,
@@ -112,6 +136,8 @@ def evaluate_exact_volume(*,marketwide:Path,project:Path,code:str,
         "kiwoom_first_gateway_received_at_utc":
             witness["first_gateway_received_at_utc"],
         "cache_file_sha256":cache_sha,
+        "official_volume_overlay_sha256":overlay_sha,
+        "official_source_added_price_days":sorted(added_official),
         "price_volume_cache_independently_pit_certified":False,
         "exchange_trading_calendar_certified":False,
         "corporate_actions_issuer_pit_certified":False,
@@ -161,19 +187,24 @@ def _html(report:dict)->bytes:
 
 def publish_exact_dated_volume(*,marketwide:Path,project:Path,code:str,
                                legacy_root:Path=LEGACY_DEFAULT,
-                               clock:datetime|None=None)->dict:
+                               clock:datetime|None=None,
+                               official_volume_overlay:Path|None=None)->dict:
     report=evaluate_exact_volume(marketwide=marketwide,project=project,
-                                 code=code,legacy_root=legacy_root,clock=clock)
+                                 code=code,legacy_root=legacy_root,clock=clock,
+                                 official_volume_overlay=official_volume_overlay)
     if report.get("status")=="EXACT_VOLUME_DATED_EVIDENCE_NOT_AVAILABLE":
         return report
     base=_owned_output(project)/FOLDER
     if base.is_symlink():raise ValueError("EXACT_VOLUME_OUTPUT_SYMLINK")
     base.mkdir(mode=0o700,exist_ok=True)
-    version=sha256(canonical({
+    pinned={
         "market":report["source_marketwide_sha256"],
         "flow":report["dated_flow_sha256"],
         "cache":report["cache_file_sha256"],
-    })).hexdigest()[:12]
+    }
+    if official_volume_overlay is not None:
+        pinned["official_volume_overlay"]=report["official_volume_overlay_sha256"]
+    version=sha256(canonical(pinned)).hexdigest()[:12]
     target=base/("KR_"+report["source_market_session"].replace("-","")
                  +"_"+report["stock_code"]+"_"+version)
     manifest=canonical(report)+b"\n"

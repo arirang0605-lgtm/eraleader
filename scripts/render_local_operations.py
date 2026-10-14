@@ -32,9 +32,14 @@ def main(argv=None):
                         help="Opt-in read-only marcap volume cache date coverage for selected Kiwoom flow")
     parser.add_argument("--marketwide-dated-volume-code",type=str,default=None,
                         help="Opt-in exact date-aware cached volume research for an existing dated DEMO flow code")
+    parser.add_argument("--marketwide-krx-volume-capture-root",type=Path,default=None,
+                        help="Opt-in verified official first KRX receipts as extra matching-day volume (NO API)")
     args=parser.parse_args(argv)
     if args.marketwide_dated_volume_code and args.marketwide_source_root is None:
         raise ValueError("Exact dated flow comparison requires --marketwide-source-root")
+    if (args.marketwide_krx_volume_capture_root is not None and
+            args.marketwide_dated_volume_code is None):
+        raise ValueError("KRX volume overlay requires --marketwide-dated-volume-code")
     if args.marketwide_volume_alignment and args.marketwide_source_root is None:
         raise ValueError("Volume alignment requires --marketwide-source-root")
     if args.marketwide_flow_diagnostics and args.marketwide_source_root is None:
@@ -116,9 +121,19 @@ def main(argv=None):
                      else refresh.get("source_report_file"))
         if source_file is not None:
             from eraleader.marketwide_dated_volume import publish_exact_dated_volume
+            krx_overlay=None
+            if args.marketwide_krx_volume_capture_root is not None:
+                from eraleader.official_krx_volume_overlay import publish_volume_overlay
+                krx_status=publish_volume_overlay(
+                    marketwide=Path(source_file),project=root,
+                    capture_root=args.marketwide_krx_volume_capture_root,
+                    stock_code=args.marketwide_dated_volume_code)
+                if krx_status.get("manifest"):
+                    krx_overlay=Path(krx_status["manifest"])
             dated_volume=publish_exact_dated_volume(
                 marketwide=Path(source_file),project=root,
-                code=args.marketwide_dated_volume_code)
+                code=args.marketwide_dated_volume_code,
+                official_volume_overlay=krx_overlay)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -142,6 +157,10 @@ def main(argv=None):
         report["marketwide_dated_volume_aligned_20"]=(
             dated_volume.get("fully_aligned_20",False) if dated_volume else False)
         report["marketwide_dated_volume_orders"]=0
+        if args.marketwide_krx_volume_capture_root is not None:
+            report["marketwide_krx_original_volume_days"]=(
+                krx_status.get("official_volume_days",0) if source_file is not None else 0)
+            report["marketwide_krx_original_volume_api_calls"]=0
     if args.marketwide_volume_alignment:
         report["marketwide_volume_alignment_status"]=(
             volume_alignment["status"] if volume_alignment else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")

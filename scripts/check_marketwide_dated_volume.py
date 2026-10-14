@@ -18,11 +18,14 @@ def main(argv=None):
     p.add_argument("--marketwide-report",type=Path,required=True)
     p.add_argument("--code",required=True)
     p.add_argument("--legacy-root",type=Path,default=LEGACY_DEFAULT)
+    p.add_argument("--official-volume-overlay",type=Path,default=None,
+                   help="Optional SHA-verified official KRX first-receipt volume supplement")
     args=p.parse_args(argv)
     try:
         result=publish_exact_dated_volume(
             marketwide=args.marketwide_report,project=args.project,
-            code=args.code,legacy_root=args.legacy_root)
+            code=args.code,legacy_root=args.legacy_root,
+            official_volume_overlay=args.official_volume_overlay)
         print(json.dumps(result,ensure_ascii=False,sort_keys=True))
         return 0
     except (KeyError,ValueError,TypeError,OSError,OverflowError):

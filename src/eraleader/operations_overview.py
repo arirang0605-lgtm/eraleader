@@ -575,11 +575,14 @@ def _latest_dated_exact_volume(root:Path, now:datetime)->dict|None:
             observed=date.fromisoformat(payload["source_market_session"])
             if observed>now.date():
                 continue
-            version=sha256(canonical({
+            pinned={
                 "market":payload["source_marketwide_sha256"],
                 "flow":payload["dated_flow_sha256"],
                 "cache":payload["cache_file_sha256"],
-            })).hexdigest()[:12]
+            }
+            if payload.get("official_volume_overlay_sha256") is not None:
+                pinned["official_volume_overlay"]=payload["official_volume_overlay_sha256"]
+            version=sha256(canonical(pinned)).hexdigest()[:12]
             expected=("KR_"+observed.strftime("%Y%m%d")+"_"+
                       payload["stock_code"]+"_"+version)
             if expected!=folder.name:
@@ -587,7 +590,8 @@ def _latest_dated_exact_volume(root:Path, now:datetime)->dict|None:
             periods=payload["periods"]
             if set(periods)!={"5","20"}:
                 continue
-            found.append((observed,folder.name,{
+            found.append((observed,periods["20"]["matched_price_volume_days"],
+                          periods["5"]["matched_price_volume_days"],folder.name,{
                 "href":"../../marketwide_dated_volume/"+folder.name+"/index.html",
                 "market_session":observed.isoformat(),
                 "code":payload["stock_code"],
@@ -597,7 +601,7 @@ def _latest_dated_exact_volume(root:Path, now:datetime)->dict|None:
             }))
         except (OSError,ValueError,KeyError,TypeError,OverflowError,UnicodeError):
             continue
-    return max(found,key=lambda v:v[:2])[-1] if found else None
+    return max(found,key=lambda v:v[:4])[-1] if found else None
 
 
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:

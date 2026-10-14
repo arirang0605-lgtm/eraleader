@@ -2124,3 +2124,13 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - [운영 인수] 새 평일19:40 설정 output/kr_official_incremental_watch_1940_20261015.plist 생성, 실제 ProgramArguments 재실행 exit0/API0/같은 0행 보존. 증거 official_incremental_plist_replay_20261015.json. launchd 서비스 설치0, 실발송0, 특정 외부전략 연결0.
 - Git 기능 커밋 **492839584d4baa013d1300c5e5339470451e6c39**, feature/kr-marketwide-search-20261014. PUBLIC 확인, staged 공개안전13파일 suspicious0. **Push는 자동 승인검토에서 공개범위 승인 미확인 사유로 거절되어 미실행**. 정제 코드/문서만 해당 공개 브랜치로 올리는 범위의 사용자 확인을 요청함. 비밀키·원시자료·output·SQLite 제외.
 - 다음: 공급자 최신 KRX 행 반환 후 정상 증분 갱신→WATCH·일일 보고 실자료 발행 확인; 날짜가 바뀌기 전 동일0행 재조회 금지. 서비스 설치/출시 인수 및 공식 산업성장20·기업경쟁력20 연결 별도 미완. API 제외 진행률은 기존12흐름 완료5/부분6/미완1의 **약67% 유지**.
+
+## 2026-10-15 KST | CONTINUE | 3_2·4_1·6_1·6_2·6_4 | 보관 WATCH50 공식 DART 현금창출 관측
+
+- 새 기능: 공식 CFS 원본의 영업현금·유형/무형취득 → 제한된 잔여현금 관측 → 중립 JSON/HTML 보고 → 대시보드. 기존 수익성 reader의 receipt SHA·기업·연도·이용시각 검증을 include_cashflow=True에서 재사용하며 기본 기존 출력과 WATCH 발행본 불변.
+- 실제 변경: src/eraleader/{dart_cashflow_watch.py,dart_profitability_watch.py,operations_overview.py}, scripts/publish_watch_cashflow.py, tests/{test_dart_cashflow_watch.py,test_dart_profitability_watch.py}, docs/185_KR_DART_CASHFLOW_WATCH_OBSERVATIONS_20261015.md. 기존 원시자료·main·미커밋 5문서의 앞부분 바이트 보존.
+- [기능·테스트] 4개 직접 영향 파일 **31 PASS/FAIL0/ERROR0/SKIP0**, 영업현금/정확취득계정·원부호·N/A/실제0·손실분모·회사/CFS·CF계정 충돌·외화/부문·미래시각·기존 수익성 계약·중립 보고/대시보드·멱등 확인. compile/diffcheck PASS. 증거 output/verification_logs/watch_cashflow_scope_20261015.xml.
+- [실자료] 보관 WATCH50 중 CFO46·유형/무형취득 후 잔여현금42·연속2년 CFO 양수35. 시장 관측일10/13, 새 분석일10/15. output/watch_annual_cashflow/KR_20261013_a0faa9c9733cc8a7/{cashflow.json,index.html}, 재실행ALREADY_PUBLISHED·기존WATCH 바이트 불변·메인/상세HTTP200/200. 실제 원본SHA/이용시각 유지, API추가0, 주문0. 증거 watch_cashflow_real_20261015.json 및 watch_cashflow_replay_http_20261015.json.
+- [운영 범위] 과거 회계연도·보관 WATCH의 새로운 상세 분석이며 금일 시세/신규 WATCH/완전한 FCF/경쟁력20점·공식100점 대장주 판정 아님. 다른 투자·전략 프로젝트 변경0, 무인서비스 추가설치0.
+- Git: 사용자 공개범위 승인으로 이전 **4928395·68724f5 push 성공, 원격68724f5 일치 확인**. 새 현금흐름 기능 커밋 **6202311b92c884dad4b6af8387134757741c620d**는 공개안전7파일 suspicious0로 로컬 저장됨. **새 커밋 push는 자동검토에서 사용자 승인이 이전 두 커밋에만 해당한다는 사유로 거절됨**. 추가 현금흐름 코드·정제문서 공개 범위 확인 전 재시도하지 않음.
+- 다음: 추가 코드 공개 승인을 기다리는 동안 로컬 결과는 사용 가능. KRX10/14 양시장0행 상태는 재조회 없이 유지, 실제 최신 자료 반환 시 증분 WATCH 정상 발행 확인. 산업/경쟁력20 점수 정의·자료 및 launchd 운영 설치는 별도 미완. API 제외 기존12흐름 **약67% 유지**.

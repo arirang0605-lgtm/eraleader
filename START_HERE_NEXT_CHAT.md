@@ -53,3 +53,10 @@
 - publish_watch_cashflow.py는 기존 KRX/DART/보관 WATCH를 읽어 별도 JSON·HTML 보고/대시보드 링크를 발행. 보관시장일10/13·분석일10/15를 구분. WATCH50 중 CFO46/취득후잔여현금42, 원본/이전WATCH 불변, API0·주문0·HTTP200.
 - 금일 시세·신규 WATCH 또는 완전 FCF/경쟁력20점으로 주장하지 않음. KRX10/14 양시장0행 대기는 그대로이고 반복조회하지 않았다. launchd 실제서비스 미설치, API 제외 약67% 유지.
 - 새 현금흐름 커밋의 공개 push는 자동검토가 기존 사용자 승인을 이전 두 커밋으로 한정하여 거절. 추가 코드/정제문서 공개 승인이 필요하며 재시도 금지. 로컬 기능은 완성·검증되어 사용 가능.
+
+## 2026-10-15 현재 최신 연결 — 현금흐름을 기존 WATCH·일일 보고에 추가
+
+- 코드 SHA a8e248cb91ffbebf697aadabaff6c9acb4bb5168, 51개 직접 영향 테스트PASS. docs/186_KR_CASHFLOW_FIELDS_WATCH_DAILY_BRIDGE_20261015.md 참고. 기존 공개 HEAD d7562df까지 승인/푸시된 상태 유지.
+- publish_watch_cashflow.py --connect-watch: 기존 검증 현금흐름 판본 재사용→CFS 기업/연도/원본SHA·수신시각 확인→기존 WATCH50 중립 JSON/HTML 필드 부착→일일 보고50. CFO46/잔여현금42, 세 화면HTTP200·반복ALREADY_PUBLISHED·원본/목록 불변·API0.
+- 보관시장일10/13과 원본 WATCH 최초 시각을 유지. 새 부착판/보고의 실제 생성시각은 따로 기록, 새 선정·상태전이·완전FCF/경쟁력20·정식100점으로 주장하지 않음.
+- 다음: 정상 새 시장자료 기반 WATCH 생성 시 현금필드를 일상 자동 경로에도 부착. KRX10/14 0행 재조회 및 launchd 설치는 이 작업에서 수행하지 않음. API 제외 약67% 유지. 새 연결 코드 공개 범위는 기존 승인된 두 커밋 밖이므로 승인 전 push하지 않음.

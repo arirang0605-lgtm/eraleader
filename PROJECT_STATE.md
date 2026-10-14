@@ -2134,3 +2134,13 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - [운영 범위] 과거 회계연도·보관 WATCH의 새로운 상세 분석이며 금일 시세/신규 WATCH/완전한 FCF/경쟁력20점·공식100점 대장주 판정 아님. 다른 투자·전략 프로젝트 변경0, 무인서비스 추가설치0.
 - Git: 사용자 공개범위 승인으로 이전 **4928395·68724f5 push 성공, 원격68724f5 일치 확인**. 새 현금흐름 기능 커밋 **6202311b92c884dad4b6af8387134757741c620d**는 공개안전7파일 suspicious0로 로컬 저장됨. **새 커밋 push는 자동검토에서 사용자 승인이 이전 두 커밋에만 해당한다는 사유로 거절됨**. 추가 현금흐름 코드·정제문서 공개 범위 확인 전 재시도하지 않음.
 - 다음: 추가 코드 공개 승인을 기다리는 동안 로컬 결과는 사용 가능. KRX10/14 양시장0행 상태는 재조회 없이 유지, 실제 최신 자료 반환 시 증분 WATCH 정상 발행 확인. 산업/경쟁력20 점수 정의·자료 및 launchd 운영 설치는 별도 미완. API 제외 기존12흐름 **약67% 유지**.
+
+## 2026-10-15 KST | CONTINUE | 3_2·4_1·6_1·6_2·6_4 | 검증 현금흐름 → 기존 WATCH50·일일 보고 연결
+
+- 새 핵심 경로: 기존 현금흐름 판본 재사용 → 공식 CFS 기업ID·회계연도·first SHA·실제 수신시각/계산값 재대조 → 기존 WATCH 중립 JSON/HTML 필드 추가 → 기존 일일 보고 생성기. 별도 현금흐름 보고 복제0, API0, 선정·상태전이·주문0. 원래 WATCH50 순서·점수·기준일10/13·최초 관찰/발행 시각 보존. 새 판본의 실제 발행시각과 원본 WATCH 발행시각을 분리하여 새 입력 SHA를 소급하지 않음.
+- 수정: src/eraleader/{watch_cashflow_bridge.py,early_leader_watch_queue.py,early_watch_daily_brief.py,operations_overview.py}, scripts/publish_watch_cashflow.py --connect-watch, tests/test_watch_cashflow_bridge.py, docs/186_KR_CASHFLOW_FIELDS_WATCH_DAILY_BRIDGE_20261015.md. 기존 main/타 프로젝트/CFS 원시파일과 작업 시작의 미커밋5문서 앞부분 바이트 보존.
+- [기능·변경 영향] 집중5파일 **51 PASS/FAIL0/ERROR0/SKIP0**, 원본 실제 계약→정상 WATCH/일일 보고, N/A·타 기업/원본/금액 혼입·미래 수신 및 보고 미래 필드 거부, 과거자료 주석과 판본 호환/중복 확인. compile/diffcheck PASS. output/verification_logs/watch_cashflow_bridge_scope_20261015.xml.
+- [실자료 E2E] WATCH50에 CFO46·취득후잔여현금42 연결, 일일 보고50 동일46/42. 기존 현금흐름 판본 ALREADY_PUBLISHED 재사용. WATCH output/early_leader_watch_queue/KR_20261013_135e9ea6887231da, 일일 보고 output/early_watch_daily_briefs/KR_20261015_8991ad8428707f80. 운영/WATCH/보고 HTTP200/200/200, 재실행 모두ALREADY_PUBLISHED·새폴더0, 네 입력/출력 JSON 바이트 보존. 증거 watch_cashflow_bridge_{real,replay_http}_20261015.json. 원래 발행 UTC14일11:08:02와 추가판 UTC14일23:22:39(KST15일)를 각각 기록, 관측시장일13일 유지.
+- [운영·출시] KRX10/14 0행과 launchd 미설치는 해당 업무 대기로 보존, 재조회/설치0. 기존 WATCH 추가 필드의 보관자료 연구 사용 기능 완료이며 금일 시세·정식 경쟁력20/100점·새 대장주 상태로 승격하지 않음.
+- Git 코드 커밋 **a8e248cb91ffbebf697aadabaff6c9acb4bb5168**, 시작 d7562df(이전 승인2커밋 공개 push완료). staged 공개안전7파일 suspicious0. 새 연결 변경의 공개 push는 기존 특정 두 커밋 승인 범위 밖이므로 현재 미실행, 추가 범위 확인 필요. 이전 미커밋을 스테이징하지 않음.
+- 다음 실제 기능: 새 정상 시장자료 기반 WATCH가 생성되었을 때 같은 원본 CFS 현금필드를 일상 자동 WATCH 경로에도 자동 부착. 최신 KRX 정상 발행 E2E·서비스 설치는 별도 대기. API 제외 기존12흐름 완료5/부분6/미완1 **약67% 유지**.

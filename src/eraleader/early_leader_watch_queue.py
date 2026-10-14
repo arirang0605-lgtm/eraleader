@@ -93,7 +93,8 @@ def _clock(clock):
 
 def create_early_watch(*,marketwide:Path,project:Path,
                        factor_input:Path,top:int=50,
-                       clock:datetime|None=None)->dict:
+                       clock:datetime|None=None,
+                       dart_cfs_capture_root:Path|None=None)->dict:
     now=_clock(clock)
     if type(top) is not int or not 1<=top<=MAX_WATCH:
         raise ValueError("EARLY_WATCH_TOP_OUT_OF_RANGE")
@@ -115,6 +116,12 @@ def create_early_watch(*,marketwide:Path,project:Path,
     if len(original)!=len(market["securities"]):
         raise ValueError("EARLY_WATCH_DUPLICATE_SOURCE_CODE")
     peer_context=_observed_peer_context(market)
+    if dart_cfs_capture_root is None:
+        profitability={}
+    else:
+        from .dart_profitability_watch import dart_annual_margin_context
+        profitability=dart_annual_margin_context(
+            market=market,capture_root=dart_cfs_capture_root,now=now)
     entries=[]
     tier_counts=dict.fromkeys(TIERS,0)
     for item in verified:
@@ -189,6 +196,25 @@ def create_early_watch(*,marketwide:Path,project:Path,
             "investment_rank":None,
             "eligible_to_order":False,
         }
+        if dart_cfs_capture_root is not None:
+            from .dart_profitability_watch import RESEARCH_SOURCE
+            # Actual annual consolidated statement source only; N/A remains
+            # when the original is not available for this exact company.
+            cfs=profitability.get(code)
+            if cfs is not None:
+                cfs_first=datetime.fromisoformat(cfs["dart_cfs_first_received_at_utc"])
+                if (cfs_first.tzinfo is None or
+                        cfs_first.astimezone(timezone.utc)>now or
+                        cfs["dart_cfs_independent_pit_certified"] is not False):
+                    raise ValueError("EARLY_WATCH_DART_FUTURE_OR_UNVERIFIED")
+            for key in ("dart_latest_cfs_business_year","dart_cfs_revenue_krw",
+                        "dart_cfs_operating_income_krw","dart_cfs_net_income_krw",
+                        "dart_cfs_operating_margin_pct","dart_cfs_net_margin_pct",
+                        "dart_cfs_first_receipt_sha256","dart_cfs_first_received_at_utc",
+                        "dart_cfs_issuer_corp_code","dart_cfs_margin_source"):
+                rows[key]=cfs.get(key) if cfs is not None else None
+            rows["dart_cfs_independent_pit_certified"]=False
+            rows["competitive_advantage_score_20"]=None
         entries.append((TIERS.index(tier),-sort_signal,-price,code,rows))
     entries.sort(key=lambda x:x[:4])
     selections=[entry[-1] for entry in entries[:top]]
@@ -229,6 +255,13 @@ def create_early_watch(*,marketwide:Path,project:Path,
         "execution_authority":False,
         "orders_enabled":False,
     }
+    if dart_cfs_capture_root is not None:
+        from .dart_profitability_watch import RESEARCH_SOURCE
+        payload["dart_profitability_method"]=RESEARCH_SOURCE
+        payload["dart_profitability_companies_in_watch"]=sum(
+            r["dart_cfs_operating_margin_pct"] is not None or
+            r["dart_cfs_net_margin_pct"] is not None for r in selections)
+        payload["dart_profitability_originals_available"]=len(profitability)
     payload["content_sha256"]=sha256(canonical(payload)).hexdigest()
     return payload
 
@@ -279,7 +312,23 @@ def _html(doc:dict)->bytes:
         cells.append('<tr>'+''.join(
             '<td>'+escape("N/A" if v is None else str(v))+'</td>'
             for v in vals)+'</tr>')
-    return (head+''.join(cells)+'</tbody></table></div>'
+    profitability_html=""
+    if doc.get("dart_profitability_method") is not None:
+        profitability_html=(
+            '<h2>DART 연결재무 실적 수익성 관찰 (경쟁력 점수 아님)</h2>'
+            '<p>연결재무제표의 최근 연간 매출액 대비 영업이익·순이익 비율입니다. '
+            'ROIC·시장점유율·지속적 경쟁우위/기업해자 점수가 아닙니다. '
+            '최초 로컬 수신시각 이전 판단에 소급 사용하지 않습니다.</p>'
+            '<div class="scroll"><table><thead><tr><th>종목</th><th>회계연도</th>'
+            '<th>영업이익률(%)</th><th>순이익률(%)</th><th>원본 수신 UTC</th>'
+            '</tr></thead><tbody>'+''.join(
+                '<tr>'+''.join('<td>'+escape("N/A" if x is None else str(x))+'</td>'
+                for x in (r["security_id"],r["dart_latest_cfs_business_year"],
+                          r["dart_cfs_operating_margin_pct"],
+                          r["dart_cfs_net_margin_pct"],
+                          r["dart_cfs_first_received_at_utc"]))+'</tr>'
+                for r in doc["review_queue"])+'</tbody></table></div>')
+    return (head+''.join(cells)+'</tbody></table></div>'+profitability_html+
             '<p>후속 매매전략에 보내는 자료도 WATCH 연구 전용이며 '
             '선정·주문권한·실거래 매수가·매도가를 포함하지 않습니다.</p>'
             '</body></html>').encode("utf-8")
@@ -310,6 +359,8 @@ def _validated(path:Path,*,clock=None)->dict:
             or doc.get("execution_authority") is not False
             or doc.get("investment_priority_certified") is not False
             or doc.get("sector_peer_context_method")!=SECTOR_CONTEXT
+            or doc.get("dart_profitability_method") not in (None,
+                 "DART_CFS_ANNUAL_ORIGINAL_PROFIT_MARGIN_NOT_MOAT_V1")
             or instant.tzinfo is None or instant.astimezone(timezone.utc)>now):
         raise ValueError("EARLY_WATCH_VERSION_TAMPER_OR_AUTHORITY")
     rows=doc.get("review_queue")
@@ -329,16 +380,37 @@ def _validated(path:Path,*,clock=None)->dict:
                 row.get("industry_sample_growth_is_entire_industry") is not False or
                 row.get("independent_competitive_moat_verified") is not False):
             raise ValueError("EARLY_WATCH_ROW_AUTHORITY_INVALID")
+    if doc.get("dart_profitability_method") is not None:
+        cfs_count=0
+        for row in rows:
+            if (row.get("competitive_advantage_score_20") is not None or
+                    row.get("dart_cfs_independent_pit_certified") is not False):
+                raise ValueError("EARLY_WATCH_DART_MOAT_UNVERIFIED")
+            if row.get("dart_cfs_operating_margin_pct") is not None or row.get("dart_cfs_net_margin_pct") is not None:
+                cfs_count+=1
+                if (type(row.get("dart_latest_cfs_business_year")) is not int or
+                        type(row.get("dart_cfs_issuer_corp_code")) is not str or
+                        not re.fullmatch(r"[0-9]{8}",row["dart_cfs_issuer_corp_code"]) or
+                        type(row.get("dart_cfs_first_receipt_sha256")) is not str or
+                        not re.fullmatch(r"[a-f0-9]{64}",row["dart_cfs_first_receipt_sha256"])):
+                    raise ValueError("EARLY_WATCH_DART_EVIDENCE_INVALID")
+                observed=datetime.fromisoformat(row["dart_cfs_first_received_at_utc"])
+                if observed.tzinfo is None or observed.astimezone(timezone.utc)>instant:
+                    raise ValueError("EARLY_WATCH_DART_FUTURE_RECEIPT")
+        if cfs_count!=doc.get("dart_profitability_companies_in_watch"):
+            raise ValueError("EARLY_WATCH_DART_COMPANY_COUNT_MISMATCH")
     return doc
 
 
 def publish_early_watch(*,marketwide:Path,project:Path,
                         factor_input:Path,top:int=50,
-                        clock:datetime|None=None)->dict:
+                        clock:datetime|None=None,
+                        dart_cfs_capture_root:Path|None=None)->dict:
     now=_clock(clock)
     payload=create_early_watch(
         marketwide=marketwide,project=project,
-        factor_input=factor_input,top=top,clock=clock)
+        factor_input=factor_input,top=top,clock=clock,
+        dart_cfs_capture_root=dart_cfs_capture_root)
     if payload.get("status") in (
             "EARLY_WATCH_STALE_MARKET_HOLD",
             "EARLY_WATCH_NO_OBSERVABLE_STOCKS"):
@@ -353,6 +425,10 @@ def publish_early_watch(*,marketwide:Path,project:Path,
         "factor":payload["source_factor_assessment_sha256"],
         "top":payload["requested_top"],
         "peer_method":SECTOR_CONTEXT,
+        **({"profitability_method":payload["dart_profitability_method"],
+            "receipts":[(r["security_id"],r["dart_cfs_first_receipt_sha256"])
+                        for r in payload["review_queue"]]}
+           if payload.get("dart_profitability_method") is not None else {}),
     })).hexdigest()[:16]
     destination=folder/("KR_"+payload["source_market_session"].replace("-","")
                         +"_"+version)

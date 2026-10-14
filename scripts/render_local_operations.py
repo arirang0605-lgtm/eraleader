@@ -37,11 +37,15 @@ def main(argv=None):
     parser.add_argument("--marketwide-watch-queue-input",type=Path,default=None,
                         help="Opt-in source-verified early WATCH worklist from existing 5-factor partial research")
     parser.add_argument("--marketwide-watch-queue-top",type=int,default=50)
+    parser.add_argument("--marketwide-watch-dart-cfs-root",type=Path,default=None,
+                        help="Opt-in read-only original DART annual CFS margins in early WATCH output")
     args=parser.parse_args(argv)
     if args.marketwide_watch_queue_input and args.marketwide_source_root is None:
         raise ValueError("Early WATCH queue requires --marketwide-source-root")
     if args.marketwide_watch_queue_top!=50 and args.marketwide_watch_queue_input is None:
         raise ValueError("Early WATCH top requires --marketwide-watch-queue-input")
+    if args.marketwide_watch_dart_cfs_root is not None and args.marketwide_watch_queue_input is None:
+        raise ValueError("DART CFS profitability requires --marketwide-watch-queue-input")
     if args.marketwide_dated_volume_code and args.marketwide_source_root is None:
         raise ValueError("Exact dated flow comparison requires --marketwide-source-root")
     if (args.marketwide_krx_volume_capture_root is not None and
@@ -150,7 +154,8 @@ def main(argv=None):
             early_watch=publish_early_watch(
                 marketwide=Path(source_file),project=root,
                 factor_input=args.marketwide_watch_queue_input,
-                top=args.marketwide_watch_queue_top)
+                top=args.marketwide_watch_queue_top,
+                dart_cfs_capture_root=args.marketwide_watch_dart_cfs_root)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -169,6 +174,9 @@ def main(argv=None):
         report["marketwide_early_watch_status"]=(early_watch["status"] if early_watch else "NO_SOURCE")
         report["marketwide_early_watch_count"]=(early_watch.get("watch_queue_count",0) if early_watch else 0)
         report["marketwide_early_watch_orders"]=0
+        if args.marketwide_watch_dart_cfs_root is not None:
+            report["marketwide_early_watch_dart_profitability_status"]=(
+                early_watch.get("status","NO_SOURCE") if early_watch else "NO_SOURCE")
     if args.marketwide_dated_volume_code is not None:
         report["marketwide_dated_volume_status"]=(
             dated_volume["status"] if dated_volume else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")

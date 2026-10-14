@@ -671,7 +671,11 @@ def _latest_early_watch(root:Path,now:datetime)->dict|None:
                 "market":content["source_marketwide_sha256"],
                 "factor":content["source_factor_assessment_sha256"],
                 "top":content["requested_top"],
-                "peer_method":content["sector_peer_context_method"]
+                "peer_method":content["sector_peer_context_method"],
+                **({"profitability_method":content["dart_profitability_method"],
+                    "receipts":[(r["security_id"],r["dart_cfs_first_receipt_sha256"])
+                                for r in content["review_queue"]]}
+                   if content.get("dart_profitability_method") is not None else {}),
             })).hexdigest()[:16]
             observed=date.fromisoformat(content["source_market_session"])
             first=datetime.fromisoformat(content["watch_published_at_utc"])

@@ -14,11 +14,14 @@ def main(argv=None)->int:
     p.add_argument("--marketwide-report",required=True,type=Path)
     p.add_argument("--factor-input",required=True,type=Path)
     p.add_argument("--top",type=int,default=50)
+    p.add_argument("--dart-cfs-capture-root",type=Path,default=None,
+                   help="Optional existing private DART annual CFS first receipts, read-only")
     args=p.parse_args(argv)
     try:
         published=publish_early_watch(
             marketwide=args.marketwide_report,project=args.project,
-            factor_input=args.factor_input,top=args.top)
+            factor_input=args.factor_input,top=args.top,
+            dart_cfs_capture_root=args.dart_cfs_capture_root)
         print(json.dumps(published,ensure_ascii=False,sort_keys=True))
         return 0
     except (ValueError,KeyError,TypeError,OSError,OverflowError):

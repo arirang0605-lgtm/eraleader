@@ -26,7 +26,11 @@ def main(argv=None):
                         help="Opt-in sector peer growth ranks and raw same-session flow research (not formal scores)")
     parser.add_argument("--marketwide-flow-coverage",action="store_true",
                         help="Show SHA-verified cumulative selected-stock Kiwoom demo flow, read only")
+    parser.add_argument("--marketwide-flow-diagnostics",action="store_true",
+                        help="Opt-in observed 5/20-share flows / KRX market-cap implied shares proxy, no trades")
     args=parser.parse_args(argv)
+    if args.marketwide_flow_diagnostics and args.marketwide_source_root is None:
+        raise ValueError("Flow diagnostics require --marketwide-source-root")
     if args.marketwide_flow_coverage and args.marketwide_source_root is None:
         raise ValueError("Flow coverage requires --marketwide-source-root")
     if args.marketwide_peer_flow_research and args.marketwide_source_root is None:
@@ -82,6 +86,14 @@ def main(argv=None):
         if source_file is not None:
             from eraleader.marketwide_flow_coverage import publish_flow_coverage
             flow_coverage=publish_flow_coverage(marketwide=Path(source_file),project=root)
+    flow_diagnostics=None
+    if args.marketwide_flow_diagnostics:
+        source_file=(handoff.get("source_report_file") if args.marketwide_publish_outbox
+                     else refresh.get("source_report_file"))
+        if source_file is not None:
+            from eraleader.marketwide_flow_diagnostics import publish_flow_share_proxy
+            flow_diagnostics=publish_flow_share_proxy(
+                marketwide=Path(source_file),project=root)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -96,6 +108,14 @@ def main(argv=None):
         report["marketwide_watch_state_status"]=handoff.get("watch_history_status","NOT_REQUESTED")
         report["marketwide_watch_state_rows"]=handoff.get("watch_history_rows",0)
         report["marketwide_verified_leader_events"]=0
+    if args.marketwide_flow_diagnostics:
+        report["marketwide_flow_diagnostics_status"]=(
+            flow_diagnostics["status"] if flow_diagnostics else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")
+        report["marketwide_flow_diagnostics_stocks"]=(
+            flow_diagnostics["observed_stocks"] if flow_diagnostics else 0)
+        report["marketwide_flow_diagnostics_proxy_denominators"]=(
+            flow_diagnostics["stocks_with_usable_denominator"] if flow_diagnostics else 0)
+        report["marketwide_flow_diagnostics_orders"]=0
     if args.marketwide_flow_coverage:
         report["marketwide_flow_coverage_status"]=(
             flow_coverage["status"] if flow_coverage else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")

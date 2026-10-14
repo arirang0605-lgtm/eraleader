@@ -89,10 +89,10 @@ def _validate(source:dict, assessment:dict, *, now:datetime) -> tuple[list[dict]
         if type(item) is not dict:
             raise ValueError("FIVE_FACTOR_BAD_ROW")
         sec=item.get("security_id")
-        if (type(sec) is not str or not re.fullmatch(r"[0-9]{6}",sec)
+        if (type(sec) is not str or not re.fullmatch(r"[A-Z0-9]{6}",sec)
                 or sec not in lookups or sec in seen
                 or item.get("ticker")!=sec
-                or item.get("issuer_id_validated_as_of") is not True):
+                or type(item.get("issuer_id_validated_as_of")) is not bool):
             raise ValueError("FIVE_FACTOR_SECURITY_PIT_ID_MISMATCH")
         seen.add(sec)
         market=lookups[sec]
@@ -111,7 +111,8 @@ def _validate(source:dict, assessment:dict, *, now:datetime) -> tuple[list[dict]
                               abs_tol=1e-7))):
             raise ValueError("FIVE_FACTOR_MOMENTUM_NOT_MARKETWIDE")
         if (evidence["issuer_identity_pit"] is True and
-                market.get("current_dart_directory_matched") is not True):
+                (item["issuer_id_validated_as_of"] is not True or
+                 market.get("current_dart_directory_matched") is not True)):
             raise ValueError("FIVE_FACTOR_DART_ISSUER_ID_UNMATCHED")
         for name,max_score in SCORE_MAX.items():
             value=parts[name]

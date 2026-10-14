@@ -538,11 +538,11 @@ def _latest_volume_alignment(root:Path, now:datetime)->dict|None:
     return max(candidates,key=lambda c:c[:3])[-1] if candidates else None
 
 
-def _latest_dated_exact_volume(root:Path, now:datetime)->dict|None:
+def _latest_dated_exact_volume(root:Path, now:datetime, *, all_stocks:bool=False)->dict|list|None:
     from .marketwide_dated_volume import SCHEMA as DATED_SCHEMA,_html
     base=root/"marketwide_dated_volume"
     if base.is_symlink() or not base.is_dir():
-        return None
+        return [] if all_stocks else None
     found=[]
     for folder in list(base.iterdir())[:400]:
         if (folder.is_symlink() or not folder.is_dir() or
@@ -601,7 +601,18 @@ def _latest_dated_exact_volume(root:Path, now:datetime)->dict|None:
             }))
         except (OSError,ValueError,KeyError,TypeError,OverflowError,UnicodeError):
             continue
-    return max(found,key=lambda v:v[:4])[-1] if found else None
+    if not found:
+        return [] if all_stocks else None
+    if all_stocks:
+        # Same SHA-verification path as the existing single best link;
+        # keep the best immutable version PER stock (not one overall).
+        preferred={}
+        for row in found:
+            code=row[-1]["code"]
+            if code not in preferred or row[:4]>preferred[code][:4]:
+                preferred[code]=row
+        return [preferred[code][-1] for code in sorted(preferred)]
+    return max(found,key=lambda v:v[:4])[-1]
 
 
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
@@ -626,6 +637,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "kr_marketwide_flow_diagnostics":_latest_flow_diagnostics(root,now),
         "kr_marketwide_volume_alignment":_latest_volume_alignment(root,now),
         "kr_marketwide_dated_exact_volume":_latest_dated_exact_volume(root,now),
+        "kr_marketwide_dated_all_stocks":_latest_dated_exact_volume(root,now,all_stocks=True),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -771,6 +783,37 @@ def render_operations_overview(snapshot:dict) -> str:
                     +escape(exact["code"])+' · 5개 중 '
                     +str(exact["volume_days_5"])+'개/20개 중 '
                     +str(exact["volume_days_20"])+'개 거래량 날짜 확인 · 공인 수급점수 N/A</p>')
+    all_dated=snapshot.get("kr_marketwide_dated_all_stocks",[])
+    if (type(all_dated) is not list or len(all_dated)>400 or
+            len({v.get("code") for v in all_dated if type(v) is dict})!=len(all_dated)):
+        raise ValueError("Unsafe multi-stock dated flow comparison")
+    if all_dated:
+        parts=[]
+        for entry in all_dated:
+            if (type(entry) is not dict or
+                    set(entry)!={"href","market_session","code",
+                                 "volume_days_5","volume_days_20","orders"} or
+                    entry["orders"]!=0 or
+                    type(entry["code"]) is not str or
+                    not re.fullmatch(r"[0-9]{6}",entry["code"]) or
+                    any(type(entry[k]) is not int or not 0<=entry[k]<=limit
+                        for k,limit in (("volume_days_5",5),("volume_days_20",20))) or
+                    not re.fullmatch(r"\.\./\.\./marketwide_dated_volume/KR_[0-9]{8}_[0-9]{6}_[a-f0-9]{12}/index\.html",entry["href"])):
+                raise ValueError("Unsafe multi-stock dated flow link")
+            parts.append('<tr><td>'+escape(entry["code"])+'</td><td>'
+                         +escape(entry["market_session"])+'</td><td>'
+                         +str(entry["volume_days_5"])+'/5</td><td>'
+                         +str(entry["volume_days_20"])+'/20</td><td><a href="'
+                         +escape(entry["href"],quote=True)
+                         +'">날짜별 수급·거래량 보기</a></td></tr>')
+        all_dated_html=('<div class="wrap"><table><thead><tr><th>종목코드</th>'
+                        '<th>시장관측일</th><th>최근5</th><th>최근20</th>'
+                        '<th>개별 검증본</th></tr></thead><tbody>'
+                        +''.join(parts)+'</tbody></table></div>'
+                        '<p><small>이 표는 수급 검증본의 종목별 관측 커버리지이며 '
+                        '대장주 순위·정식 수급10점이 아닙니다.</small></p>')
+    else:
+        all_dated_html="<p>종목별 검증된 날짜별 수급 보고서가 없습니다 (N/A).</p>"
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -803,7 +846,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

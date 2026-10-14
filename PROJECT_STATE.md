@@ -2070,3 +2070,9 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 신규 `krx_volume_gap_planner.py`, `scripts/plan_krx_volume_gaps.py`: read-only 로컬 KRX 날짜별 첫 영수증과 Kiwoom 수급일/가격캐시 공백 비교, 필요 공식 API 수신 요청만 일 6개 이내 **계획**(API0). 실측 요청해야 할 추가 날짜0 `KRX_VOLUME_GAP_EXISTING_RECEIPTS_READY`, raw 사용자 원장 변경/중복호출0.
 - 기존 운영 `render_local_operations.py` latest SHA 체크·연결 판본 20/20, 메인/상세 로컬 HTTP200, 저장된 `output/verification_logs/krx_full_dated_ops_20261014.json` EXIT0, 오더/외부API 추가 호출0.
 - 변경관련 `output/verification_logs/krx_gap_complete_scope_20261014.xml`: **101 PASS 0 FAIL/ERR/SKIP**. Python compile/git diffcheck PASS. 상세 `docs/174_KR_DATED_FLOW_20_OF_20_KRX_VOLUME_RECOVERY_20261014.md`. NEXT: 이전 키움 모의 선택종목 006110·446540 날짜별 수급 캡처/이식, PIT/기업행동 검증과 산업·경쟁력 요소 데이터 커버리지 확대. API 제외 전체 실사용 진행률은 재산정 전.
+
+## 2026-10-14 KST | CONTINUE | 3_3·3_5·4_1·6_2 | KR 모의 Kiwoom 수급 3종목 5/20 거래량 완전정합·운영 전체 링크
+- 시작 feature/kr-marketwide-search-20261014 HEAD 78270aa clean, 원본 main 사용자 미커밋·공시 PNG·다른 프로젝트 코드/원시자료 보존.
+- 기존 ReadOnlyClient Kiwoom demo로 006110/446540 각각 날짜별 20행 1회 읽기 전용 수신, 기존 누적 영수증SHA/5·20합계 검증. 기존 KRX first 양시장 수신 10/06·07·08·12·13 이용해 두 종목 5/5,20/20 거래량 일자 정확매칭. 저스템417840 포함 총3개 20/20, flow10 N/A/공식대장주0/실주문0.
+- 기존 operations_overview의 동일 SHA+HTML 검증 로직을 종목별 최고 커버리지 선택에도 사용. output/operations/site/index.html 세 종목 개별 링크, 기본 단일 링크 및 다른 코드 보존. test_operations_dated_flow_all_stocks 등 58 PASS/0 FAIL/ERR/SKIP, 실물운영 리플레이 링크3개·전체20/20 확인. 상세 docs/175_KR_3STOCK_DATED_FLOW_20OF20_DASHBOARD_20261014.md.
+- NEXT: 전향적 수급 정식10점 판정자료·산업성장20·기업경쟁력20 실원천 및 공식 issuer/PIT 추가 연결. 현재 5요소 정식 선정 미완, API 제외 진척률 신기준 재산정 전.

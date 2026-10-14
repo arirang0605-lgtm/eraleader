@@ -12,7 +12,9 @@ from html import escape
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 import json
+import re
 
+from .official_company_explorer import canonical
 from .delivery import BASE_CSS
 from .local_backup import DB_NAMES, verify_backup
 from .watch_operating_reports import _atomic_text
@@ -247,6 +249,63 @@ def _audit_mode(root:Path,mode:str,now:datetime) -> dict:
     return result
 
 
+def _latest_marketwide_search(root:Path, now:datetime) -> dict|None:
+    """Optional local search navigation, never a market/PIT certification."""
+    if root.is_symlink() or not root.is_dir():
+        return None
+    choices=[]
+    for folder in root.glob("marketwide_kr_search_*"):
+        if (not re.fullmatch(r"marketwide_kr_search_[0-9]{8}(?:_[a-z0-9_-]{1,32})?",folder.name)
+                or folder.is_symlink() or not folder.is_dir()):
+            continue
+        index=folder/"index.html"
+        manifest=folder/"manifest.json"
+        if (index.is_symlink() or manifest.is_symlink()
+                or not index.is_file() or not manifest.is_file()
+                or not 1000 <= index.stat().st_size <= 8_000_000
+                or not 100 <= manifest.stat().st_size <= 10_000):
+            continue
+        try:
+            doc=json.loads(manifest.read_bytes())
+            digest=doc.pop("content_sha256")
+            if (type(digest) is not str or sha256(canonical(doc)).hexdigest()!=digest
+                    or doc.get("schema")!="eraleader.marketwide_local_search.v1"
+                    or doc.get("market")!="KR"
+                    or doc.get("research_only") is not True
+                    or doc.get("official_leaders")!=0
+                    or doc.get("official_100_point_rank_available") is not False
+                    or doc.get("formal_selection") is not None
+                    or type(doc.get("observed_stocks")) is not int
+                    or not 1<=doc["observed_stocks"]<=5000):
+                continue
+            observed=date.fromisoformat(doc["source_market_session"])
+            requested=date.fromisoformat(doc["requested_day"])
+            published=datetime.fromisoformat(doc["published_at_utc"])
+            if (published.tzinfo is None or not observed<=requested<=now.date()
+                    or published.astimezone(timezone.utc)>now
+                    or requested.strftime("%Y%m%d") not in folder.name):
+                continue
+            page=index.read_text(encoding="utf-8")
+            marker='<script id="stock-meta" type="application/json">'
+            if page.count(marker)!=1 or page.count('id="stock-data"')!=1:
+                continue
+            embedded=json.loads(page.split(marker,1)[1].split("</script>",1)[0])
+            if embedded!={**doc,"content_sha256":digest}:
+                continue
+            choices.append((observed, published.astimezone(timezone.utc),folder.name,{
+                "href":"../../"+folder.name+"/index.html",
+                "market_session":observed.isoformat(),
+                "requested_day":requested.isoformat(),
+                "observed_stocks":doc["observed_stocks"],
+                "partial_research_scored":doc.get("research_50_scored",0),
+                "stale_warning":bool(doc.get("stale_warning")),
+                "source_pit_certified":False,
+            }))
+        except (OSError,ValueError,KeyError,TypeError,UnicodeError,IndexError,OverflowError):
+            continue
+    return max(choices,key=lambda row:row[:3])[-1] if choices else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -263,6 +322,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "evaluated_at_utc":now.isoformat(),
         "overall_gate":GATE,
         "modes":modes,
+        "kr_marketwide_search":_latest_marketwide_search(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -297,6 +357,26 @@ def render_operations_overview(snapshot:dict) -> str:
         not 0<=verified_count<=3 or
         snapshot["archive_live_bytes_matched_modes"]!=verified_count):
         raise ValueError("Forged operations evidence count")
+    search=snapshot.get("kr_marketwide_search")
+    if search is None:
+        search_html="<p>한국시장 전체 종목 검색 화면: 검증 가능한 로컬 발행본 없음 (N/A).</p>"
+    else:
+        if (type(search) is not dict or
+                set(search)!={"href","market_session","requested_day","observed_stocks",
+                              "partial_research_scored","stale_warning","source_pit_certified"} or
+                search["source_pit_certified"] is not False or
+                type(search["observed_stocks"]) is not int or
+                type(search["partial_research_scored"]) is not int or
+                type(search["stale_warning"]) is not bool or
+                not re.fullmatch(r"\.\./\.\./marketwide_kr_search_[0-9]{8}(?:_[a-z0-9_-]{1,32})?/index\.html",
+                                 search["href"])):
+            raise ValueError("Unsafe marketwide search link")
+        search_html=('<p><a href="'+escape(search["href"],quote=True)+'">'
+                     '한국시장 전체 종목 검색 열기</a> · 관측일 '
+                     +escape(search["market_session"])+' · '+str(search["observed_stocks"])
+                     +'종목 · 연구용 부분점수 '+str(search["partial_research_scored"])
+                     +'종목 · '+("자료 지연 / 오늘 시세 아님" if search["stale_warning"]
+                                else "오늘 시세 인증 아님")+'</p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -329,7 +409,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

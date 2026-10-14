@@ -1962,3 +1962,11 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - **제한·다음 작업**: 실시간 2026-10-14 KRX 시세 수신 자체는 완료 아님(화면은 10/08 거래 관측본). 기존 EraLeader 운영 대시보드에 전시장 검색 메뉴 연결 및 동시점 새 KRX/기업·수급/산업 실제 수집·정식 후보 판정·버전별 범용 송신 확대가 다음 본기능. 특정 후속 전략 프로젝트에 연결하지 않음(D-030). 정확한 Git SHA/remote push는 실제 후속 커밋에서 기록.
 
 - **2026-10-14 실제 GitHub 기능 배포 증거**: 변경 6경로만 staged, `git diff --cached --check` PASS, 공개키/기밀 검사 `PUBLIC_GIT_SAFETY scanned=6 suspicious=0`. 신규 17/17, 변경 영향 43/43 PASS 및 실데이터 E2E/브라우저 JS parse/HTTP200 이후 기능 커밋 `3250b0e33113cd54954fb74cb2a4f9257ebac9b0` → GitHub **새 feature/kr-marketwide-search-20261014 브랜치 push 성공**, 추적 브랜치 설정/기능 작업 트리 clean. 이 기능은 병행된 feature/core-official-factor-coverage-20261013이나 원본 main에 자동 병합하지 않는다. 사용자 데이터/사전 미커밋 파일은 보존되었으며, 향후 통합 시 충돌·중복 기능 확인 후 선택적 cherry-pick 또는 PR 예정.
+
+## 2026-10-14 KST | CONTINUE | 1_1·3_3·3_4·3_5·6_2 | 최신 KRX 전시장 검색 + 운영 메뉴 + 동일 세션 수급
+
+- 분리 작업브랜치 `feature/kr-marketwide-search-20261014`의 정상 이전 검색 코드·시장 원본·원본 main 미커밋 7줄 보존. 기존 CoreAStock/MarketOS/NewsCatalystOS 주문·계좌·수신 프로젝트 연결0.
+- `operations_overview.py`가 사전 발행 로컬 전시장 검색 중 관측일 최신의 유효 manifest/HTML 일치 검색본만 표시하고 상대링크 제공; 없거나 변조/링크 위험 시 N/A. `marketwide_live_search.py`에 기존 공식 같은 세션 키움 기관·외국인 순매매 (주) 1종목 부분 연구 수치 표시, flow count/receipt 검증. 정식 100점·리더0 유지.
+- 실제 SHA 기반 2026-10-13 KRX 2,761종목/재무49/산업49/50점 연구38/일치 수급1 → 새 `output/marketwide_kr_search_20261014_v2/` 발행 성공. 운영 인덱스 최신 10/13 링크 PASS, 구 10/08 화면 불변. 출력은 Git 제외. 이전 `output/operations` 로컬 예약 체크포인트 없음은 정직하게 N/A 표시.
+- 변경 영향 `tests/test_marketwide_live_search.py`, `tests/test_operations_marketwide_navigation.py`, `tests/test_operations_overview.py` **59 PASS/0 FAIL/exit0**. Python compile/diffcheck PASS. 재현·제약 `docs/161_KR_MARKETWIDE_OPERATIONS_LATEST_SEARCH_20261014.md`.
+- NEXT: 화면 통합 브랜치 정리 및 실제 5요소 연구 충족 확대→대장주 선정 이력→프로젝트 중립 송신. 실전 주문/수신 프로젝트 연동0. 기존 과거 엄격 38%는 실사용 전체 진행률 아님. 이번 변경만으로 새로운 정량 전체 진척률은 산정하지 않음.

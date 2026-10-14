@@ -30,7 +30,7 @@ FIELDS = (
     "price_strength_25", "revenue_yoy", "operating_income_yoy",
     "revenue_growth_acceleration", "industry_code",
     "two_factor_research_50", "two_factor_research_rank",
-    "price_top20_watch_rank",
+    "price_top20_watch_rank", "institutional_flow", "foreign_flow",
 )
 
 
@@ -113,7 +113,7 @@ def prepare_search(report: dict, *, request_day: str,
     seen = set()
     ranks = set()
     top_price = set()
-    finance = industry = price = 0
+    finance = industry = price = flow = 0
     for item in stocks:
         if type(item) is not dict or any(k not in item for k in FIELDS):
             raise ValueError("MARKETWIDE_SEARCH_ROW_INCOMPLETE")
@@ -162,16 +162,28 @@ def prepare_search(report: dict, *, request_day: str,
                 raise ValueError("MARKETWIDE_SEARCH_PRICE_WATCH_DUPLICATE")
             top_price.add(rank_price)
         if (item.get("formal_leader_score_100") is not None or
-                item.get("verified_leader_state") is not None or
-                item.get("foreign_flow") is not None or
-                item.get("institutional_flow") is not None):
+                item.get("verified_leader_state") is not None):
             raise ValueError("MARKETWIDE_SEARCH_UNSUPPORTED_FORMAL_LEADERS")
+        inst,foreign=item["institutional_flow"],item["foreign_flow"]
+        if (inst is None)!=(foreign is None):
+            raise ValueError("MARKETWIDE_SEARCH_PARTIAL_FLOW")
+        if inst is not None:
+            if (type(inst) is not int or type(foreign) is not int or
+                    abs(inst)>10**12 or abs(foreign)>10**12):
+                raise ValueError("MARKETWIDE_SEARCH_FLOW_INVALID")
+            flow += 1
         out.append({key: item[key] for key in FIELDS if key != "market_session"})
     if (ranks != set(range(1, len(ranks) + 1))
             or top_price != set(range(1, len(top_price) + 1))
             or len(ranks) != report.get("two_factor_research_evaluable")
             or finance != report.get("financial_factors_observed")
             or industry != report.get("industry_factors_observed")
+            or flow != report.get("flow_factors_observed",0)
+            or (flow and (
+                report.get("flow_matched_session_companies")!=flow or
+                report.get("flow_certification")!="FIRST_LOCAL_RECEIPT_RESEARCH_ONLY_NOT_HISTORIC_PIT" or
+                type(report.get("flow_source_manifest_sha256")) is not str or
+                not re.fullmatch(r"[a-f0-9]{64}",report["flow_source_manifest_sha256"])))
             or (report.get("local_price_lookback_enabled") is True and
                 price != report.get("local_price_lookback_evaluable"))):
         raise ValueError("MARKETWIDE_SEARCH_FACTOR_COVERAGE_INCONSISTENT")
@@ -198,7 +210,8 @@ def prepare_search(report: dict, *, request_day: str,
         "source_watch_run_id": report["source_watch_run_id"],
         "observed_stocks": len(out),
         "price_lookback_available": price, "financial_available": finance,
-        "industry_available": industry, "research_50_scored": len(ranks),
+        "industry_available": industry, "flow_matched_session_companies":flow,
+        "research_50_scored": len(ranks),
         "official_leaders": 0, "official_100_point_rank_available": False,
         "estimated_weekday_lag": weekdays, "exchange_holiday_adjusted": False,
         "stale_warning": weekdays >= 2,
@@ -262,7 +275,7 @@ const PAGE=50;let page=0;
 function stat(label,value){const b=document.createElement("div");b.className="stat";const t=document.createElement("span");t.textContent=label;const s=document.createElement("strong");s.textContent=intfmt.format(value);b.append(t,s);$("stats").append(b)}
 const META=JSON.parse(document.getElementById("stock-meta").textContent);
 for(const [label,key] of [["KRX 관측 종목","observed_stocks"],["가격 강도","price_lookback_available"],
-["실적 연결","financial_available"],["업종 확인","industry_available"],["2요소 연구 점수","research_50_scored"]])stat(label,META[key]);
+["실적 연결","financial_available"],["업종 확인","industry_available"],["2요소 연구 점수","research_50_scored"],["동일 거래일 수급","flow_matched_session_companies"]])stat(label,META[key]);
 function show(stock){const area=$("detail");area.replaceChildren();const h=document.createElement("h2");h.textContent=stock.name+" ("+stock.security_id+")";area.append(h);
 const dl=document.createElement("dl");const pairs=[
 ["시장",stock.venue],["관측일",META.source_market_session],
@@ -273,6 +286,8 @@ const dl=document.createElement("dl");const pairs=[
 ["연구용 2요소 점수 (50점)",score(stock.two_factor_research_50)],
 ["연구용 2요소 표본 순서",stock.two_factor_research_rank??"N/A"],
 ["기존 가격 WATCH20 위치",stock.price_top20_watch_rank??"N/A"],
+["기관 순매매 (주 · 연구 관측)",stock.institutional_flow===null?"N/A":num(stock.institutional_flow)],
+["외국인 순매매 (주 · 연구 관측)",stock.foreign_flow===null?"N/A":num(stock.foreign_flow)],
 ["매출 YoY",percent(stock.revenue_yoy)],["영업이익 YoY",percent(stock.operating_income_yoy)],
 ["매출성장 가속도",percent(stock.revenue_growth_acceleration)],
 ["DART 현재 업종",stock.industry_code??"N/A"],

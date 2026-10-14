@@ -208,3 +208,50 @@ def test_older_marketwide_without_full_price_lookup_still_searchable(tmp_path):
     assert result["observed"] == 3
     assert result["two_factor_evaluable"] == 1
     assert json.loads((out/"manifest.json").read_bytes())["price_lookback_available"] == 2
+
+
+def test_same_session_broker_net_flow_is_visible_but_never_formal_leader(tmp_path):
+    report=sample()
+    report["securities"][0]["institutional_flow"]=-1200
+    report["securities"][0]["foreign_flow"]=3450
+    report["flow_factors_observed"]=1
+    report["flow_matched_session_companies"]=1
+    report["flow_certification"]="FIRST_LOCAL_RECEIPT_RESEARCH_ONLY_NOT_HISTORIC_PIT"
+    report["flow_source_manifest_sha256"]="a"*64
+    source=file(tmp_path,repin(report))
+    target=tmp_path/"flow_research"
+    result=search.publish_search(input_report=source,output=target,
+                                 request_day="2026-10-14",clock=NOW)
+    assert result["formal_selected"]==0
+    manifest=json.loads((target/"manifest.json").read_bytes())
+    assert manifest["flow_matched_session_companies"]==1
+    html=(target/"index.html").read_text()
+    assert "기관 순매매 (주 · 연구 관측)" in html
+    assert "외국인 순매매 (주 · 연구 관측)" in html
+    assert '"institutional_flow":-1200' in html
+    assert '"foreign_flow":3450' in html
+
+
+@pytest.mark.parametrize("bad",["one_sided","float_value","wrong_count","missing_receipt"])
+def test_unsupported_or_unverified_net_flow_never_enters_search(tmp_path,bad):
+    report=sample()
+    report["securities"][0]["institutional_flow"]=-1200
+    report["securities"][0]["foreign_flow"]=3450
+    report["flow_factors_observed"]=1
+    report["flow_matched_session_companies"]=1
+    report["flow_certification"]="FIRST_LOCAL_RECEIPT_RESEARCH_ONLY_NOT_HISTORIC_PIT"
+    report["flow_source_manifest_sha256"]="a"*64
+    if bad=="one_sided":
+        report["securities"][0]["foreign_flow"]=None
+    elif bad=="float_value":
+        report["securities"][0]["foreign_flow"]=12.5
+    elif bad=="wrong_count":
+        report["flow_factors_observed"]=2
+    else:
+        report.pop("flow_source_manifest_sha256")
+    source=file(tmp_path,repin(report))
+    dest=tmp_path/"blocked"
+    with pytest.raises(ValueError):
+        search.publish_search(input_report=source,output=dest,
+                              request_day="2026-10-14",clock=NOW)
+    assert not dest.exists()

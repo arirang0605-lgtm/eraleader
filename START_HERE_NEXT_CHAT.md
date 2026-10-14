@@ -38,3 +38,11 @@
 1. 연결 및 현재 Git + dirty 보존 확인.
 2. **이 문서** → `AGENTS.md` 첫 최상위 D-032 → `DECISIONS.md` **D-032, D-030, D-028** → `PROJECT_STATE.md` **마지막 최신 섹션만**.
 3. 이번 구현과 관련된 코드·`docs/177_KR_OPERABLE_EARLY_LEADER_WATCH_QUEUE_20261014.md`를 필요한 범위만 읽고 바로 CONTINUE. 과거 918줄 인수 문서/717KB 상태 이력을 통째로 반복 읽지 않음.
+
+## 2026-10-15 현재 최신 작업 — 공식 KRX 증분 갱신·예약 WATCH 연결
+
+- 기능 커밋 492839584d4baa013d1300c5e5339470451e6c39, 현 브랜치 그대로. 기능·변경 영향 71 PASS, 상세 docs/184_KR_OFFICIAL_INCREMENTAL_WATCH_DAILY_20261015.md. 이전 4절의 다음 작업보다 이번 요청의 증분 경로를 우선 확인.
+- scripts/run_marketwide_daily.py가 새 마감일 KRX pair → 기존 부분5요소/WATCH·일일 보고·웹 경로를 실행. 공식 수신은 --apply-official, 기본은 저장본만 사용. 새 캡처는 이 feature/output/official_api_capture, 기존 main 캡처와 CycleOS는 read-only.
+- 실물 10/14 양시장0행, 관측시장일10/13 유지·새 WATCH 지연 HOLD. 당일 재실행API0 정상. 새 평일19:40 plist 준비·직접 실행exit0, 실제 launchd 미설치.
+- 바로 다음 확인은 공급자 실제 최신 행 반환 시 정상 실자료 갱신→WATCH·일일 보고 발행. 날짜가 바뀌기 전 같은0행을 반복 조회하지 않음. 재무/업종은10/13 검증 캐시이며 신규 공시 갱신 아님, 다른 일자 수급 N/A.
+- 공개 코드/정제문서 push는 자동 승인검토의 공개범위 승인 미확인으로 보류, 사용자 확인 요청. 기존 dirty 정책문서와 원본 main 사용자 변경 보존. API 제외 약67% 유지.

@@ -2092,3 +2092,10 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - SHA 잠금 immutable `output/early_leader_watch_queue/KR_20261013_c29ba0bf7695e6c0` (HTML + watch_queue.json), 변경 없는 동일 원본 재실행 `ALREADY_PUBLISHED`; 기존 `render_local_operations.py --marketwide-watch-queue-input ... --marketwide-source-root ...` opt-in과 운영 대시보드 SHA/HTML 검사 링크. API0/실전0. 기존 `strategy_outbox` 등 상대모듈 미변경, 새 중립 큐 파일은 별도 research 발행.
 - 변경영향 `output/verification_logs/early_watch_operational_scope_20261014.xml` **142 PASS/FAIL0/ERR0/SKIP0**, 실제 output 검증·compile/diffcheck PASS. 상세 `docs/177_KR_OPERABLE_EARLY_LEADER_WATCH_QUEUE_20261014.md`.
 - 사용자 요청 **개발 진행률 매보고 필수**. 과거 로컬 모듈 98~99% 기준 대신 실제 운영 기능 12개 (KR 관측, KR 가격WATCH, 조기WATCH큐, 중립JSON, 웹UI = 완료5; 미국 최신·DART49 전시장·Kiwoom 수급3·실전 후보전이·무인배치·보고알림 = 부분6; 산업성장+경쟁력 실제20+20 = 미완1), 완료1/부분0.5/미완0 → (5+3)/12=**67% API 제외 실운영 기능 구현 추정치**, 정식 100점 대장주0/예측성능 N/A. NEXT 산업/경쟁력 독립실데이터 및 전향적 커버리지 확대, PIT 엄격 무한 반복보다 기능 우선.
+
+## 2026-10-14 KST | 개발 전략 확정 D-031 | 기능 구현 최우선 / 꼭 필요한 실사용 검증만
+
+- 사용자 명시 지시: "실제 운영에 꼭 필요한 검증만 하고 기능구현에 집중 하자. 이건 개발 전략에 저장해줘." 기존 D-026·D-027 재확인. **AGENTS.md 최상단 영구 개발전략**과 **DECISIONS.md D-031**에 고정 반영.
+- 앞으로 미완료 실제 대장주 검색·WATCH·상태전이·중립 JSON·운영 대시보드·자동화·리포트 기능부터 구현. 검증은 변경 관련 최소 테스트+가능하면 실제 KRX/DART/키움 저장본 E2E 1회+실사용 오류(결측·지연·중복) 확인 정도. 무관한 전체 수천 건 회귀/장기백테스트/공증/극한 DR 테스트 반복 금지. 다만 원본SHA·미래정보 소급·기업ID·개인키·사용자 변경 보호 필수 유지, 연구용 결과를 정식 대장주로 허위 승격 금지.
+- 실제 코딩 없는 **정책/문서 변경만** 수행하므로 pytest 재실행은 불필요. 문서 diffcheck/안전 staged검사·Git 커밋/푸시로 인수. 원본 main 미커밋·공시 PNG/수급 DB/API 비밀키 보존.
+- API 제외 실운영 기능 개발률: 12항목 완료5/부분6/미구현1, 동일 가중 = **약 67% (2026-10-14 운영 기준)**. 다음 기능 구현으로 상태가 변한 경우에만 갱신. NEXT 산업 성장·기업경쟁력 실제 기능과 일상 대장주 선정 후보 운영.

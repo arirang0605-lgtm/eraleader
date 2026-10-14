@@ -12,6 +12,7 @@ import pytest
 
 from eraleader.marketwide_schedule import generate_marketwide_plist, LABEL
 from test_marketwide_auto_refresh import fixture, put
+from test_official_partial_factor_bridge import source
 
 ROOT=Path(__file__).resolve().parents[1]
 SCRIPT=ROOT/"scripts"/"generate_marketwide_schedule.py"
@@ -74,6 +75,57 @@ def test_prepared_job_manual_execution_generates_search_link_without_api(tmp_pat
     repeat=subprocess.run(args,capture_output=True,text=True,check=True)
     assert json.loads(repeat.stdout)["marketwide_refresh_status"]=="KR_MARKETWIDE_SEARCH_ALREADY_CURRENT"
 
+
+def test_auto_watch_schedule_executes_early_watch_daily_brief(tmp_path):
+    sources,project=schedule_fixture(tmp_path)
+    snapshot=sources/"verified"
+    snapshot.mkdir()
+    source(snapshot)
+    plist=project/"output"/"auto_watch.plist"
+    result=generate_marketwide_plist(
+        project=project,source_root=sources,destination=plist,auto_watch=True)
+    assert result["watch_daily_pipeline_enabled"] is True
+    assert result["annual_cfs_source_enabled"] is False
+    args=plistlib.loads(plist.read_bytes())["ProgramArguments"]
+    assert args[-1]=="--marketwide-watch-auto"
+    run=subprocess.run(args,capture_output=True,text=True,check=True)
+    report=json.loads(run.stdout)
+    assert report["marketwide_auto_watch_status"]=="PUBLISHED"
+    assert report["watch_daily_brief_status"]=="PUBLISHED"
+    assert report["marketwide_auto_watch_candidates"]==2
+    assert report["marketwide_auto_watch_orders"]==0
+    assert report["marketwide_auto_watch_external_api_calls"]==0
+    repeat=json.loads(subprocess.run(args,capture_output=True,text=True,check=True).stdout)
+    assert repeat["marketwide_auto_watch_status"]=="ALREADY_PUBLISHED"
+    assert repeat["watch_daily_brief_status"]=="ALREADY_PUBLISHED"
+
+def test_auto_watch_schedule_supports_verified_cfs_root(tmp_path):
+    sources,project=schedule_fixture(tmp_path)
+    cfs=tmp_path/"original_dart_cfs"
+    cfs.mkdir()
+    destination=project/"output"/"cfs_auto.plist"
+    result=generate_marketwide_plist(
+        project=project,source_root=sources,destination=destination,
+        auto_watch=True,dart_cfs_root=cfs)
+    args=plistlib.loads(destination.read_bytes())["ProgramArguments"]
+    assert args[-3:]==["--marketwide-watch-auto",
+                       "--marketwide-watch-dart-cfs-root",str(cfs)]
+    assert result["annual_cfs_source_enabled"] is True
+    with pytest.raises(ValueError,match="DART_REQUIRES_AUTO_WATCH"):
+        generate_marketwide_plist(
+            project=project,source_root=sources,
+            destination=project/"output"/"without_auto.plist",dart_cfs_root=cfs)
+    assert not (project/"output"/"without_auto.plist").exists()
+
+def test_cli_auto_watch_prepares_plist_without_install(tmp_path):
+    sources,project=schedule_fixture(tmp_path)
+    dest=project/"output"/"cli_watch.plist"
+    run=subprocess.run([sys.executable,str(SCRIPT),"--project",str(project),
+                        "--source-root",str(sources),"--out",str(dest),
+                        "--auto-watch"],capture_output=True,text=True)
+    assert run.returncode==0,run.stderr
+    assert json.loads(run.stdout)["watch_daily_pipeline_enabled"] is True
+    assert "--marketwide-watch-auto" in plistlib.loads(dest.read_bytes())["ProgramArguments"]
 
 def test_plist_existing_path_never_overwritten(tmp_path):
     sources,project,plist,_=make(tmp_path)

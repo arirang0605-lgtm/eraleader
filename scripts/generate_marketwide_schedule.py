@@ -25,11 +25,16 @@ def main(argv=None) -> int:
     parser.add_argument("--hour", type=int, default=18,
                         help="Mac local time, Asia/Seoul on configured Mac")
     parser.add_argument("--minute", type=int, default=40)
+    parser.add_argument("--auto-watch", action="store_true",
+                        help="Also run current verified WATCH queue and daily brief")
+    parser.add_argument("--dart-cfs-root", type=Path, default=None,
+                        help="Optional existing read-only original DART CFS receipts; requires --auto-watch")
     args = parser.parse_args(argv)
     try:
         state = generate_marketwide_plist(
             project=args.project, source_root=args.source_root,
             destination=args.out, hour=args.hour, minute=args.minute,
+            auto_watch=args.auto_watch, dart_cfs_root=args.dart_cfs_root,
         )
     except (ValueError, OSError, TypeError):
         print("KR_MARKETWIDE_SCHEDULE_NOT_PREPARED", file=sys.stderr)

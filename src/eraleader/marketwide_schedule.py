@@ -21,7 +21,9 @@ DEFAULT_MINUTE = 40
 def generate_marketwide_plist(*, project: Path, source_root: Path,
                               destination: Path, hour: int = DEFAULT_HOUR,
                               minute: int = DEFAULT_MINUTE,
-                              python: Path | None = None) -> dict:
+                              python: Path | None = None,
+                              auto_watch: bool = False,
+                              dart_cfs_root: Path | None = None) -> dict:
     """Write one new mode-0600 launchd plist under project/output only."""
     _safe_directory(project)
     _safe_directory(source_root)
@@ -30,6 +32,12 @@ def generate_marketwide_plist(*, project: Path, source_root: Path,
     script = project / "scripts" / "render_local_operations.py"
     if not script.is_file() or script.is_symlink():
         raise ValueError("KR_SCHEDULE_MISSING_LOCAL_RUNNER")
+    if type(auto_watch) is not bool:
+        raise ValueError("KR_SCHEDULE_INVALID_AUTO_WATCH")
+    if dart_cfs_root is not None:
+        if not auto_watch or not isinstance(dart_cfs_root, Path):
+            raise ValueError("KR_SCHEDULE_DART_REQUIRES_AUTO_WATCH")
+        _safe_directory(dart_cfs_root)
     if (type(hour) is not int or type(minute) is not int
             or not 0 <= hour <= 23 or not 0 <= minute <= 59):
         raise ValueError("KR_SCHEDULE_INVALID_LOCAL_TIME")
@@ -46,12 +54,17 @@ def generate_marketwide_plist(*, project: Path, source_root: Path,
     if not log_root.exists():
         log_root.mkdir(mode=0o700)
 
+    program_args = [
+        str(interpreter), str(script), "--project", str(project),
+        "--marketwide-source-root", str(source_root),
+    ]
+    if auto_watch:
+        program_args.append("--marketwide-watch-auto")
+    if dart_cfs_root is not None:
+        program_args.extend(["--marketwide-watch-dart-cfs-root", str(dart_cfs_root)])
     payload = {
         "Label": LABEL,
-        "ProgramArguments": [
-            str(interpreter), str(script), "--project", str(project),
-            "--marketwide-source-root", str(source_root),
-        ],
+        "ProgramArguments": program_args,
         "StartCalendarInterval": [
             {"Weekday": weekday, "Hour": hour, "Minute": minute}
             for weekday in range(1, 6)  # launchd: Mon=1 ... Fri=5
@@ -91,4 +104,6 @@ def generate_marketwide_plist(*, project: Path, source_root: Path,
         "orders_enabled": False,
         "market_api_calls": 0,
         "source_date_will_be_shown": True,
+        "watch_daily_pipeline_enabled": auto_watch,
+        "annual_cfs_source_enabled": dart_cfs_root is not None,
     }

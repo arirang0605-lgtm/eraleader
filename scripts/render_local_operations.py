@@ -30,7 +30,11 @@ def main(argv=None):
                         help="Opt-in observed 5/20-share flows / KRX market-cap implied shares proxy, no trades")
     parser.add_argument("--marketwide-volume-alignment",action="store_true",
                         help="Opt-in read-only marcap volume cache date coverage for selected Kiwoom flow")
+    parser.add_argument("--marketwide-dated-volume-code",type=str,default=None,
+                        help="Opt-in exact date-aware cached volume research for an existing dated DEMO flow code")
     args=parser.parse_args(argv)
+    if args.marketwide_dated_volume_code and args.marketwide_source_root is None:
+        raise ValueError("Exact dated flow comparison requires --marketwide-source-root")
     if args.marketwide_volume_alignment and args.marketwide_source_root is None:
         raise ValueError("Volume alignment requires --marketwide-source-root")
     if args.marketwide_flow_diagnostics and args.marketwide_source_root is None:
@@ -106,6 +110,15 @@ def main(argv=None):
             from eraleader.marketwide_volume_alignment import publish_volume_alignment
             volume_alignment=publish_volume_alignment(
                 marketwide=Path(source_file),project=root)
+    dated_volume=None
+    if args.marketwide_dated_volume_code is not None:
+        source_file=(handoff.get("source_report_file") if args.marketwide_publish_outbox
+                     else refresh.get("source_report_file"))
+        if source_file is not None:
+            from eraleader.marketwide_dated_volume import publish_exact_dated_volume
+            dated_volume=publish_exact_dated_volume(
+                marketwide=Path(source_file),project=root,
+                code=args.marketwide_dated_volume_code)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -120,6 +133,15 @@ def main(argv=None):
         report["marketwide_watch_state_status"]=handoff.get("watch_history_status","NOT_REQUESTED")
         report["marketwide_watch_state_rows"]=handoff.get("watch_history_rows",0)
         report["marketwide_verified_leader_events"]=0
+    if args.marketwide_dated_volume_code is not None:
+        report["marketwide_dated_volume_status"]=(
+            dated_volume["status"] if dated_volume else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")
+        report["marketwide_dated_volume_code"]=args.marketwide_dated_volume_code
+        report["marketwide_dated_volume_aligned_5"]=(
+            dated_volume.get("fully_aligned_5",False) if dated_volume else False)
+        report["marketwide_dated_volume_aligned_20"]=(
+            dated_volume.get("fully_aligned_20",False) if dated_volume else False)
+        report["marketwide_dated_volume_orders"]=0
     if args.marketwide_volume_alignment:
         report["marketwide_volume_alignment_status"]=(
             volume_alignment["status"] if volume_alignment else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")

@@ -733,6 +733,36 @@ def _latest_watch_daily_brief(root:Path,now:datetime)->dict|None:
     return max(observed,key=lambda row:row[:3])[-1] if observed else None
 
 
+def _latest_watch_cashflow(root:Path, now:datetime)->dict|None:
+    from .dart_cashflow_watch import read_cashflow,render_cashflow,FOLDER
+    base=root/FOLDER
+    if base.is_symlink() or not base.is_dir():
+        return None
+    valid=[]
+    for sub in list(base.iterdir())[:200]:
+        if sub.is_symlink() or not sub.is_dir() or not re.fullmatch(r"KR_[0-9]{8}_[a-f0-9]{16}",sub.name):
+            continue
+        try:
+            doc=read_cashflow(sub/"cashflow.json",clock=now)
+            core={k:v for k,v in doc.items() if k not in {
+                "content_sha256","report_local_day","first_report_generated_at_utc",
+                "source_estimated_weekday_lag","exchange_holiday_adjusted","source_stale_warning"}}
+            version=sha256(canonical(core)).hexdigest()[:16]
+            expected="KR_"+doc["source_market_session"].replace("-","")+"_"+version
+            index=sub/"index.html"
+            if sub.name!=expected or index.is_symlink() or index.read_bytes()!=render_cashflow(doc):
+                continue
+            valid.append((doc["source_market_session"],doc["first_report_generated_at_utc"],sub.name,{
+                "href":"../../"+FOLDER+"/"+sub.name+"/index.html",
+                "market_session":doc["source_market_session"],
+                "report_day":doc["report_local_day"],"watch_count":doc["watch_rows"],
+                "cfo_available":doc["cfo_available"],
+                "cash_after_purchases_available":doc["cash_after_purchases_available"]}))
+        except (ValueError,OSError,KeyError,TypeError,UnicodeError,OverflowError):
+            continue
+    return max(valid,key=lambda x:x[:3])[-1] if valid else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -759,6 +789,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "kr_flow10_heuristic_research":_latest_flow_research_score(root,now),
         "kr_early_leader_watch":_latest_early_watch(root,now),
         "kr_watch_daily_brief":_latest_watch_daily_brief(root,now),
+        "kr_watch_annual_cashflow":_latest_watch_cashflow(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -1027,6 +1058,22 @@ def render_operations_overview(snapshot:dict) -> str:
             +str(counts["MARGIN_IMPROVING_FY"])+' · 악화 '
             +str(counts["MARGIN_WEAKENING_FY"])
             +' · 오늘 대장주 강화/약화 판정 아님 · 주문 0</p>')
+    cashflow=snapshot.get("kr_watch_annual_cashflow")
+    cashflow_html="<p>WATCH 연간 현금창출 관측: 아직 발행되지 않음 (N/A).</p>"
+    if cashflow is not None:
+        needed={"href","market_session","report_day","watch_count","cfo_available",
+                "cash_after_purchases_available"}
+        if (type(cashflow) is not dict or set(cashflow)!=needed or
+                any(type(cashflow[k]) is not int or not 0<=cashflow[k]<=100
+                    for k in ("watch_count","cfo_available","cash_after_purchases_available")) or
+                not re.fullmatch(r"\.\./\.\./watch_annual_cashflow/KR_[0-9]{8}_[a-f0-9]{16}/index\.html",cashflow["href"])):
+            raise ValueError("Unsafe WATCH annual cashflow link")
+        cashflow_html=('<p><a href="'+escape(cashflow["href"],quote=True)
+                       +'">WATCH 연간 현금창출 관찰 보기</a> · 보관 WATCH 시장일 '
+                       +escape(cashflow["market_session"])+' · 분석일 '
+                       +escape(cashflow["report_day"])+' · 영업현금 가용 '
+                       +str(cashflow["cfo_available"])+' / '
+                       +str(cashflow["watch_count"])+'종목 · 경쟁력20점 N/A</p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -1059,7 +1106,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>가중 수급 연구점수 (정식 10점 아님)</h2>\n{heuristic_html}\n<h2>미래 대장주 우선 관찰 작업목록</h2>\n{early_html}\n<h2>WATCH 일일 실적 변화 보고서</h2>\n{annual_brief_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>가중 수급 연구점수 (정식 10점 아님)</h2>\n{heuristic_html}\n<h2>미래 대장주 우선 관찰 작업목록</h2>\n{early_html}\n<h2>WATCH 일일 실적 변화 보고서</h2>\n{annual_brief_html}\n<h2>WATCH 연간 현금창출 관찰</h2>\n{cashflow_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

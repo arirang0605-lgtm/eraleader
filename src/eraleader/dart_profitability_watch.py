@@ -20,7 +20,8 @@ RESEARCH_SOURCE="DART_CFS_ANNUAL_TWO_YEAR_MARGIN_TREND_NOT_MOAT_V2"
 MAX_ORIGINALS=700
 
 
-def dart_annual_margin_context(*, market:dict, capture_root:Path, now:datetime)->dict[str,dict]:
+def dart_annual_margin_context(*, market:dict, capture_root:Path, now:datetime,
+                              include_cashflow:bool=False)->dict[str,dict]:
     if (not capture_root.is_absolute() or capture_root.is_symlink() or
             any(p.is_symlink() for p in capture_root.parents) or
             not capture_root.is_dir() or capture_root.stat().st_uid!=os.geteuid()):
@@ -134,6 +135,10 @@ def dart_annual_margin_context(*, market:dict, capture_root:Path, now:datetime)-
             "dart_cfs_margin_source":RESEARCH_SOURCE,
             "dart_cfs_independent_pit_certified":False,
         }
+        if include_cashflow:
+            from .dart_cashflow_watch import parse_annual_cashflow
+            annual[code][original["year"]].update(parse_annual_cashflow(
+                source,corp_code=original["corp_code"],year=original["year"]))
     output={}
     for code,years in sorted(annual.items()):
         newest_year=max(years)
@@ -164,5 +169,13 @@ def dart_annual_margin_context(*, market:dict, capture_root:Path, now:datetime)-
                 preceding["dart_cfs_first_received_at_utc"] if preceding else None),
             "dart_cfs_two_year_comparable":preceding is not None,
         })
+        if include_cashflow:
+            cfo=current.get("dart_cfs_operating_cashflow_krw")
+            previous_cfo=(preceding.get("dart_cfs_operating_cashflow_krw")
+                          if preceding else None)
+            current["dart_previous_cfs_operating_cashflow_krw"]=previous_cfo
+            current["dart_cfs_operating_cash_positive_two_years"]=(
+                cfo>0 and previous_cfo>0
+                if cfo is not None and previous_cfo is not None else None)
         output[code]=current
     return output

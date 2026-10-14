@@ -1,6 +1,6 @@
 """DART original annual profit margins -> early WATCH JSON/HTML positive path."""
 from __future__ import annotations
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -111,7 +111,7 @@ def test_private_root_absent_prevents_fake_margin_without_stopping_default_watch
 def test_cli_optin_requires_actual_files(tmp_path):
     import subprocess,sys
     from pathlib import Path
-    _,project,market,partial=setup(tmp_path)
+    _,project,market,partial=setup(tmp_path,clock=datetime.now(timezone.utc))
     runner=Path(__file__).resolve().parents[1]/"scripts"/"publish_early_leader_watch.py"
     cmd=[sys.executable,str(runner),"--project",str(project),
          "--marketwide-report",str(market),"--factor-input",str(partial),

@@ -34,7 +34,14 @@ def main(argv=None):
                         help="Opt-in exact date-aware cached volume research for an existing dated DEMO flow code")
     parser.add_argument("--marketwide-krx-volume-capture-root",type=Path,default=None,
                         help="Opt-in verified official first KRX receipts as extra matching-day volume (NO API)")
+    parser.add_argument("--marketwide-watch-queue-input",type=Path,default=None,
+                        help="Opt-in source-verified early WATCH worklist from existing 5-factor partial research")
+    parser.add_argument("--marketwide-watch-queue-top",type=int,default=50)
     args=parser.parse_args(argv)
+    if args.marketwide_watch_queue_input and args.marketwide_source_root is None:
+        raise ValueError("Early WATCH queue requires --marketwide-source-root")
+    if args.marketwide_watch_queue_top!=50 and args.marketwide_watch_queue_input is None:
+        raise ValueError("Early WATCH top requires --marketwide-watch-queue-input")
     if args.marketwide_dated_volume_code and args.marketwide_source_root is None:
         raise ValueError("Exact dated flow comparison requires --marketwide-source-root")
     if (args.marketwide_krx_volume_capture_root is not None and
@@ -134,6 +141,16 @@ def main(argv=None):
                 marketwide=Path(source_file),project=root,
                 code=args.marketwide_dated_volume_code,
                 official_volume_overlay=krx_overlay)
+    early_watch=None
+    if args.marketwide_watch_queue_input is not None:
+        source_file=(handoff.get("source_report_file") if args.marketwide_publish_outbox
+                     else refresh.get("source_report_file"))
+        if source_file is not None:
+            from eraleader.early_leader_watch_queue import publish_early_watch
+            early_watch=publish_early_watch(
+                marketwide=Path(source_file),project=root,
+                factor_input=args.marketwide_watch_queue_input,
+                top=args.marketwide_watch_queue_top)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -148,6 +165,10 @@ def main(argv=None):
         report["marketwide_watch_state_status"]=handoff.get("watch_history_status","NOT_REQUESTED")
         report["marketwide_watch_state_rows"]=handoff.get("watch_history_rows",0)
         report["marketwide_verified_leader_events"]=0
+    if args.marketwide_watch_queue_input is not None:
+        report["marketwide_early_watch_status"]=(early_watch["status"] if early_watch else "NO_SOURCE")
+        report["marketwide_early_watch_count"]=(early_watch.get("watch_queue_count",0) if early_watch else 0)
+        report["marketwide_early_watch_orders"]=0
     if args.marketwide_dated_volume_code is not None:
         report["marketwide_dated_volume_status"]=(
             dated_volume["status"] if dated_volume else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")

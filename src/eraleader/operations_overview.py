@@ -648,6 +648,48 @@ def _latest_flow_research_score(root:Path, now:datetime)->dict|None:
     return max(valid,key=lambda x:x[:2])[-1] if valid else None
 
 
+def _latest_early_watch(root:Path,now:datetime)->dict|None:
+    from .early_leader_watch_queue import _validated,_html
+    base=root/"early_leader_watch_queue"
+    if base.is_symlink() or not base.is_dir():
+        return None
+    valid=[]
+    for sub in list(base.iterdir())[:400]:
+        if (sub.is_symlink() or not sub.is_dir() or
+                not re.fullmatch(r"KR_[0-9]{8}_[a-f0-9]{16}",sub.name)):
+            continue
+        manifest=sub/"watch_queue.json"
+        page=sub/"index.html"
+        if (manifest.is_symlink() or page.is_symlink()
+                or not manifest.is_file() or not page.is_file()
+                or manifest.stat().st_size>4_000_000
+                or page.stat().st_size>700_000):
+            continue
+        try:
+            content=_validated(manifest,clock=now)
+            version=sha256(canonical({
+                "market":content["source_marketwide_sha256"],
+                "factor":content["source_factor_assessment_sha256"],
+                "top":content["requested_top"]
+            })).hexdigest()[:16]
+            observed=date.fromisoformat(content["source_market_session"])
+            first=datetime.fromisoformat(content["watch_published_at_utc"])
+            if (sub.name!="KR_"+observed.strftime("%Y%m%d")+"_"+version
+                    or observed>now.date() or page.read_bytes()!=_html(content)):
+                continue
+            val={
+                "href":"../../early_leader_watch_queue/"+sub.name+"/index.html",
+                "market_session":observed.isoformat(),
+                "count":content["review_candidates"],
+                "tier_counts":content["tier_available_counts"],
+                "receiver_neutral":True,"orders":0,
+            }
+            valid.append((observed,first,sub.name,val))
+        except (KeyError,ValueError,OSError,TypeError,UnicodeError,OverflowError):
+            continue
+    return max(valid,key=lambda entry:entry[:3])[-1] if valid else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -672,6 +714,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "kr_marketwide_dated_exact_volume":_latest_dated_exact_volume(root,now),
         "kr_marketwide_dated_all_stocks":_latest_dated_exact_volume(root,now,all_stocks=True),
         "kr_flow10_heuristic_research":_latest_flow_research_score(root,now),
+        "kr_early_leader_watch":_latest_early_watch(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -883,6 +926,35 @@ def render_operations_overview(snapshot:dict) -> str:
                         '</tbody></table></div>'
                         '<p><small>검증된 날짜별 순매매/거래량을 임시 고정 산식으로 '
                         '변환했을 뿐 대장주 순위·실전 매수/매도 신호가 아닙니다.</small></p>')
+
+    early=snapshot.get("kr_early_leader_watch")
+    if early is None:
+        early_html="<p>대장주 후보 관찰 작업목록: 발행된 검증자료 없음 (N/A).</p>"
+    else:
+        if (type(early) is not dict or
+                set(early)!={"href","market_session","count","tier_counts",
+                             "receiver_neutral","orders"}
+                or early["receiver_neutral"] is not True
+                or early["orders"]!=0
+                or type(early["count"]) is not int or
+                not 1<=early["count"]<=100
+                or type(early["tier_counts"]) is not dict
+                or set(early["tier_counts"])!={
+                    "A_PRICE_EARNINGS_OBSERVED","B_PRICE_FLOW_OBSERVED",
+                    "C_KRX_PRICE_TOP20","D_PRICE_STRENGTH_OBSERVED"}
+                or any(type(x) is not int or x<0
+                       for x in early["tier_counts"].values())
+                or not re.fullmatch(r"\.\./\.\./early_leader_watch_queue/KR_[0-9]{8}_[a-f0-9]{16}/index\.html",
+                                    early["href"])):
+            raise ValueError("Unsafe early leader watch link")
+        early_html=('<p><a href="'+escape(early["href"],quote=True)+'">'
+                    '한국 대장주 후보 관찰 우선목록 보기</a> · 거래일 '
+                    +escape(early["market_session"])+' · 우선 관찰 '
+                    +str(early["count"])+'종목 · 가격+실적 '
+                    +str(early["tier_counts"]["A_PRICE_EARNINGS_OBSERVED"])
+                    +'종목 · 가격+수급 '
+                    +str(early["tier_counts"]["B_PRICE_FLOW_OBSERVED"])
+                    +'종목 · 공식 선정 0 / 주문 0</p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -915,7 +987,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>가중 수급 연구점수 (정식 10점 아님)</h2>\n{heuristic_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>가중 수급 연구점수 (정식 10점 아님)</h2>\n{heuristic_html}\n<h2>미래 대장주 우선 관찰 작업목록</h2>\n{early_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

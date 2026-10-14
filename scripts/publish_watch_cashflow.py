@@ -17,11 +17,23 @@ def main(argv=None):
     parser.add_argument("--marketwide-report", type=Path, required=True)
     parser.add_argument("--watch-manifest", type=Path, required=True)
     parser.add_argument("--capture-root", type=Path, required=True)
+    parser.add_argument("--connect-watch",action="store_true",
+                        help="Attach same verified cash facts to an archived WATCH edition and daily brief")
     args = parser.parse_args(argv)
     try:
         result = publish_watch_cashflow(project=args.project,
             marketwide=args.marketwide_report, watch_manifest=args.watch_manifest,
             capture_root=args.capture_root)
+        if args.connect_watch:
+            from eraleader.watch_cashflow_bridge import publish_watch_cashflow_fields
+            from eraleader.early_watch_daily_brief import publish_daily_brief
+            annotated=publish_watch_cashflow_fields(
+                project=args.project,marketwide=args.marketwide_report,
+                watch_manifest=args.watch_manifest,
+                cashflow_manifest=Path(result["manifest"]),capture_root=args.capture_root)
+            result["watch_cashflow_fields"]=annotated
+            result["daily_brief"]=publish_daily_brief(
+                project=args.project,watch_manifest=Path(annotated["manifest"]))
         result["operations"] = publish_operations_overview(args.project)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0

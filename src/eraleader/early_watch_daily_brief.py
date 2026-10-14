@@ -70,6 +70,16 @@ def build_daily_brief(source:dict,*,clock:datetime|None=None)->dict:
             "leader_state_change":None,
             "order_instruction":False,
         })
+    if source.get("dart_cashflow_method") is not None:
+        from .watch_cashflow_bridge import validate_cashflow_watch_fields
+        from .dart_cashflow_watch import CASH_FIELDS
+        validate_cashflow_watch_fields(source,now)
+        for candidate,row in zip(source["review_queue"],rows):
+            row.update({key:candidate[key] for key in CASH_FIELDS})
+            for key in ("dart_cashflow_first_receipt_sha256",
+                        "dart_cashflow_first_received_at_utc",
+                        "dart_cashflow_issuer_corp_code","dart_cashflow_fiscal_year"):
+                row[key]=candidate[key]
     if not rows:
         raise ValueError("DAILY_WATCH_EMPTY_QUEUE")
     local_day=now.astimezone(ZoneInfo("Asia/Seoul")).date().isoformat()
@@ -94,12 +104,24 @@ def build_daily_brief(source:dict,*,clock:datetime|None=None)->dict:
         summary["cached_financial_source_market_session"]=source["cached_financial_source_market_session"]
         summary["cached_financial_available_at_utc"]=source["cached_financial_available_at_utc"]
         summary["financial_cache_refreshed"]=False
+    if source.get("dart_cashflow_method") is not None:
+        summary.update(
+            dart_cashflow_method=source["dart_cashflow_method"],
+            source_cashflow_sha256=source["source_cashflow_sha256"],
+            archived_watch_annotation_only=True,
+            source_original_watch_sha256=source["source_original_watch_sha256"],
+            source_original_watch_first_published_at_utc=source["original_watch_published_at_utc"],
+            dart_cashflow_cfo_available=source["dart_cashflow_cfo_available"],
+            dart_cashflow_cash_after_purchases_available=source["dart_cashflow_cash_after_purchases_available"],
+            report_kind="ANNUAL_MARGIN_AND_CASHFLOW_SNAPSHOT_NOT_DAILY_STATUS_TRANSITION")
     summary["content_sha256"]=sha256(canonical(summary)).hexdigest()
     return summary
 
 
 def _html(report:dict)->bytes:
     stats=report["annual_margin_counts"]
+    has_cash=report.get("dart_cashflow_method") is not None
+    cash_columns=("<th>영업현금(억원)</th><th>영업현금−취득(억원)</th>" if has_cash else "")
     body=(
         '<!doctype html><html lang="ko"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
@@ -124,13 +146,17 @@ def _html(report:dict)->bytes:
         '<th>관찰그룹</th><th>연간 실적 변화</th><th>회계연도</th>'
         '<th>영업이익률 변동(pp)</th><th>순이익률 변동(pp)</th>'
         '<th>연속 영업흑자율</th><th>수급 연구10</th>'
-        '</tr></thead><tbody>'
+        +cash_columns+'</tr></thead><tbody>'
     )
     for row in report["entries"]:
         values=(row["watch_review_position"],row["name"],row["watch_tier"],
                 row["annual_margin_observation"],row["fiscal_year"],
                 row["operating_margin_change_pp"],row["net_margin_change_pp"],
                 row["two_year_positive_operating_margin"],row["flow_research_10_not_formal"])
+        if has_cash:
+            values+=tuple("N/A" if row[key] is None else f"{row[key]/100000000:,.2f}"
+                          for key in ("dart_cfs_operating_cashflow_krw",
+                                      "dart_cfs_cash_after_ppe_intangibles_krw"))
         body+='<tr>'+''.join('<td>'+escape("N/A" if v is None else str(v))+'</td>'
                                   for v in values)+'</tr>'
     cache_note=""
@@ -138,7 +164,13 @@ def _html(report:dict)->bytes:
         cache_note=('<p>재무·업종은 기존 검증 캐시 '
                     +escape(report["cached_financial_source_market_session"])
                     +' 관측본입니다. 가격만 새 시장일로 갱신했으며 신규 공시 반영은 아닙니다.</p>')
-    return (body+'</tbody></table></div>'+cache_note+'</body></html>').encode()
+    cash_note=""
+    if has_cash:
+        cash_note=('<p>보관 WATCH의 연간 현금흐름 관측입니다. 원래 WATCH 발행 UTC '
+                   +escape(report.get("source_original_watch_first_published_at_utc",
+                                      report["source_watch_first_published_at_utc"]))
+                   +' · 영업현금−취득은 유형·무형자산 취득만 차감하며 완전 FCF·경쟁력20점은 N/A입니다.</p>')
+    return (body+'</tbody></table></div>'+cash_note+cache_note+'</body></html>').encode()
 
 
 def read_daily_brief(path:Path,*,clock:datetime|None=None)->dict:
@@ -163,6 +195,33 @@ def read_daily_brief(path:Path,*,clock:datetime|None=None)->dict:
             len(doc.get("entries",[]))!=doc.get("watch_rows") or
             sum(doc["annual_margin_counts"].values())!=doc["watch_rows"]):
         raise ValueError("DAILY_WATCH_SNAPSHOT_CONTRACT")
+    if doc.get("dart_cashflow_method") is not None:
+        from .dart_cashflow_watch import METHOD
+        original_when=datetime.fromisoformat(doc.get(
+            "source_original_watch_first_published_at_utc",doc["source_watch_first_published_at_utc"]))
+        watch_when=datetime.fromisoformat(doc["source_watch_first_published_at_utc"])
+        if (doc["dart_cashflow_method"]!=METHOD or
+                doc.get("archived_watch_annotation_only") is not True or
+                original_when.tzinfo is None or watch_when.tzinfo is None or
+                original_when>watch_when or watch_when>when or
+                not re.fullmatch(r"[a-f0-9]{64}",doc.get("source_cashflow_sha256",""))):
+            raise ValueError("DAILY_WATCH_CASHFLOW_SOURCE_INVALID")
+        for row in doc["entries"]:
+            pin=row.get("dart_cashflow_first_receipt_sha256")
+            if pin is not None:
+                available=datetime.fromisoformat(row["dart_cashflow_first_received_at_utc"])
+                if (not re.fullmatch(r"[a-f0-9]{64}",pin) or
+                        available.tzinfo is None or available>when or
+                        not re.fullmatch(r"[0-9]{8}",row.get("dart_cashflow_issuer_corp_code","")) or
+                        row.get("dart_cashflow_fiscal_year")!=row.get("fiscal_year")):
+                    raise ValueError("DAILY_WATCH_CASHFLOW_ISSUER_OR_FUTURE")
+            elif row.get("dart_cfs_operating_cashflow_krw") is not None:
+                raise ValueError("DAILY_WATCH_CASHFLOW_RECEIPT_MISSING")
+        if (sum(x["dart_cfs_operating_cashflow_krw"] is not None for x in doc["entries"])
+                !=doc.get("dart_cashflow_cfo_available") or
+                sum(x["dart_cfs_cash_after_ppe_intangibles_krw"] is not None for x in doc["entries"])
+                !=doc.get("dart_cashflow_cash_after_purchases_available")):
+            raise ValueError("DAILY_WATCH_CASHFLOW_COUNT_INVALID")
     return doc
 
 

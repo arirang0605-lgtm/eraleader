@@ -282,7 +282,35 @@ def create_early_watch(*,marketwide:Path,project:Path,
     return payload
 
 
+def watch_version(payload:dict)->str:
+    return sha256(canonical({
+        "market":payload["source_marketwide_sha256"],
+        "factor":payload["source_factor_assessment_sha256"],
+        "top":payload["requested_top"],
+        "peer_method":SECTOR_CONTEXT,
+        **({"profitability_method":payload["dart_profitability_method"],
+            "receipts":[((r["security_id"],r["dart_cfs_first_receipt_sha256"],
+                          r.get("dart_cfs_previous_first_receipt_sha256"))
+                         if payload["dart_profitability_method"].endswith("_V2")
+                         else (r["security_id"],r["dart_cfs_first_receipt_sha256"]))
+                        for r in payload["review_queue"]]}
+           if payload.get("dart_profitability_method") is not None else {}),
+        **({"cashflow_method":payload["dart_cashflow_method"],
+            "cashflow_sha":payload["source_cashflow_sha256"],
+            "original_watch_sha":payload["source_original_watch_sha256"],
+            **({"attachment_method":payload["watch_cashflow_attachment_method"]}
+               if payload.get("watch_cashflow_attachment_method") is not None else {})}
+           if payload.get("dart_cashflow_method") is not None else {}),
+    })).hexdigest()[:16]
+
+
 def _html(doc:dict)->bytes:
+    has_cash=doc.get("dart_cashflow_method") is not None
+    cash_columns=("영업현금(억원)","영업현금−취득(억원)") if has_cash else ()
+    def cash_values(row):
+        return tuple("N/A" if row[key] is None else f"{row[key]/100000000:,.2f}"
+                     for key in ("dart_cfs_operating_cashflow_krw",
+                                 "dart_cfs_cash_after_ppe_intangibles_krw"))
     head=('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
           '<meta name="viewport" content="width=device-width,initial-scale=1">'
           '<title>EraLeader · 대장주 후보 관찰 우선목록</title>'
@@ -308,7 +336,7 @@ def _html(doc:dict)->bytes:
                   "수급연구10","동업종 매출순위","업종표본 수",
                   "업종표본 매출성장 중간(%)","회사 매출성장(%)",
                   "동업종표본 대비 매출(pp)","동업종표본 대비 영업익(pp)",
-                  "미확보 요소"))+
+                  *cash_columns,"미확보 요소"))+
           '</tr></thead><tbody>')
     cells=[]
     for row in doc["review_queue"]:
@@ -324,6 +352,7 @@ def _html(doc:dict)->bytes:
               row["company_revenue_growth_pct"],
               row["company_revenue_growth_vs_peers_pp"],
               row["company_operating_growth_vs_peers_pp"],
+              *(cash_values(row) if has_cash else ()),
               ",".join(row["missing_for_5factor"]))
         cells.append('<tr>'+''.join(
             '<td>'+escape("N/A" if v is None else str(v))+'</td>'
@@ -355,7 +384,13 @@ def _html(doc:dict)->bytes:
         cache_note=('<p>가격은 KRX 기준일로 갱신했습니다. 재무·업종은 기존 검증 캐시 '
                     +escape(doc["cached_financial_source_market_session"])
                     +' 관측본을 재사용하며 신규 공시 반영은 아닙니다. 다른 날짜 수급은 N/A입니다.</p>')
-    return (head+''.join(cells)+'</tbody></table></div>'+cache_note+profitability_html+
+    cash_note=""
+    if has_cash:
+        cash_note=('<p>보관된 WATCH에 연간 현금흐름 관측만 추가했습니다. 원래 발행 UTC '
+                   +escape(doc["original_watch_published_at_utc"])
+                   +' · 신규 선정/상태전이 아님. 영업현금−취득은 유형·무형자산 취득만 '
+                   '차감한 제한된 관측치이며 완전 FCF·경쟁력20점은 N/A입니다.</p>')
+    return (head+''.join(cells)+'</tbody></table></div>'+cash_note+cache_note+profitability_html+
             '<p>후속 매매전략에 보내는 자료도 WATCH 연구 전용이며 '
             '선정·주문권한·실거래 매수가·매도가를 포함하지 않습니다.</p>'
             '</body></html>').encode("utf-8")
@@ -456,6 +491,9 @@ def _validated(path:Path,*,clock=None)->dict:
                     two_years+=1
             if doc.get("dart_two_year_margin_comparable_in_watch")!=two_years:
                 raise ValueError("EARLY_WATCH_DART_TWO_YEAR_COUNT")
+    if doc.get("dart_cashflow_method") is not None:
+        from .watch_cashflow_bridge import validate_cashflow_watch_fields
+        validate_cashflow_watch_fields(doc,now)
     return doc
 
 
@@ -477,19 +515,7 @@ def publish_early_watch(*,marketwide:Path,project:Path,
     if folder.is_symlink():
         raise ValueError("EARLY_WATCH_OUTPUT_LINKED")
     folder.mkdir(mode=0o700,exist_ok=True)
-    version=sha256(canonical({
-        "market":payload["source_marketwide_sha256"],
-        "factor":payload["source_factor_assessment_sha256"],
-        "top":payload["requested_top"],
-        "peer_method":SECTOR_CONTEXT,
-        **({"profitability_method":payload["dart_profitability_method"],
-            "receipts":[((r["security_id"],r["dart_cfs_first_receipt_sha256"],
-                          r.get("dart_cfs_previous_first_receipt_sha256"))
-                         if payload["dart_profitability_method"].endswith("_V2")
-                         else (r["security_id"],r["dart_cfs_first_receipt_sha256"]))
-                        for r in payload["review_queue"]]}
-           if payload.get("dart_profitability_method") is not None else {}),
-    })).hexdigest()[:16]
+    version=watch_version(payload)
     destination=folder/("KR_"+payload["source_market_session"].replace("-","")
                         +"_"+version)
     manifest=canonical(payload)+b"\n"

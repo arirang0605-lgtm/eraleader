@@ -650,7 +650,7 @@ def _latest_flow_research_score(root:Path, now:datetime)->dict|None:
 
 
 def _latest_early_watch(root:Path,now:datetime)->dict|None:
-    from .early_leader_watch_queue import _validated,_html
+    from .early_leader_watch_queue import _validated,_html,watch_version
     base=root/"early_leader_watch_queue"
     if base.is_symlink() or not base.is_dir():
         return None
@@ -668,19 +668,7 @@ def _latest_early_watch(root:Path,now:datetime)->dict|None:
             continue
         try:
             content=_validated(manifest,clock=now)
-            version=sha256(canonical({
-                "market":content["source_marketwide_sha256"],
-                "factor":content["source_factor_assessment_sha256"],
-                "top":content["requested_top"],
-                "peer_method":content["sector_peer_context_method"],
-                **({"profitability_method":content["dart_profitability_method"],
-                    "receipts":[((r["security_id"],r["dart_cfs_first_receipt_sha256"],
-                                  r.get("dart_cfs_previous_first_receipt_sha256"))
-                                 if content["dart_profitability_method"].endswith("_V2")
-                                 else (r["security_id"],r["dart_cfs_first_receipt_sha256"]))
-                                for r in content["review_queue"]]}
-                   if content.get("dart_profitability_method") is not None else {}),
-            })).hexdigest()[:16]
+            version=watch_version(content)
             observed=date.fromisoformat(content["source_market_session"])
             first=datetime.fromisoformat(content["watch_published_at_utc"])
             if (sub.name!="KR_"+observed.strftime("%Y%m%d")+"_"+version

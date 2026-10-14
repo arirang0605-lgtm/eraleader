@@ -698,6 +698,40 @@ def _latest_early_watch(root:Path,now:datetime)->dict|None:
     return max(valid,key=lambda entry:entry[:3])[-1] if valid else None
 
 
+def _latest_watch_daily_brief(root:Path,now:datetime)->dict|None:
+    from .early_watch_daily_brief import read_daily_brief,_html
+    folder=root/"early_watch_daily_briefs"
+    if folder.is_symlink() or not folder.is_dir():
+        return None
+    observed=[]
+    for sub in list(folder.iterdir())[:200]:
+        if (sub.is_symlink() or not sub.is_dir() or
+                not re.fullmatch(r"KR_[0-9]{8}_[a-f0-9]{16}",sub.name)):
+            continue
+        file=sub/"brief.json"
+        index=sub/"index.html"
+        if index.is_symlink() or not index.is_file() or index.stat().st_size>500_000:
+            continue
+        try:
+            doc=read_daily_brief(file,clock=now)
+            expected=("KR_"+date.fromisoformat(doc["report_local_day"]).strftime("%Y%m%d")
+                      +"_"+doc["source_watch_content_sha256"][:16])
+            if sub.name!=expected or index.read_bytes()!=_html(doc):
+                continue
+            observed.append((doc["report_local_day"],
+                             doc["first_report_generated_at_utc"],sub.name,{
+                "href":"../../early_watch_daily_briefs/"+sub.name+"/index.html",
+                "report_day":doc["report_local_day"],
+                "source_market_session":doc["source_market_session"],
+                "watch_count":doc["watch_rows"],
+                "annual_counts":doc["annual_margin_counts"],
+                "orders":0,
+            }))
+        except (ValueError,KeyError,TypeError,OSError,OverflowError,UnicodeError):
+            continue
+    return max(observed,key=lambda row:row[:3])[-1] if observed else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -723,6 +757,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "kr_marketwide_dated_all_stocks":_latest_dated_exact_volume(root,now,all_stocks=True),
         "kr_flow10_heuristic_research":_latest_flow_research_score(root,now),
         "kr_early_leader_watch":_latest_early_watch(root,now),
+        "kr_watch_daily_brief":_latest_watch_daily_brief(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -963,6 +998,34 @@ def render_operations_overview(snapshot:dict) -> str:
                     +'종목 · 가격+수급 '
                     +str(early["tier_counts"]["B_PRICE_FLOW_OBSERVED"])
                     +'종목 · 공식 선정 0 / 주문 0</p>')
+    annual_brief=snapshot.get("kr_watch_daily_brief")
+    if annual_brief is None:
+        annual_brief_html="<p>WATCH 일일 수익성 보고서: 아직 발행되지 않음 (N/A).</p>"
+    else:
+        needed={"href","report_day","source_market_session","watch_count",
+                "annual_counts","orders"}
+        from .early_watch_daily_brief import LABELS as MARGIN_LABELS
+        if (type(annual_brief) is not dict or set(annual_brief)!=needed
+                or annual_brief["orders"]!=0
+                or type(annual_brief["watch_count"]) is not int
+                or not 1<=annual_brief["watch_count"]<=100
+                or type(annual_brief["annual_counts"]) is not dict
+                or set(annual_brief["annual_counts"])!=set(MARGIN_LABELS)
+                or sum(annual_brief["annual_counts"].values())!=annual_brief["watch_count"]
+                or not re.fullmatch(
+                    r"\.\./\.\./early_watch_daily_briefs/KR_[0-9]{8}_[a-f0-9]{16}/index\.html",
+                    annual_brief["href"])):
+            raise ValueError("Unsafe annual-change WATCH daily report")
+        counts=annual_brief["annual_counts"]
+        annual_brief_html=(
+            '<p><a href="'+escape(annual_brief["href"],quote=True)+'">'
+            'WATCH 일일 수익성 변화 보고서 보기</a> · 보고일 '
+            +escape(annual_brief["report_day"])+' · 시장 관측일 '
+            +escape(annual_brief["source_market_session"])+' · 관찰 '
+            +str(annual_brief["watch_count"])+'종목 · 전년대비 영업이익률 개선 '
+            +str(counts["MARGIN_IMPROVING_FY"])+' · 악화 '
+            +str(counts["MARGIN_WEAKENING_FY"])
+            +' · 오늘 대장주 강화/약화 판정 아님 · 주문 0</p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -995,7 +1058,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>가중 수급 연구점수 (정식 10점 아님)</h2>\n{heuristic_html}\n<h2>미래 대장주 우선 관찰 작업목록</h2>\n{early_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>실제 수급일자별 거래량 비교</h2>\n{exact_html}\n<h2>수급·거래량 검증 종목 전체</h2>\n{all_dated_html}\n<h2>가중 수급 연구점수 (정식 10점 아님)</h2>\n{heuristic_html}\n<h2>미래 대장주 우선 관찰 작업목록</h2>\n{early_html}\n<h2>WATCH 일일 실적 변화 보고서</h2>\n{annual_brief_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

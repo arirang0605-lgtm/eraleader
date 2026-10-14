@@ -1,0 +1,14 @@
+# 181 — WATCH 일일 연간 실적 변화 보고서: 실제 입력→처리→HTML·중립 JSON
+
+**2026-10-14 KST | 개발 ID 4_2 · 6_2 · 6_3 | 브랜치 feature/kr-marketwide-search-20261014**
+
+## 새로 작동하는 기능
+- **입력**: 기존 `output/early_leader_watch_queue/KR_20261013_f5a3041ca5838fd2/watch_queue.json`. 기존 `early_leader_watch_queue._validated` SHA/현재 기준일 검사 재사용. DART 2024~25 최초 수신 CFS 영업·순이익률 추적 근거와 누락 4종목 구분.
+- **처리**: 신규 `src/eraleader/early_watch_daily_brief.py`의 `build_daily_brief/publish_daily_brief`이 WATCH 50종목 각각을 **연간 영업이익률 개선/악화/변화없음/비교불가**로 분류. 보고일(KST 10/14)과 기존 시장 관측일(10/13), 양 회계연도 비교를 명확히 분리. 수급 임시10점은 있으면 병기하되 투자판정·순위로 사용하지 않음. **시장일이 바뀌지 않은 동일 WATCH 원본으로 오늘 신규 대장주 상태변화가 발생한 것처럼 거짓 기록하지 않음**. 기업상태원장/수신자 지정/실주문 경로 수정 없음.
+- **출력**: `output/early_watch_daily_briefs/KR_20261014_fad36073e97a9217/{brief.json,index.html}` (Git 제외, SHA 봉인). 기존 WATCH source SHA에 결박한 종목별 일일 관측 JSON, 비주문 HTML. 같은 보고일·출처 SHA 재실행시 최초 보고시각/기존 파일 그대로 `ALREADY_PUBLISHED`, 다른 날은 별도 판본. 운영 `operations_overview.py`의 새 `kr_watch_daily_brief` 링크와 화면 섹션 `WATCH 일일 실적 변화 보고서`에서 원본/표시 HTML 바이트 일치한 자료만 표시.
+- **실행**: `python3 scripts/publish_early_watch_daily_brief.py --project "$PWD" --watch-manifest "$PWD/output/early_leader_watch_queue/KR_20261013_f5a3041ca5838fd2/watch_queue.json"`. 운영 opt-in `python3 scripts/render_local_operations.py --project "$PWD" --watch-daily-brief-manifest "$PWD/output/early_leader_watch_queue/KR_20261013_f5a3041ca5838fd2/watch_queue.json"`; 외부 API 호출0/주문0.
+- **실물 결과**: WATCH 50개, 2024→2025 영업이익률 비교 **개선24·악화22·변화없음0·비교불가4**. `source_market_session=2026-10-13`, `report_local_day=2026-10-14`, `report_is_same_session_market_update=false`, `leader_state_events=[]`, `official_leader_confirmations=0`, `orders_enabled=false`. 로컬 운영 `output/verification_logs/watch_daily_brief_operations_20261014.json`: `watch_daily_brief_status=ALREADY_PUBLISHED`, 확인0주문. 사용자가 별도 운영 실행 설치를 승인하지 않았으므로 launchd/외부알림은 설치 안 함.
+- **변경 영향 테스트**: `PYTHONPATH=src:/Volumes/T5DATA/SharedBrokerAPI/src python3 -m pytest tests/test_early_watch_daily_brief.py tests/test_operations_overview.py -q --tb=short --junitxml=output/verification_logs/watch_daily_brief_scope_20261014.xml` → **37 PASS / FAIL0 / ERROR0 / SKIP0 / EXIT0**. 정상 변화 분류, 결측 정상경로, 원본 변조 차단, HTML 변조 시 대시보드 제외, 재발행 멱등, 명시 운영 CLI 연결. Python compile/diffcheck 및 공개 Git 비밀정보 검사.
+- **3단계 분리**: 기능 구현·테스트 **완료**, 공식 이전 수신 DART CFS 실자료→일일 보고서·대시보드 실행 **완료**, 매일 무인운영/외부 서비스 출시·정식 미래 대장주 선발 **미인수**. 이전 Git에서 이미 미커밋인 `AGENTS.md`, `DECISIONS.md`, `PROJECT_STATE.md`, `START_HERE_NEXT_CHAT.md`, `docs/150_REAL_USE_ACCEPTANCE_POLICY.md`는 이번 커밋에서 제외·그대로 보존. 이 기능 증거는 본 docs/181에 독립 보관.
+- **API 제외 운영 기능 개발률 약 67% 유지**: 고정 12개 운영 흐름 완료5·부분6·미구현1. 일일 보고를 실제로 새로 출력하지만 주간·월간/정기 무인/외부 알림을 포함한 원래 보고운영 통합 항목은 아직 부분상태이므로 완료로 임의 승격하지 않음.
+- **다음 실제 기능**: 동일 확인 가능한 원시 시장/재무 **서로 다른 실제 거래 관측일 2개 이상**의 WATCH 판본이 생기면 WATCH 신규·이탈·유지 변화를 시장일별로 비교해 일일/주간 보고와 중립 JSON에 연결. 첫 관측 판본만 있을 때는 신규 경과신호 허위 생성 금지.

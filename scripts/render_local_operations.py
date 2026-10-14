@@ -39,6 +39,8 @@ def main(argv=None):
     parser.add_argument("--marketwide-watch-queue-top",type=int,default=50)
     parser.add_argument("--marketwide-watch-dart-cfs-root",type=Path,default=None,
                         help="Opt-in read-only original DART annual CFS margins in early WATCH output")
+    parser.add_argument("--watch-daily-brief-manifest",type=Path,default=None,
+                        help="Opt-in local daily annual-profit WATCH report from signed WATCH JSON")
     args=parser.parse_args(argv)
     if args.marketwide_watch_queue_input and args.marketwide_source_root is None:
         raise ValueError("Early WATCH queue requires --marketwide-source-root")
@@ -156,6 +158,11 @@ def main(argv=None):
                 factor_input=args.marketwide_watch_queue_input,
                 top=args.marketwide_watch_queue_top,
                 dart_cfs_capture_root=args.marketwide_watch_dart_cfs_root)
+    annual_brief=None
+    if args.watch_daily_brief_manifest is not None:
+        from eraleader.early_watch_daily_brief import publish_daily_brief
+        annual_brief=publish_daily_brief(
+            project=root,watch_manifest=args.watch_daily_brief_manifest)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -170,6 +177,10 @@ def main(argv=None):
         report["marketwide_watch_state_status"]=handoff.get("watch_history_status","NOT_REQUESTED")
         report["marketwide_watch_state_rows"]=handoff.get("watch_history_rows",0)
         report["marketwide_verified_leader_events"]=0
+    if annual_brief is not None:
+        report["watch_daily_brief_status"]=annual_brief["status"]
+        report["watch_daily_brief_candidates"]=annual_brief["watch_rows"]
+        report["watch_daily_brief_orders"]=0
     if args.marketwide_watch_queue_input is not None:
         report["marketwide_early_watch_status"]=(early_watch["status"] if early_watch else "NO_SOURCE")
         report["marketwide_early_watch_count"]=(early_watch.get("watch_queue_count",0) if early_watch else 0)

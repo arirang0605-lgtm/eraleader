@@ -30,6 +30,8 @@ def main(argv=None):
     p.add_argument("--official-evidence",type=Path,
                    help="Official same-session KRX+DART first receipt summary for fast expansion")
     p.add_argument("--out",type=Path,required=True)
+    p.add_argument("--watch-state-ledger",type=Path,
+                   help="Optional research-only Stage4 PRICE WATCH SQLite inside EraLeader output")
     p.add_argument("--strategy-outbox-dir",type=Path,
                    help="Optional existing EraLeader output-only immutable research handoff outbox")
     p.add_argument("--extra-cfs-manifest",type=Path,action="append",default=[],
@@ -80,6 +82,16 @@ def main(argv=None):
                                           kiwoom_flow_folder=a.kiwoom_flow_folder,
                                           previous_watch_file=a.previous_price_watch)
     paths=publish_marketwide_coverage(result,a.out)
+    watch_state=None
+    if a.watch_state_ledger is not None:
+        from eraleader.official_watch_state_bridge import (
+            LEDGER_NAME,record_official_watch_history,
+        )
+        path=a.watch_state_ledger
+        if (not path.is_absolute() or not path.is_relative_to(ROOT/"output") or
+                path.name!=LEDGER_NAME):
+            p.error("Only research-only EraLeader WATCH SQLite supported")
+        watch_state=record_official_watch_history(paths[0],path)
     handoff=None
     if a.strategy_outbox_dir is not None:
         from eraleader.strategy_handoff import (
@@ -89,6 +101,10 @@ def main(argv=None):
             paths[0],request_day=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat())
         handoff=publish_versioned_handoff(research,a.strategy_outbox_dir)
     print(json.dumps({"status":"RESEARCH_COVERAGE_PUBLISHED",
+          "watch_state":None if watch_state is None else {
+              "watch":watch_state["recorded_watch_count"],
+              "selected":watch_state["leader_selection_count"],
+              "orders_enabled":watch_state["orders_enabled"]},
           "handoff":handoff,
           "observed":result["official_krx_observed"],
           "finance":result["financial_factors_observed"],

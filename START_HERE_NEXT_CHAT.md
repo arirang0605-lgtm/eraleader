@@ -932,3 +932,9 @@ EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발
 - 분리 브랜치 feature/core-official-factor-coverage-20261013 실제 SHA/git 상태를 기준으로 CONTINUE, 원본 main과 사용자 미커밋 변경·인증정보 그대로 보존. `PROJECT_STATE.md` 최신 항목 및 `docs/159_MARKETWIDE_DART_ATTEMPT_DEDUP_AND_40_20261014.md` 참조.
 - KRX 2026-10-13 실제 2,761, 공식 DART 현재 재무·산업 각40사, 가격 RS2,263, 연구용 가격+실적 50점30사, 동일세션 Kiwoom 흐름1사. 정식 100점/선정0, WATCH/연구 JSON 자동 송신·원본불변 유지.
 - `capture_dart_multi_company.py --auto-marketwide-report --skip-attempted-manifest <현 세션 이미 시도한 CFS JSON>`로 불필요한 동일기업 재조회 없이 다음 12사 자동 선택. 재무·산업/기관수급/경쟁력 실제 원본 확대 후 기존 100점 공식 선정·상태추적에 연결.
+
+## 2026-10-14 최신 P1/P3 CONTINUE — 한국시장 공식 재무·산업49사 + Stage4 연구 WATCH20 상태 원장
+- `feature/core-official-factor-coverage-20261013` 최신 HEAD/원격 실제 Git 확인하고 CONTINUE. 원본 main 기존 미커밋 `native_first_capture.py`·설정/첫원문을 건드리지 말 것. 상세 `docs/160_KR_RESEARCH_WATCH_STATE_HISTORY_AND_49_FACTORS.md` 및 PROJECT_STATE 마지막 항목.
+- 현재 실물 KRX 2026-10-13 2,761주권, 상대강도2,263, 재무/업종49, 가격+실적 50점 연구38, 키움 실측일치 수급1. 정식 5요소100점/CONFIRMED0. 추가 FY DART 수신 당시 10/13 이전 이용 가능 PIT로 소급하지 않음.
+- 신규 `src/eraleader/official_watch_state_bridge.py` + `scripts/record_official_watch_history.py`는 공식시장 PRICE WATCH20을 기존 Stage4 `StateHistory` 별도 연구 SQLite에 기록, 10/08/10/13 실제 각20 행=총40 WATCH, 상태전이0, selected0, orders0. `scripts/publish_official_marketwide_coverage.py --watch-state-ledger`로 JSON/HTML+해당 SQLite+중립 JSON outbox 한 번에 작업 가능.
+- 다음 최우선은 **정식 5요소 확인 가능한 실사용 후보 TOP20·잠재/확정/약화/교체** 결선. 소규모 수정 테스트/실물 E2E 후 Git, 외부 수신기(D-030) 미결정 유지.

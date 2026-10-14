@@ -673,7 +673,10 @@ def _latest_early_watch(root:Path,now:datetime)->dict|None:
                 "top":content["requested_top"],
                 "peer_method":content["sector_peer_context_method"],
                 **({"profitability_method":content["dart_profitability_method"],
-                    "receipts":[(r["security_id"],r["dart_cfs_first_receipt_sha256"])
+                    "receipts":[((r["security_id"],r["dart_cfs_first_receipt_sha256"],
+                                  r.get("dart_cfs_previous_first_receipt_sha256"))
+                                 if content["dart_profitability_method"].endswith("_V2")
+                                 else (r["security_id"],r["dart_cfs_first_receipt_sha256"]))
                                 for r in content["review_queue"]]}
                    if content.get("dart_profitability_method") is not None else {}),
             })).hexdigest()[:16]

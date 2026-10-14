@@ -119,3 +119,99 @@ def test_cli_optin_requires_actual_files(tmp_path):
     p=subprocess.run(cmd,capture_output=True,text=True)
     assert p.returncode==2
     assert "EARLY_LEADER_WATCH_PUBLICATION_BLOCKED" in p.stderr
+
+
+def _two_year_originals(tmp_path,monkeypatch,years=(2024,2025),*,future_year=None):
+    """Exact shape of original first-receipt CFS files, without external APIs."""
+    import os,json
+    from hashlib import sha256
+    from eraleader import dart_profitability_watch as part
+    root=tmp_path/"owner_first_receipts"
+    root.mkdir(mode=0o700)
+    corp=root/"dart_directory_test"
+    corp.mkdir(mode=0o700)
+    original=b"test unique directory first-original"
+    (corp/"first_receipt.json").write_bytes(original)
+    corp_pin=sha256(original).hexdigest()
+    monkeypatch.setattr(part,"verify_dart_corp_directory",lambda *args,**kw:{
+        "mapping":{"005930":"00126380"}})
+    for year in years:
+        folder=root/("dart_fin_"+str(year))
+        folder.mkdir(mode=0o700)
+        raw=json.dumps({"year":year}).encode()
+        first_date=("2026-10-15T02:00:00+00:00"
+                    if year==future_year else "2026-10-14T01:00:00+00:00")
+        meta={
+            "schema":part.FIN_SCHEMA,
+            "stock_code":"005930","corp_code":"00126380",
+            "statement":"CFS","reprt_code":"11011","bsns_year":year,
+            "first_local_received_at_utc":first_date,
+            "source_directory_sha256":corp_pin,
+            "raw_sha256":sha256(raw).hexdigest(),"raw_length":len(raw),
+            "reported_row_count":2,
+            "financial_quality":"FINANCIAL_ROWS_RECEIVED_RESEARCH_ONLY",
+            "report_accessions":["00000000000001"],
+            "observed_account_count":3,"official_leaders":0,
+        }
+        for name,data in (("raw_response.json",raw),
+                          ("first_receipt.json",json.dumps(meta).encode())):
+            f=folder/name
+            f.write_bytes(data)
+            os.chmod(f,0o600)
+    def fake_parser(raw,*,corp_code,year,report,statement):
+        assert corp_code=="00126380" and report=="11011" and statement=="CFS"
+        assert json.loads(raw)["year"]==year
+        amounts={2024:(1000,100,70),2025:(2000,400,280)}
+        rev,op,net=amounts[year]
+        return {"status":"FINANCIAL_ROWS_RECEIVED_RESEARCH_ONLY",
+                "financial_rows":2,
+                "report_accessions":["00000000000001"],
+                "metrics":{"revenue":{"value":rev},
+                           "operating_income":{"value":op},
+                           "net_income":{"value":net}}}
+    monkeypatch.setattr(part,"parse_dart_financial",fake_parser)
+    return root,{"securities":[{"security_id":"005930",
+                                "current_dart_directory_matched":True}]}
+
+
+def test_2024_and_2025_verified_originals_calculate_profit_margin_trend(tmp_path,monkeypatch):
+    root,market=_two_year_originals(tmp_path,monkeypatch)
+    from eraleader.dart_profitability_watch import dart_annual_margin_context
+    row=dart_annual_margin_context(market=market,capture_root=root,now=NOW)["005930"]
+    assert row["dart_latest_cfs_business_year"]==2025
+    assert row["dart_previous_cfs_business_year"]==2024
+    assert row["dart_cfs_operating_margin_pct"]==20
+    assert row["dart_previous_cfs_operating_margin_pct"]==10
+    assert row["dart_cfs_operating_margin_change_pp"]==10
+    assert row["dart_cfs_net_margin_change_pp"]==7
+    assert row["dart_cfs_operating_margin_positive_two_years"] is True
+    assert row["dart_cfs_two_year_comparable"] is True
+    assert len(row["dart_cfs_previous_first_receipt_sha256"])==64
+
+
+def test_one_year_only_does_not_invent_previous_profit_trend(tmp_path,monkeypatch):
+    root,market=_two_year_originals(tmp_path,monkeypatch,years=(2025,))
+    from eraleader.dart_profitability_watch import dart_annual_margin_context
+    row=dart_annual_margin_context(market=market,capture_root=root,now=NOW)["005930"]
+    assert row["dart_cfs_operating_margin_pct"]==20
+    assert row["dart_cfs_operating_margin_change_pp"] is None
+    assert row["dart_cfs_operating_margin_positive_two_years"] is None
+    assert row["dart_cfs_two_year_comparable"] is False
+
+
+def test_first_receipt_missing_at_decision_cannot_create_two_year_trend(tmp_path,monkeypatch):
+    root,market=_two_year_originals(tmp_path,monkeypatch,future_year=2025)
+    from eraleader.dart_profitability_watch import dart_annual_margin_context
+    row=dart_annual_margin_context(market=market,capture_root=root,now=NOW)["005930"]
+    assert row["dart_latest_cfs_business_year"]==2024
+    assert row["dart_cfs_operating_margin_change_pp"] is None
+
+
+def test_two_year_report_rejects_corrupted_original(tmp_path,monkeypatch):
+    root,market=_two_year_originals(tmp_path,monkeypatch)
+    from eraleader.dart_profitability_watch import dart_annual_margin_context
+    (root/"dart_fin_2024"/"raw_response.json").write_bytes(b"corrupted")
+    import os
+    os.chmod(root/"dart_fin_2024"/"raw_response.json",0o600)
+    with pytest.raises(ValueError,match="ORIGINAL_RECEIPT_CONFLICT"):
+        dart_annual_margin_context(market=market,capture_root=root,now=NOW)

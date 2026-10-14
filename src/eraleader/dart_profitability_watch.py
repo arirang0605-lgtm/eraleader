@@ -16,7 +16,7 @@ from .official_dart_corp_directory import verify_dart_corp_directory
 from .official_dart_financials import parse_dart_financial, SCHEMA as FIN_SCHEMA
 from .official_api_pit_bridge import _private_file
 
-RESEARCH_SOURCE="DART_CFS_ANNUAL_ORIGINAL_PROFIT_MARGIN_NOT_MOAT_V1"
+RESEARCH_SOURCE="DART_CFS_ANNUAL_TWO_YEAR_MARGIN_TREND_NOT_MOAT_V2"
 MAX_ORIGINALS=700
 
 
@@ -61,12 +61,14 @@ def dart_annual_margin_context(*, market:dict, capture_root:Path, now:datetime)-
             continue
         if verified_directory["mapping"].get(code)!=data.get("corp_code"):
             raise ValueError("DART_MARGIN_ISSUER_CROSSWALK_MISMATCH")
-        current=(data["bsns_year"],-first.timestamp(),sha256(raw).hexdigest())
-        previous=latest.get(code)
+        year=data["bsns_year"]
+        current=(-first.timestamp(),sha256(raw).hexdigest())
+        key=(code,year)
+        previous=latest.get(key)
         if previous is None or current>previous[0]:
-            latest[code]=(current,file.parent)
-    output={}
-    for code,(_sort,folder) in sorted(latest.items()):
+            latest[key]=(current,file.parent)
+    annual={}
+    for (code,_year),(_sort,folder) in sorted(latest.items()):
         first_receipt=folder/"first_receipt.json"
         pin=sha256(first_receipt.read_bytes()).hexdigest()
         # Same verified DART first-receipt contract as the existing official
@@ -119,7 +121,7 @@ def dart_annual_margin_context(*, market:dict, capture_root:Path, now:datetime)-
         net_pct=margin(net)
         if operating_pct is None and net_pct is None:
             continue
-        output[code]={
+        annual.setdefault(code,{})[original["year"]]={
             "dart_latest_cfs_business_year":original["year"],
             "dart_cfs_revenue_krw":revenue,
             "dart_cfs_operating_income_krw":op,
@@ -132,4 +134,35 @@ def dart_annual_margin_context(*, market:dict, capture_root:Path, now:datetime)-
             "dart_cfs_margin_source":RESEARCH_SOURCE,
             "dart_cfs_independent_pit_certified":False,
         }
+    output={}
+    for code,years in sorted(annual.items()):
+        newest_year=max(years)
+        current=years[newest_year]
+        preceding=years.get(newest_year-1)
+        operating_old=(preceding["dart_cfs_operating_margin_pct"]
+                       if preceding is not None else None)
+        net_old=(preceding["dart_cfs_net_margin_pct"]
+                 if preceding is not None else None)
+        operating_new=current["dart_cfs_operating_margin_pct"]
+        net_new=current["dart_cfs_net_margin_pct"]
+        current.update({
+            "dart_previous_cfs_business_year":newest_year-1 if preceding else None,
+            "dart_previous_cfs_operating_margin_pct":operating_old,
+            "dart_previous_cfs_net_margin_pct":net_old,
+            "dart_cfs_operating_margin_change_pp":(
+                round(operating_new-operating_old,4)
+                if operating_old is not None and operating_new is not None else None),
+            "dart_cfs_net_margin_change_pp":(
+                round(net_new-net_old,4)
+                if net_old is not None and net_new is not None else None),
+            "dart_cfs_operating_margin_positive_two_years":(
+                operating_old>0 and operating_new>0
+                if operating_old is not None and operating_new is not None else None),
+            "dart_cfs_previous_first_receipt_sha256":(
+                preceding["dart_cfs_first_receipt_sha256"] if preceding else None),
+            "dart_cfs_previous_first_received_at_utc":(
+                preceding["dart_cfs_first_received_at_utc"] if preceding else None),
+            "dart_cfs_two_year_comparable":preceding is not None,
+        })
+        output[code]=current
     return output

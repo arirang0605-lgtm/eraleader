@@ -211,7 +211,16 @@ def create_early_watch(*,marketwide:Path,project:Path,
                         "dart_cfs_operating_income_krw","dart_cfs_net_income_krw",
                         "dart_cfs_operating_margin_pct","dart_cfs_net_margin_pct",
                         "dart_cfs_first_receipt_sha256","dart_cfs_first_received_at_utc",
-                        "dart_cfs_issuer_corp_code","dart_cfs_margin_source"):
+                        "dart_cfs_issuer_corp_code","dart_cfs_margin_source",
+                        "dart_previous_cfs_business_year",
+                        "dart_previous_cfs_operating_margin_pct",
+                        "dart_previous_cfs_net_margin_pct",
+                        "dart_cfs_operating_margin_change_pp",
+                        "dart_cfs_net_margin_change_pp",
+                        "dart_cfs_operating_margin_positive_two_years",
+                        "dart_cfs_previous_first_receipt_sha256",
+                        "dart_cfs_previous_first_received_at_utc",
+                        "dart_cfs_two_year_comparable"):
                 rows[key]=cfs.get(key) if cfs is not None else None
             rows["dart_cfs_independent_pit_certified"]=False
             rows["competitive_advantage_score_20"]=None
@@ -262,6 +271,9 @@ def create_early_watch(*,marketwide:Path,project:Path,
             r["dart_cfs_operating_margin_pct"] is not None or
             r["dart_cfs_net_margin_pct"] is not None for r in selections)
         payload["dart_profitability_originals_available"]=len(profitability)
+        payload["dart_two_year_margin_comparable_in_watch"]=sum(
+            r["dart_cfs_operating_margin_change_pp"] is not None
+            for r in selections)
     payload["content_sha256"]=sha256(canonical(payload)).hexdigest()
     return payload
 
@@ -320,12 +332,18 @@ def _html(doc:dict)->bytes:
             'ROIC·시장점유율·지속적 경쟁우위/기업해자 점수가 아닙니다. '
             '최초 로컬 수신시각 이전 판단에 소급 사용하지 않습니다.</p>'
             '<div class="scroll"><table><thead><tr><th>종목</th><th>회계연도</th>'
-            '<th>영업이익률(%)</th><th>순이익률(%)</th><th>원본 수신 UTC</th>'
+            '<th>영업이익률(%)</th><th>전년도 영업이익률(%)</th>'
+            '<th>영업이익률 변화(pp)</th><th>2년 연속 영업흑자율</th>'
+            '<th>순이익률(%)</th><th>순이익률 변화(pp)</th><th>원본 수신 UTC</th>'
             '</tr></thead><tbody>'+''.join(
                 '<tr>'+''.join('<td>'+escape("N/A" if x is None else str(x))+'</td>'
                 for x in (r["security_id"],r["dart_latest_cfs_business_year"],
                           r["dart_cfs_operating_margin_pct"],
+                          r.get("dart_previous_cfs_operating_margin_pct"),
+                          r.get("dart_cfs_operating_margin_change_pp"),
+                          r.get("dart_cfs_operating_margin_positive_two_years"),
                           r["dart_cfs_net_margin_pct"],
+                          r.get("dart_cfs_net_margin_change_pp"),
                           r["dart_cfs_first_received_at_utc"]))+'</tr>'
                 for r in doc["review_queue"])+'</tbody></table></div>')
     return (head+''.join(cells)+'</tbody></table></div>'+profitability_html+
@@ -360,7 +378,8 @@ def _validated(path:Path,*,clock=None)->dict:
             or doc.get("investment_priority_certified") is not False
             or doc.get("sector_peer_context_method")!=SECTOR_CONTEXT
             or doc.get("dart_profitability_method") not in (None,
-                 "DART_CFS_ANNUAL_ORIGINAL_PROFIT_MARGIN_NOT_MOAT_V1")
+                 "DART_CFS_ANNUAL_ORIGINAL_PROFIT_MARGIN_NOT_MOAT_V1",
+                 "DART_CFS_ANNUAL_TWO_YEAR_MARGIN_TREND_NOT_MOAT_V2")
             or instant.tzinfo is None or instant.astimezone(timezone.utc)>now):
         raise ValueError("EARLY_WATCH_VERSION_TAMPER_OR_AUTHORITY")
     rows=doc.get("review_queue")
@@ -399,6 +418,35 @@ def _validated(path:Path,*,clock=None)->dict:
                     raise ValueError("EARLY_WATCH_DART_FUTURE_RECEIPT")
         if cfs_count!=doc.get("dart_profitability_companies_in_watch"):
             raise ValueError("EARLY_WATCH_DART_COMPANY_COUNT_MISMATCH")
+        if doc["dart_profitability_method"].endswith("_V2"):
+            two_years=0
+            for row in rows:
+                previous_pin=row.get("dart_cfs_previous_first_receipt_sha256")
+                current_margin=row.get("dart_cfs_operating_margin_pct")
+                previous_margin=row.get("dart_previous_cfs_operating_margin_pct")
+                delta=row.get("dart_cfs_operating_margin_change_pp")
+                if previous_pin is not None:
+                    if (type(previous_pin) is not str
+                            or not re.fullmatch(r"[a-f0-9]{64}",previous_pin)
+                            or row.get("dart_previous_cfs_business_year")
+                               !=row.get("dart_latest_cfs_business_year",0)-1
+                            or row.get("dart_cfs_two_year_comparable") is not True):
+                        raise ValueError("EARLY_WATCH_DART_PREVIOUS_RECEIPT_INVALID")
+                    available=datetime.fromisoformat(
+                        row["dart_cfs_previous_first_received_at_utc"])
+                    if available.tzinfo is None or available.astimezone(timezone.utc)>instant:
+                        raise ValueError("EARLY_WATCH_DART_PREVIOUS_FUTURE")
+                elif row.get("dart_cfs_two_year_comparable") not in (False,None):
+                    raise ValueError("EARLY_WATCH_DART_PREVIOUS_MISSING")
+                if delta is not None:
+                    if (type(delta) not in (float,int) or
+                            type(previous_margin) not in (float,int) or
+                            type(current_margin) not in (float,int) or
+                            round(current_margin-previous_margin,4)!=delta):
+                        raise ValueError("EARLY_WATCH_DART_MARGIN_CHANGE_INVALID")
+                    two_years+=1
+            if doc.get("dart_two_year_margin_comparable_in_watch")!=two_years:
+                raise ValueError("EARLY_WATCH_DART_TWO_YEAR_COUNT")
     return doc
 
 
@@ -426,7 +474,10 @@ def publish_early_watch(*,marketwide:Path,project:Path,
         "top":payload["requested_top"],
         "peer_method":SECTOR_CONTEXT,
         **({"profitability_method":payload["dart_profitability_method"],
-            "receipts":[(r["security_id"],r["dart_cfs_first_receipt_sha256"])
+            "receipts":[((r["security_id"],r["dart_cfs_first_receipt_sha256"],
+                          r.get("dart_cfs_previous_first_receipt_sha256"))
+                         if payload["dart_profitability_method"].endswith("_V2")
+                         else (r["security_id"],r["dart_cfs_first_receipt_sha256"]))
                         for r in payload["review_queue"]]}
            if payload.get("dart_profitability_method") is not None else {}),
     })).hexdigest()[:16]

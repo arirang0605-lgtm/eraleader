@@ -22,7 +22,11 @@ def main(argv=None):
                         help="Opt-in price-only WATCH StateHistory in own SQLite; no formal leader transitions")
     parser.add_argument("--marketwide-derive-partial-factors",action="store_true",
                         help="Opt-in source-backed price+earnings partial Stage4 WATCH; no invented other scores")
+    parser.add_argument("--marketwide-peer-flow-research",action="store_true",
+                        help="Opt-in sector peer growth ranks and raw same-session flow research (not formal scores)")
     args=parser.parse_args(argv)
+    if args.marketwide_peer_flow_research and args.marketwide_source_root is None:
+        raise ValueError("Peer-flow research requires --marketwide-source-root")
     if args.marketwide_record_watch_history and not args.marketwide_publish_outbox:
         raise ValueError("State history requires explicit --marketwide-publish-outbox")
     if args.marketwide_derive_partial_factors and args.marketwide_source_root is None:
@@ -60,6 +64,13 @@ def main(argv=None):
                 marketwide=Path(source_file),project=root,
                 assessment_file=Path(partial_input["input_file"])
                 if partial_input.get("input_file") else None)
+    peer_flow=None
+    if args.marketwide_peer_flow_research:
+        source_file=(handoff.get("source_report_file") if args.marketwide_publish_outbox
+                     else refresh.get("source_report_file"))
+        if source_file is not None:
+            from eraleader.sector_peer_flow_research import publish_marketwide_peer_flow
+            peer_flow=publish_marketwide_peer_flow(marketwide=Path(source_file),project=root)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -74,6 +85,13 @@ def main(argv=None):
         report["marketwide_watch_state_status"]=handoff.get("watch_history_status","NOT_REQUESTED")
         report["marketwide_watch_state_rows"]=handoff.get("watch_history_rows",0)
         report["marketwide_verified_leader_events"]=0
+    if args.marketwide_peer_flow_research:
+        report["marketwide_peer_flow_status"]=(peer_flow["status"] if peer_flow else "N/A")
+        report["marketwide_peer_flow_site"]=(peer_flow["site"] if peer_flow else None)
+        report["marketwide_peer_rank_revenue"]=(peer_flow["revenue_peer_ranked"] if peer_flow else 0)
+        report["marketwide_peer_rank_operating"]=(peer_flow["operating_peer_ranked"] if peer_flow else 0)
+        report["marketwide_peer_raw_flow"]=(peer_flow["flow_raw_observed"] if peer_flow else 0)
+        report["marketwide_peer_formal_leaders"]=0
     if args.marketwide_derive_partial_factors:
         report["marketwide_partial_factor_status"]=(
             partial_input["status"] if partial_input else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")

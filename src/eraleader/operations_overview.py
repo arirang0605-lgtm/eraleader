@@ -306,6 +306,65 @@ def _latest_marketwide_search(root:Path, now:datetime) -> dict|None:
     return max(choices,key=lambda row:row[:3])[-1] if choices else None
 
 
+def _latest_peer_flow(root:Path, now:datetime) -> dict|None:
+    """Link only fully reverified, locally published partial peer research."""
+    from .sector_peer_flow_research import SCHEMA as PEER_SCHEMA, _html
+    base=root/"sector_peer_flow"
+    if base.is_symlink() or not base.is_dir():
+        return None
+    found=[]
+    for folder in list(base.iterdir())[:400]:
+        if (folder.is_symlink() or not folder.is_dir()
+                or not re.fullmatch(r"KR_[0-9]{8}_[a-f0-9]{16}",folder.name)):
+            continue
+        manifest=folder/"peer_flow.json"
+        index=folder/"index.html"
+        if (manifest.is_symlink() or index.is_symlink()
+                or not manifest.is_file() or not index.is_file()
+                or not 300<=manifest.stat().st_size<=1_000_000
+                or not 1000<=index.stat().st_size<=1_000_000):
+            continue
+        try:
+            content=manifest.read_bytes()
+            doc=json.loads(content)
+            pin=doc.get("content_sha256")
+            base_doc=dict(doc)
+            base_doc.pop("content_sha256",None)
+            if (type(pin) is not str
+                    or sha256(canonical(base_doc)).hexdigest()!=pin
+                    or content!=canonical(doc)+b"\n"
+                    or doc.get("schema")!=PEER_SCHEMA
+                    or doc.get("market")!="KR"
+                    or doc.get("formal_leaders")!=0
+                    or doc.get("execution_authority") is not False
+                    or doc.get("orders_enabled") is not False
+                    or doc.get("historical_independent_pit_certified") is not False
+                    or doc.get("industry_growth_score_20_available")!=0
+                    or doc.get("competitiveness_score_20_available")!=0
+                    or doc.get("flow_score_10_available")!=0
+                    or folder.name!="KR_"+doc["source_market_session"].replace("-","")+"_"
+                           +doc["source_marketwide_sha256"][:16]):
+                continue
+            observed=date.fromisoformat(doc["source_market_session"])
+            built=datetime.fromisoformat(doc["source_built_at_utc"])
+            if (observed>now.date() or built.tzinfo is None
+                    or built.astimezone(timezone.utc)>now):
+                continue
+            if index.read_bytes()!=_html(doc):
+                continue
+            found.append((observed,built,folder.name,{
+                "href":"../../sector_peer_flow/"+folder.name+"/index.html",
+                "market_session":observed.isoformat(),
+                "revenue_peers":doc["observed_revenue_peer_ranks"],
+                "operating_peers":doc["observed_operating_peer_ranks"],
+                "raw_flow":doc["same_session_raw_broker_flow"],
+                "formal_leaders":0,
+            }))
+        except (ValueError,KeyError,TypeError,OSError,UnicodeError,OverflowError):
+            continue
+    return max(found,key=lambda row:row[:3])[-1] if found else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -323,6 +382,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "overall_gate":GATE,
         "modes":modes,
         "kr_marketwide_search":_latest_marketwide_search(root,now),
+        "kr_peer_flow_research":_latest_peer_flow(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -377,6 +437,24 @@ def render_operations_overview(snapshot:dict) -> str:
                      +'종목 · 연구용 부분점수 '+str(search["partial_research_scored"])
                      +'종목 · '+("자료 지연 / 오늘 시세 아님" if search["stale_warning"]
                                 else "오늘 시세 인증 아님")+'</p>')
+    peer=snapshot.get("kr_peer_flow_research")
+    if peer is None:
+        peer_html="<p>동종기업 성장·수급 비교: 검증된 로컬 발행본 없음 (N/A).</p>"
+    else:
+        if (type(peer) is not dict or
+                set(peer)!={"href","market_session","revenue_peers",
+                            "operating_peers","raw_flow","formal_leaders"}
+                or peer["formal_leaders"]!=0
+                or any(type(peer[key]) is not int or peer[key]<0
+                       for key in ("revenue_peers","operating_peers","raw_flow"))
+                or not re.fullmatch(r"\.\./\.\./sector_peer_flow/KR_[0-9]{8}_[a-f0-9]{16}/index\.html",peer["href"])):
+            raise ValueError("Unsafe sector peer flow research link")
+        peer_html=('<p><a href="'+escape(peer["href"],quote=True)+'">'
+                   '한국 동종기업 성장·수급 비교 보기</a> · 관측일 '
+                   +escape(peer["market_session"])+ ' · 동종 매출 순위 '
+                   +str(peer["revenue_peers"])+'사 · 영업성장 순위 '
+                   +str(peer["operating_peers"])+'사 · 원시 수급 '
+                   +str(peer["raw_flow"])+'사 · 정식 성장/경쟁력/수급 점수 N/A</p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -409,7 +487,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

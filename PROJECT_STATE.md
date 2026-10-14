@@ -1999,3 +1999,12 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 완료: 기존 core 브랜치의 `official_watch_state_bridge.py` 정상 코드 재사용, 최신 검증 KRX 전체시장 WATCH20 → 기존 `StateHistory` 연구 SQLite 원장 → 프로젝트 중립 JSON 출판의 opt-in `--marketwide-record-watch-history`. 새 원장 전용 식별자 `KR_PRICE_OBSERVED`, 선정/POTENTIAL/CONFIRMED/WEAKENING/주문0. 같은 날짜 반복 불변·멱등, 자동 이탈매도0.
 - 실제 T5DATA에서 새 SQLite를 `StateHistory` 열린 뒤 chmod하던 기존 로직은 readonly write 에러. 안전한 O_EXCL mode0600 **선생성 후 연결** 순서로 최소 수정. 실제 격리 원장 10/08 WATCH20 + 10/13 WATCH20 = WATCH40 / 상태전이0 / 확정0 E2E PASS, 당일 운영원장 WATCH20 재호출 exit0 PASS. 외부 주문·계좌/실메시지0.
 - 변경 영향 테스트 `output/verification_logs/marketwide_state_history_final_20261014.xml` **97 PASS, failures0/errors0/skips0**, py_compile/diffcheck PASS. 코드·재현·제약 `docs/165_KR_PRICE_WATCH_STATE_HISTORY_NEUTRAL_OUTBOX_20261014.md`. 전체 회귀는 현재 실사용 지침에 따라 미실행. 다음: 동시점 실제 다섯 요인 완전성/영구ID 보완→정식 후보 전이/중립 송신; 5요소 미충족 동안 정식 리더0 유지. 실사용 완료율 재산정 전.
+
+## 2026-10-14 KST | CONTINUE | 3_3·3_4·3_5·4_1·4_2·4_3·4_4·6_4 | KR 5요소 후보판정·상태·중립송신 결선
+
+- 인수: Mac/T5DATA 온라인, 원본 `main=a244002`의 미커밋 `native_first_capture.py` 7줄·기존 사용자 문서/PNG 보존. 이전 검증 feature `1264d8e` 정상 상태에서 계속, 타 프로젝트/KRX 원문/실전주문/보관 키 수정0.
+- 개발: 신규 `factor_selection_pipeline.py`, `scripts/run_factor_selection.py`, `tests/test_factor_selection_pipeline.py`, `docs/166_KR_5FACTOR_STATE_SELECTION_20261014.md`. 기존 시장 SHA 검사·5요소 `evaluate_leader_state`·`StateHistory`·범용 JSON 검증/발행기 재사용. 보고서만 있을 때 N/A·발굴선정0, 독립 서명된 **로컬 작성 연구용** 완전요소 계약 입력 시 PIT flag/available_at/시장동일코드/가격요소 일치 확인→후보 POTENTIAL/CONFIRMED/WEAKENING→별도 SQLite/중립 JSON 구현.
+- 데이터시점: 전일 공식가격을 다음 날 의사결정에 쓸 수 있지만 판단일은 시장일로 소급하지 않음. 미래 정보·오래된 자료 2거래일 이상 경고·동일일 변조 차단. 금일 재평가 근거가 없는 기존 후보는 오늘 중립 JSON에서 제외하되 역사적 EXIT 위조 안함. 로컬 작성 영수증만으로 **공식 PIT/정식 대장주 인증 아님**, feed 자체에 `LOCAL_ATTESTED_RESEARCH_NOT_INDEPENDENT_PIT`와 `formal_leader_certified=false`, 주문 false.
+- **Mac 실물 데이터 준비도**: 기존 2026-10-13 KRX 2,761종목, RS2,263·재무49·산업49·연구50점38·수급1. `FIVE_FACTOR_INPUT_NOT_AVAILABLE`, 현재 정식선정0, 새 생산 SQLite 생성0, 실주문/API0.
+- SSD 별도 합성 E2E: `output/verification_logs/fivefactor_synthetic_e2e_20261014` 안에서 테스트용 5요소 자료의 POTENTIAL+SQLite+프로젝트 중립 JSON 발행 성공(실물 대장주 신호 아님). 변경영향 `output/verification_logs/fivefactor_scope_final_20261014.xml` **86/86 PASS, errors0/failures0/skips0**, Python compile/diffcheck PASS. 전체 수천 회귀/독립 원천 PIT 성능인증은 미실행. 실제 상태 `docs/166_KR_5FACTOR_STATE_SELECTION_20261014.md`.
+- 다음: 현재 5요소 부족을 채울 실물 공급자 자료 연결→시장/산업 성장·기업 경쟁력·수급 기반 이력/검증된 일일 발굴선정→범용 송신 운영 자동화. 기존 `main` 및 타 Feature 중복 재개발 금지. API 제외 전체 실사용 완료율은 정량 재산정 전.

@@ -8,6 +8,44 @@ import json
 import sys
 
 
+def _pick_latest_signed_watch_input(root:Path,marketwide:Path)->Path|None:
+    """Find current SHA+day matched already-recorded factors (no source/API writes)."""
+    from datetime import datetime,timezone
+    from eraleader.marketwide_live_search import _source
+    from eraleader.factor_selection_pipeline import _read_assessment,_validate
+    from eraleader.marketwide_auto_refresh import _owned_output
+    base=_owned_output(root)/"partial_factor_inputs"
+    if base.is_symlink():
+        raise ValueError("AUTO_WATCH_FACTORS_SYMLINK")
+    if not base.is_dir():
+        return None
+    source,_=_source(marketwide)
+    prefix=("KR_"+source["market_session"].replace("-","")+"_"
+            +source["content_sha256"][:16]+"_")
+    files=list(base.iterdir())
+    if len(files)>400:
+        raise ValueError("AUTO_WATCH_TOO_MANY_INPUTS")
+    choices=[]
+    now=datetime.now(timezone.utc)
+    for file in files:
+        if file.is_symlink() or not file.is_file() or not file.name.startswith(prefix):
+            continue
+        if not file.name.endswith(".json"):
+            continue
+        try:
+            assessment=_read_assessment(file)
+            observations,_day=_validate(source,assessment,now=now)
+            count=sum(x["components"]["earnings"] is not None for x in observations)
+            flow=sum(x["components"]["flow"] is not None for x in observations)
+            total=sum(sum(v is not None for v in x["components"].values())
+                      for x in observations)
+            choices.append(((len(observations),count,flow,total,
+                             assessment["decision_at_utc"],file.name),file))
+        except (ValueError,TypeError,KeyError,OSError,OverflowError):
+            continue
+    return max(choices,key=lambda item:item[0])[1] if choices else None
+
+
 def main(argv=None):
     parser=ArgumentParser(description="Offline EraLeader research operations health")
     parser.add_argument("--project",type=Path,required=True,
@@ -41,13 +79,21 @@ def main(argv=None):
                         help="Opt-in read-only original DART annual CFS margins in early WATCH output")
     parser.add_argument("--watch-daily-brief-manifest",type=Path,default=None,
                         help="Opt-in local daily annual-profit WATCH report from signed WATCH JSON")
+    parser.add_argument("--marketwide-watch-auto",action="store_true",
+                        help="One command: latest verified KR source -> best signed factors -> WATCH -> daily brief -> dashboard; no API")
     args=parser.parse_args(argv)
     if args.marketwide_watch_queue_input and args.marketwide_source_root is None:
         raise ValueError("Early WATCH queue requires --marketwide-source-root")
+    if args.marketwide_watch_auto and args.marketwide_source_root is None:
+        raise ValueError("Auto WATCH requires --marketwide-source-root")
+    if args.marketwide_watch_auto and (args.marketwide_watch_queue_input is not None
+                                      or args.watch_daily_brief_manifest is not None):
+        raise ValueError("Auto WATCH selects inputs and daily brief itself")
     if args.marketwide_watch_queue_top!=50 and args.marketwide_watch_queue_input is None:
         raise ValueError("Early WATCH top requires --marketwide-watch-queue-input")
-    if args.marketwide_watch_dart_cfs_root is not None and args.marketwide_watch_queue_input is None:
-        raise ValueError("DART CFS profitability requires --marketwide-watch-queue-input")
+    if (args.marketwide_watch_dart_cfs_root is not None and
+            args.marketwide_watch_queue_input is None and not args.marketwide_watch_auto):
+        raise ValueError("DART CFS profitability requires manual or auto WATCH")
     if args.marketwide_dated_volume_code and args.marketwide_source_root is None:
         raise ValueError("Exact dated flow comparison requires --marketwide-source-root")
     if (args.marketwide_krx_volume_capture_root is not None and
@@ -148,17 +194,39 @@ def main(argv=None):
                 code=args.marketwide_dated_volume_code,
                 official_volume_overlay=krx_overlay)
     early_watch=None
-    if args.marketwide_watch_queue_input is not None:
-        source_file=(handoff.get("source_report_file") if args.marketwide_publish_outbox
-                     else refresh.get("source_report_file"))
-        if source_file is not None:
-            from eraleader.early_leader_watch_queue import publish_early_watch
-            early_watch=publish_early_watch(
-                marketwide=Path(source_file),project=root,
-                factor_input=args.marketwide_watch_queue_input,
-                top=args.marketwide_watch_queue_top,
-                dart_cfs_capture_root=args.marketwide_watch_dart_cfs_root)
+    auto_watch_state=None
+    chosen_factor=args.marketwide_watch_queue_input
+    source_file=(handoff.get("source_report_file") if args.marketwide_publish_outbox
+                 else refresh.get("source_report_file") if refresh else None)
+    if args.marketwide_watch_auto:
+        if source_file is None or refresh.get("stale_warning") is True:
+            auto_watch_state="NO_FRESH_VERIFIED_SOURCE"
+        else:
+            chosen_factor=_pick_latest_signed_watch_input(root,Path(source_file))
+            if chosen_factor is None:
+                # New market-session: create only the existing verified
+                # price+earnings PARTIAL input. Never invent missing 20pt factors.
+                from eraleader.official_partial_factor_bridge import derive_partial_factor_input
+                derived=derive_partial_factor_input(
+                    marketwide=Path(source_file),project=root)
+                if derived.get("input_file"):
+                    chosen_factor=Path(derived["input_file"])
+                else:
+                    auto_watch_state=derived["status"]
+    if chosen_factor is not None and source_file is not None:
+        from eraleader.early_leader_watch_queue import publish_early_watch
+        early_watch=publish_early_watch(
+            marketwide=Path(source_file),project=root,
+            factor_input=chosen_factor,
+            top=args.marketwide_watch_queue_top,
+            dart_cfs_capture_root=args.marketwide_watch_dart_cfs_root)
+        if args.marketwide_watch_auto:
+            auto_watch_state=early_watch["status"]
     annual_brief=None
+    if args.marketwide_watch_auto and early_watch is not None and early_watch.get("manifest"):
+        from eraleader.early_watch_daily_brief import publish_daily_brief
+        annual_brief=publish_daily_brief(
+            project=root,watch_manifest=Path(early_watch["manifest"]))
     if args.watch_daily_brief_manifest is not None:
         from eraleader.early_watch_daily_brief import publish_daily_brief
         annual_brief=publish_daily_brief(
@@ -181,7 +249,13 @@ def main(argv=None):
         report["watch_daily_brief_status"]=annual_brief["status"]
         report["watch_daily_brief_candidates"]=annual_brief["watch_rows"]
         report["watch_daily_brief_orders"]=0
-    if args.marketwide_watch_queue_input is not None:
+    if args.marketwide_watch_auto:
+        report["marketwide_auto_watch_status"]=auto_watch_state
+        report["marketwide_auto_watch_factor_file"]=(str(chosen_factor) if early_watch else None)
+        report["marketwide_auto_watch_candidates"]=(early_watch.get("watch_queue_count",0) if early_watch else 0)
+        report["marketwide_auto_watch_orders"]=0
+        report["marketwide_auto_watch_external_api_calls"]=0
+    if args.marketwide_watch_queue_input is not None or args.marketwide_watch_auto:
         report["marketwide_early_watch_status"]=(early_watch["status"] if early_watch else "NO_SOURCE")
         report["marketwide_early_watch_count"]=(early_watch.get("watch_queue_count",0) if early_watch else 0)
         report["marketwide_early_watch_orders"]=0

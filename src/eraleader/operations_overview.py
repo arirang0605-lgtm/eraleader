@@ -483,6 +483,61 @@ def _latest_flow_diagnostics(root:Path, now:datetime) -> dict|None:
     return max(found,key=lambda item:item[:3])[-1] if found else None
 
 
+def _latest_volume_alignment(root:Path, now:datetime)->dict|None:
+    from .marketwide_volume_alignment import SCHEMA as VOL_SCHEMA, _html
+    base=root/"marketwide_volume_alignment"
+    if base.is_symlink() or not base.is_dir():
+        return None
+    candidates=[]
+    for folder in list(base.iterdir())[:400]:
+        if (folder.is_symlink() or not folder.is_dir() or
+                not re.fullmatch(r"KR_[0-9]{8}_[a-f0-9]{16}_[a-f0-9]{12}",folder.name)):
+            continue
+        manifest=folder/"manifest.json"
+        page=folder/"index.html"
+        if (manifest.is_symlink() or page.is_symlink()
+                or not manifest.is_file() or not page.is_file()
+                or manifest.stat().st_size>2_000_000
+                or page.stat().st_size>2_000_000):
+            continue
+        try:
+            raw=manifest.read_bytes()
+            doc=json.loads(raw)
+            unsigned=dict(doc);digest=unsigned.pop("content_sha256",None)
+            if (digest!=sha256(canonical(unsigned)).hexdigest() or
+                    raw!=canonical(doc)+b"\n" or
+                    doc.get("schema")!=VOL_SCHEMA or doc.get("market")!="KR" or
+                    doc.get("flow_score_10_available")!=0 or
+                    doc.get("flow_volume_fully_aligned_stocks")!=0 or
+                    doc.get("formal_leaders")!=0 or
+                    doc.get("orders_enabled") is not False or
+                    doc.get("flow_daily_dates_persisted") is not False or
+                    page.read_bytes()!=_html(doc)):
+                continue
+            observed=date.fromisoformat(doc["source_market_session"])
+            source_time=datetime.fromisoformat(doc["source_built_at_utc"])
+            if (observed>now.date() or source_time.tzinfo is None or
+                    source_time.astimezone(timezone.utc)>now):
+                continue
+            ref=sha256(canonical({
+                "source":doc["source_marketwide_sha256"],
+                "flow":doc["flow_batch_sha256"],
+                "cache":doc["local_cache_sha256"]
+            })).hexdigest()[:12]
+            expected=("KR_"+observed.strftime("%Y%m%d")+"_"+doc["source_marketwide_sha256"][:16]+"_"+ref)
+            if expected!=folder.name:continue
+            candidates.append((observed,len(doc["flow_batch_sha256"]),folder.name,{
+                "href":"../../marketwide_volume_alignment/"+folder.name+"/index.html",
+                "market_session":observed.isoformat(),
+                "flow_stocks":doc["flow_stocks"],
+                "cache_session_matched":doc["source_session_price_cache_matched"],
+                "aligned":0,"orders":0,
+            }))
+        except (ValueError,TypeError,KeyError,OSError,OverflowError,UnicodeError):
+            continue
+    return max(candidates,key=lambda c:c[:3])[-1] if candidates else None
+
+
 def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
     """Check checkpoint/ZIP/live bytes without touching the original market vault."""
     base=Path(project)
@@ -503,6 +558,7 @@ def audit_local_operations(project:Path, *,clock:datetime|None=None) -> dict:
         "kr_peer_flow_research":_latest_peer_flow(root,now),
         "kr_marketwide_flow_coverage":_latest_flow_coverage(root,now),
         "kr_marketwide_flow_diagnostics":_latest_flow_diagnostics(root,now),
+        "kr_marketwide_volume_alignment":_latest_volume_alignment(root,now),
         "archive_live_bytes_matched_modes":sum(
             m["archive_live_bytes_matched"] for m in modes.values()),
         "local_snapshot_integrity_only":True,
@@ -611,6 +667,25 @@ def render_operations_overview(snapshot:dict) -> str:
                          +str(diagnostic["observed_stocks"])+'종목 · 분모 가용 '
                          +str(diagnostic["proxy_denominators"])
                          +'종목 · 실물 수급점수 N/A / 주문 0</p>')
+    volume=snapshot.get("kr_marketwide_volume_alignment")
+    if volume is None:
+        volume_html="<p>기관·외국인 수급의 거래량 날짜 일치 보고서: 없음 (N/A).</p>"
+    else:
+        if (type(volume) is not dict or
+                set(volume)!={"href","market_session","flow_stocks",
+                              "cache_session_matched","aligned","orders"}
+                or volume["orders"]!=0 or volume["aligned"]!=0
+                or any(type(volume[x]) is not int or volume[x]<0
+                       for x in ("flow_stocks","cache_session_matched"))
+                or volume["cache_session_matched"]>volume["flow_stocks"]
+                or not re.fullmatch(r"\.\./\.\./marketwide_volume_alignment/KR_[0-9]{8}_[a-f0-9]{16}_[a-f0-9]{12}/index\.html",volume["href"])):
+            raise ValueError("Unsafe marketwide volume alignment link")
+        volume_html=('<p><a href="'+escape(volume["href"],quote=True)+'">'
+                     '기관·외국인 수급과 거래량 날짜 일치 보기</a> · 관측일 '
+                     +escape(volume["market_session"])+' · 수급 '
+                     +str(volume["flow_stocks"])+'종목 · 거래량 동일날짜 '
+                     +str(volume["cache_session_matched"])
+                     +'종목 · 수급-거래량 5/20 정합 0 · flow10 점수 N/A</p>')
     rows=[]
     for mode,title in (("price","가격 기반 KR·US 관찰"),
                        ("watch","신규 WATCH·교체 연구"),
@@ -643,7 +718,7 @@ def render_operations_overview(snapshot:dict) -> str:
 <div class="stat">검증된 백업·화면 일치 모드<br><strong>{snapshot["archive_live_bytes_matched_modes"]} / 3</strong></div>
 <div class="stat">실전 적중률<br><strong>N/A</strong></div>
 <div class="stat">자동 알림 전송<br><strong>0 (미연결)</strong></div></div>
-<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
+<h2>한국 전체시장 종목 검색</h2>\n{search_html}\n<p><small>부분 연구점수는 투자 1~20위·공인 대장주 확정이 아닙니다.</small></p>\n<h2>산업 내 성장·수급 비교</h2>\n{peer_html}\n<h2>키움 선택종목 수급 누적</h2>\n{coverage_html}\n<h2>추정 발행주식수 대비 수급 비율</h2>\n{diagnostic_html}\n<h2>키움 수급과 기존 거래량 캐시 날짜 일치 확인</h2>\n{volume_html}\n<h2>로컬 연구 예약 실행 및 데이터 상태</h2>
 <div class="wrap"><table><thead><tr><th>모드</th><th>상태</th><th>마지막 완료(UTC)</th>
 <th>관측 범위</th><th>백업 ↔ 현재 파일</th></tr></thead><tbody>{''.join(rows)}</tbody></table></div>
 <p><small>점검 시각 UTC: {escape(str(snapshot["evaluated_at_utc"]))}. 원천 사전 등록·성공 라벨은 재검증하지 않았으며

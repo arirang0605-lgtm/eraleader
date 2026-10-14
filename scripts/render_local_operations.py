@@ -28,7 +28,11 @@ def main(argv=None):
                         help="Show SHA-verified cumulative selected-stock Kiwoom demo flow, read only")
     parser.add_argument("--marketwide-flow-diagnostics",action="store_true",
                         help="Opt-in observed 5/20-share flows / KRX market-cap implied shares proxy, no trades")
+    parser.add_argument("--marketwide-volume-alignment",action="store_true",
+                        help="Opt-in read-only marcap volume cache date coverage for selected Kiwoom flow")
     args=parser.parse_args(argv)
+    if args.marketwide_volume_alignment and args.marketwide_source_root is None:
+        raise ValueError("Volume alignment requires --marketwide-source-root")
     if args.marketwide_flow_diagnostics and args.marketwide_source_root is None:
         raise ValueError("Flow diagnostics require --marketwide-source-root")
     if args.marketwide_flow_coverage and args.marketwide_source_root is None:
@@ -94,6 +98,14 @@ def main(argv=None):
             from eraleader.marketwide_flow_diagnostics import publish_flow_share_proxy
             flow_diagnostics=publish_flow_share_proxy(
                 marketwide=Path(source_file),project=root)
+    volume_alignment=None
+    if args.marketwide_volume_alignment:
+        source_file=(handoff.get("source_report_file") if args.marketwide_publish_outbox
+                     else refresh.get("source_report_file"))
+        if source_file is not None:
+            from eraleader.marketwide_volume_alignment import publish_volume_alignment
+            volume_alignment=publish_volume_alignment(
+                marketwide=Path(source_file),project=root)
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
@@ -108,6 +120,15 @@ def main(argv=None):
         report["marketwide_watch_state_status"]=handoff.get("watch_history_status","NOT_REQUESTED")
         report["marketwide_watch_state_rows"]=handoff.get("watch_history_rows",0)
         report["marketwide_verified_leader_events"]=0
+    if args.marketwide_volume_alignment:
+        report["marketwide_volume_alignment_status"]=(
+            volume_alignment["status"] if volume_alignment else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")
+        report["marketwide_volume_alignment_stocks"]=(
+            volume_alignment["flow_stocks"] if volume_alignment else 0)
+        report["marketwide_volume_alignment_matching_session"]=(
+            volume_alignment["price_cache_matched"] if volume_alignment else 0)
+        report["marketwide_volume_alignment_5_20_ready"]=0
+        report["marketwide_volume_alignment_orders"]=0
     if args.marketwide_flow_diagnostics:
         report["marketwide_flow_diagnostics_status"]=(
             flow_diagnostics["status"] if flow_diagnostics else "NO_VERIFIED_KR_MARKETWIDE_SOURCE")

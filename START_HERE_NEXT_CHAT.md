@@ -927,3 +927,8 @@ EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발
 - 마지막 검증 정상 코드 `feature/core-official-factor-coverage-20261013`에서 계속. 정확한 SHA는 `git rev-parse HEAD`; 기존 main의 미커밋 native_first_capture.py/원본 비밀키·시장자료 불변.
 - `docs/158_INCREMENTAL_KR_FINANCIAL_INDUSTRY_CONTINUE_20261014.md` 참고. 기존 KRX 2026-10-13 2,761 일봉/RS 2,263/재무·산업 18/수급 1 연구 본을 DART FY2024/25 원본 12사 + 업종 12사로 증분 확장하여 재무30/산업30/50점 연구22. 원형 WATCH20·기존 SQLite 변경하지 않음. 추가 실적은 10/14 첫 인지 자료이므로 가격관측일 과거 매수신호로 소급 금지.
 - 최신 output/kr_20261013_marketwide_30f30i_20261014 JSON+HTML 및 receiver-neutral strategy_outbox (price WATCH20/연구20/정식 선정0) E2E 실행. 다음 P1 데이터 확대→P2 기존 5요소 실제 종합 선정·P3 상태/송신. 사용자 수신 프로젝트 결정 전 외부 수신 어댑터 연결 금지.
+
+## 2026-10-14 P1 마지막 체크포인트 — 40사 공식 연결/다음 수집 중복 방지
+- 분리 브랜치 feature/core-official-factor-coverage-20261013 실제 SHA/git 상태를 기준으로 CONTINUE, 원본 main과 사용자 미커밋 변경·인증정보 그대로 보존. `PROJECT_STATE.md` 최신 항목 및 `docs/159_MARKETWIDE_DART_ATTEMPT_DEDUP_AND_40_20261014.md` 참조.
+- KRX 2026-10-13 실제 2,761, 공식 DART 현재 재무·산업 각40사, 가격 RS2,263, 연구용 가격+실적 50점30사, 동일세션 Kiwoom 흐름1사. 정식 100점/선정0, WATCH/연구 JSON 자동 송신·원본불변 유지.
+- `capture_dart_multi_company.py --auto-marketwide-report --skip-attempted-manifest <현 세션 이미 시도한 CFS JSON>`로 불필요한 동일기업 재조회 없이 다음 12사 자동 선택. 재무·산업/기관수급/경쟁력 실제 원본 확대 후 기존 100점 공식 선정·상태추적에 연결.

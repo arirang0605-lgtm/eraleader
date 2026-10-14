@@ -36,6 +36,8 @@ def main(argv=None) -> int:
                    help="Uncovered DART issuers from KRX whole-market report, turnover descending")
     p.add_argument("--auto-start-rank",type=int,default=1)
     p.add_argument("--auto-offset",type=int,default=0)
+    p.add_argument("--skip-attempted-manifest",type=Path,action="append",default=[],
+                   help="Existing matching-market bounded CFS manifests to skip previously attempted issuers")
     p.add_argument("--auto-limit",type=int,default=12)
     p.add_argument("--year",type=int,action="append",default=[])
     p.add_argument("--out",type=Path,required=True,
@@ -57,7 +59,11 @@ def main(argv=None) -> int:
                 a.out.suffix!=".json"):
             raise ValueError("Output manifest must be new absolute private JSON path")
         years=tuple(a.year) if a.year else (2024,2025)
+        if a.skip_attempted_manifest and a.auto_marketwide_report is None:
+            raise ValueError("Skip-attempted CFS cohorts apply only to marketwide auto queue")
         if a.code is not None:
+            if a.skip_attempted_manifest:
+                raise ValueError("Skip manifest applies only to automatic marketwide capture")
             codes=tuple(a.code)
         else:
             source=a.auto_price_watch or a.auto_marketwide_report
@@ -74,9 +80,30 @@ def main(argv=None) -> int:
                     snapshot,evidence,market,start_rank=a.auto_start_rank,
                     limit=a.auto_limit)
             else:
+                excluded=set()
+                for previous in a.skip_attempted_manifest:
+                    if (not previous.is_absolute() or previous.is_symlink() or
+                            not previous.is_file() or
+                            any(parent.is_symlink() for parent in previous.parents)):
+                        raise ValueError("Skipped historical CFS manifest must be private regular file")
+                    prior=json.loads(previous.read_bytes())
+                    if (prior.get("schema")!="eraleader.dart_bounded_multi_company_cfs.v1" or
+                            prior.get("official_market",{}).get("market_session")!=
+                            snapshot.get("market_session") or
+                            prior.get("research_only") is not True or
+                            prior.get("real_investment_leader_ranked") is not False or
+                            prior.get("companies_requested") != len(prior.get("companies",[]))):
+                        raise ValueError("Only same-session research CFS manifest can be skipped")
+                    for item in prior["companies"]:
+                        code=item.get("stock_code")
+                        if (type(code) is not str or code not in market or
+                                item.get("name")!=market[code]["name"]):
+                            raise ValueError("Skipped financial request identity/duplicate mismatch")
+                        excluded.add(code)
                 codes=choose_marketwide_turnover_cfs_batch(
                     snapshot,evidence,market,offset=a.auto_offset,
-                    limit=a.auto_limit)
+                    limit=a.auto_limit,
+                    skip_attempted_codes=frozenset(excluded))
         result=collect_multi_company_cfs(
             evidence_file=a.official_evidence,
             private_root=a.capture_root,

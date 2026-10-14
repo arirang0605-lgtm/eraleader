@@ -352,6 +352,13 @@ def test_marketwide_turnover_auto_batch_skips_observed_financial_and_reuses_issu
         "000660","035420")
     assert choose_marketwide_turnover_cfs_batch(
         data,evidence,eligible,offset=1,limit=1)==("035420",)
+    assert choose_marketwide_turnover_cfs_batch(
+        data,evidence,eligible,limit=1,
+        skip_attempted_codes=frozenset({"000660"}))==("035420",)
+    with pytest.raises(ValueError,match="Previously attempted"):
+        choose_marketwide_turnover_cfs_batch(
+            data,evidence,eligible,skip_attempted_codes=["000660"])
+
     amended=copy.deepcopy(data)
     amended["securities"][1]["turnover"]=1000
     with pytest.raises(ValueError,match="pinned"):

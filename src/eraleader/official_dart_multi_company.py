@@ -152,7 +152,9 @@ def choose_price_watch_company_batch(snapshot: dict, official_evidence: dict,
 
 def choose_marketwide_turnover_cfs_batch(report: dict, official_evidence: dict,
                                          eligible: dict, *, offset: int = 0,
-                                         limit: int = 12) -> tuple[str, ...]:
+                                         limit: int = 12,
+                                         skip_attempted_codes: frozenset[str] = frozenset()
+                                         ) -> tuple[str, ...]:
     """Next DART annual CFS queue from the whole pinned KRX market, by turnover.
 
     Existing comparable companies are skipped, missing-company facts remain
@@ -164,6 +166,10 @@ def choose_marketwide_turnover_cfs_batch(report: dict, official_evidence: dict,
     if (type(offset) is not int or not 0 <= offset <= 5000 or
             type(limit) is not int or not 1 <= limit <= MAX_COMPANIES):
         raise ValueError("Bounded marketwide batch offset/limit required")
+    if (type(skip_attempted_codes) is not frozenset or
+            any(type(code) is not str or CODE.fullmatch(code) is None
+                for code in skip_attempted_codes)):
+        raise ValueError("Previously attempted CFS IDs must be verified numeric codes")
     original = dict(report)
     digest = original.pop("content_sha256",None)
     if (report.get("schema") != COVERAGE or
@@ -198,7 +204,8 @@ def choose_marketwide_turnover_cfs_batch(report: dict, official_evidence: dict,
                 type(cap) not in (int,float) or not math.isfinite(cap) or
                 amount < 0 or cap < 0):
             raise ValueError("Invalid KRX turnover/market cap")
-        if (CODE.fullmatch(code) and row.get("revenue_yoy") is None and
+        if (CODE.fullmatch(code) and code not in skip_attempted_codes and
+                row.get("revenue_yoy") is None and
                 row.get("market_traded") is True and amount > 0):
             pool.append((code,float(amount),float(cap)))
     pool.sort(key=lambda x:(-x[1],-x[2],x[0]))

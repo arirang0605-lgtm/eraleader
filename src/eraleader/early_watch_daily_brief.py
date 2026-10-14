@@ -90,6 +90,10 @@ def build_daily_brief(source:dict,*,clock:datetime|None=None)->dict:
         "official_leader_confirmations":0,"leader_state_events":[],
         "orders_enabled":False,"external_api_calls":0,
     }
+    if source.get("financial_cache_refreshed") is False:
+        summary["cached_financial_source_market_session"]=source["cached_financial_source_market_session"]
+        summary["cached_financial_available_at_utc"]=source["cached_financial_available_at_utc"]
+        summary["financial_cache_refreshed"]=False
     summary["content_sha256"]=sha256(canonical(summary)).hexdigest()
     return summary
 
@@ -129,7 +133,12 @@ def _html(report:dict)->bytes:
                 row["two_year_positive_operating_margin"],row["flow_research_10_not_formal"])
         body+='<tr>'+''.join('<td>'+escape("N/A" if v is None else str(v))+'</td>'
                                   for v in values)+'</tr>'
-    return (body+'</tbody></table></div></body></html>').encode()
+    cache_note=""
+    if report.get("financial_cache_refreshed") is False:
+        cache_note=('<p>재무·업종은 기존 검증 캐시 '
+                    +escape(report["cached_financial_source_market_session"])
+                    +' 관측본입니다. 가격만 새 시장일로 갱신했으며 신규 공시 반영은 아닙니다.</p>')
+    return (body+'</tbody></table></div>'+cache_note+'</body></html>').encode()
 
 
 def read_daily_brief(path:Path,*,clock:datetime|None=None)->dict:

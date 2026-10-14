@@ -264,6 +264,10 @@ def create_early_watch(*,marketwide:Path,project:Path,
         "execution_authority":False,
         "orders_enabled":False,
     }
+    if market.get("financial_cache_refreshed") is False:
+        payload["cached_financial_source_market_session"]=market["cached_financial_source_market_session"]
+        payload["cached_financial_available_at_utc"]=market["cached_financial_available_at_utc"]
+        payload["financial_cache_refreshed"]=False
     if dart_cfs_capture_root is not None:
         from .dart_profitability_watch import RESEARCH_SOURCE
         payload["dart_profitability_method"]=RESEARCH_SOURCE
@@ -346,7 +350,12 @@ def _html(doc:dict)->bytes:
                           r.get("dart_cfs_net_margin_change_pp"),
                           r["dart_cfs_first_received_at_utc"]))+'</tr>'
                 for r in doc["review_queue"])+'</tbody></table></div>')
-    return (head+''.join(cells)+'</tbody></table></div>'+profitability_html+
+    cache_note=""
+    if doc.get("financial_cache_refreshed") is False:
+        cache_note=('<p>가격은 KRX 기준일로 갱신했습니다. 재무·업종은 기존 검증 캐시 '
+                    +escape(doc["cached_financial_source_market_session"])
+                    +' 관측본을 재사용하며 신규 공시 반영은 아닙니다. 다른 날짜 수급은 N/A입니다.</p>')
+    return (head+''.join(cells)+'</tbody></table></div>'+cache_note+profitability_html+
             '<p>후속 매매전략에 보내는 자료도 WATCH 연구 전용이며 '
             '선정·주문권한·실거래 매수가·매도가를 포함하지 않습니다.</p>'
             '</body></html>').encode("utf-8")

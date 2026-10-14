@@ -1,7 +1,7 @@
 """6_5: Safe, opt-in launchd definition for the existing KR research refresh.
 
 Generate-only: never installs, loads or starts a job. The generated command
-uses the already-tested read-only operations publisher without market API calls.
+uses the existing operations publisher; official updates are explicit opt-in.
 """
 from __future__ import annotations
 
@@ -23,13 +23,32 @@ def generate_marketwide_plist(*, project: Path, source_root: Path,
                               minute: int = DEFAULT_MINUTE,
                               python: Path | None = None,
                               auto_watch: bool = False,
-                              dart_cfs_root: Path | None = None) -> dict:
+                              dart_cfs_root: Path | None = None,
+                              update_official: bool = False,
+                              capture_root: Path | None = None,
+                              existing_capture_roots: tuple[Path, ...] = (),
+                              legacy_root: Path | None = None) -> dict:
     """Write one new mode-0600 launchd plist under project/output only."""
     _safe_directory(project)
     _safe_directory(source_root)
     output = project / "output"
     _safe_directory(output)
-    script = project / "scripts" / "render_local_operations.py"
+    if type(update_official) is not bool:
+        raise ValueError("KR_SCHEDULE_INVALID_OFFICIAL_UPDATE")
+    if update_official:
+        if not auto_watch or capture_root is None:
+            raise ValueError("KR_SCHEDULE_OFFICIAL_REQUIRES_WATCH_AND_CAPTURE")
+        _safe_directory(capture_root)
+        for root in existing_capture_roots:
+            _safe_directory(root)
+        if legacy_root is not None:
+            _safe_directory(legacy_root)
+        if hour < 19:
+            raise ValueError("KR_SCHEDULE_OFFICIAL_AFTER_19_REQUIRED")
+    elif capture_root is not None or existing_capture_roots or legacy_root is not None:
+        raise ValueError("KR_SCHEDULE_CAPTURE_REQUIRES_OFFICIAL_UPDATE")
+    script = project / "scripts" / (
+        "run_marketwide_daily.py" if update_official else "render_local_operations.py")
     if not script.is_file() or script.is_symlink():
         raise ValueError("KR_SCHEDULE_MISSING_LOCAL_RUNNER")
     if type(auto_watch) is not bool:
@@ -58,10 +77,21 @@ def generate_marketwide_plist(*, project: Path, source_root: Path,
         str(interpreter), str(script), "--project", str(project),
         "--marketwide-source-root", str(source_root),
     ]
-    if auto_watch:
-        program_args.append("--marketwide-watch-auto")
-    if dart_cfs_root is not None:
-        program_args.extend(["--marketwide-watch-dart-cfs-root", str(dart_cfs_root)])
+    if update_official:
+        program_args = [str(interpreter), str(script), "--project", str(project),
+                        "--source-root", str(source_root),
+                        "--capture-root", str(capture_root), "--apply-official"]
+        for root in existing_capture_roots:
+            program_args.extend(["--existing-capture-root", str(root)])
+        if legacy_root is not None:
+            program_args.extend(["--legacy-root", str(legacy_root)])
+        if dart_cfs_root is not None:
+            program_args.extend(["--dart-cfs-root", str(dart_cfs_root)])
+    else:
+        if auto_watch:
+            program_args.append("--marketwide-watch-auto")
+        if dart_cfs_root is not None:
+            program_args.extend(["--marketwide-watch-dart-cfs-root", str(dart_cfs_root)])
     payload = {
         "Label": LABEL,
         "ProgramArguments": program_args,
@@ -106,4 +136,6 @@ def generate_marketwide_plist(*, project: Path, source_root: Path,
         "source_date_will_be_shown": True,
         "watch_daily_pipeline_enabled": auto_watch,
         "annual_cfs_source_enabled": dart_cfs_root is not None,
+        "official_incremental_update_enabled": update_official,
+        "market_api_calls_when_executed": "missing closed KRX sessions only" if update_official else 0,
     }

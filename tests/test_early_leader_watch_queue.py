@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 import subprocess
 import sys
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -22,10 +23,12 @@ from test_marketwide_auto_refresh import fixture
 NOW=datetime(2026,10,14,6,tzinfo=timezone.utc)
 
 
-def setup(tmp_path, *,with_flow=False):
+def setup(tmp_path, *,with_flow=False,clock=None):
     source_root,project=fixture(tmp_path)
-    market,_=source(project/"output")
-    part=derive_partial_factor_input(marketwide=market,project=project,clock=NOW)
+    market,_=source(project/"output",
+                    **({"market_date":clock.astimezone(ZoneInfo("Asia/Seoul")).date().isoformat(),
+                        "clock":clock} if clock is not None else {}))
+    part=derive_partial_factor_input(marketwide=market,project=project,clock=clock or NOW)
     input_path=Path(part["input_file"])
     if with_flow:
         original=_read_assessment(input_path)
@@ -162,7 +165,7 @@ def test_operational_dashboard_uses_sha_valid_queue_and_safe_link(tmp_path):
 
 
 def test_explicit_cli_publishes_without_network_and_next_run_reuses(tmp_path):
-    root,project,market,partial=setup(tmp_path)
+    root,project,market,partial=setup(tmp_path,clock=datetime.now(timezone.utc))
     script=Path(__file__).resolve().parents[1]/"scripts"/"publish_early_leader_watch.py"
     cmd=[sys.executable,str(script),"--project",str(project),
          "--marketwide-report",str(market),"--factor-input",str(partial)]
@@ -176,7 +179,7 @@ def test_explicit_cli_publishes_without_network_and_next_run_reuses(tmp_path):
 
 
 def test_optional_operations_auto_refresh_includes_early_queue(tmp_path):
-    root,project,market,partial=setup(tmp_path)
+    root,project,market,partial=setup(tmp_path,clock=datetime.now(timezone.utc))
     # Source finder probes one-level child folders, not output itself.
     source_directory=root/"market_20261013"
     source_directory.mkdir()

@@ -1,7 +1,7 @@
 """Real-source partial-factor derivation tests: no invented 5-factor selection."""
 from __future__ import annotations
 
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from hashlib import sha256
 from pathlib import Path
 import json
@@ -25,11 +25,14 @@ NOW=datetime(2026,10,14,6,tzinfo=timezone.utc)
 
 
 def source(root:Path, *,earnings=22.5, market_date="2026-10-13",
-           observed_extra=0):
+           observed_extra=0, clock=None):
     report=sample()
     report["market_session"]=market_date
     report["source_decision_at_utc"]="2026-10-14T00:00:00+00:00"
     report["built_at_utc"]="2026-10-14T01:00:00+00:00"
+    if clock is not None:
+        report["source_decision_at_utc"]=(clock-timedelta(minutes=2)).isoformat()
+        report["built_at_utc"]=(clock-timedelta(minutes=1)).isoformat()
     for item in report["securities"]:
         item["market_session"]=market_date
     report["securities"][0]["earnings_research_25"]=earnings
@@ -173,7 +176,7 @@ def test_unknown_alpha_code_from_real_market_can_be_research_watch(tmp_path):
 
 def test_cli_derives_source_only_and_does_not_use_broker(tmp_path):
     _,project=fixture(tmp_path)
-    src,_=source(project/"output")
+    src,_=source(project/"output",market_date=datetime.now(timezone.utc).date().isoformat(),clock=datetime.now(timezone.utc))
     script=Path(__file__).resolve().parents[1]/"scripts"/"run_factor_selection.py"
     cmd=[sys.executable,str(script),"--project",str(project),
          "--marketwide-report",str(src),"--derive-official-partial"]
@@ -207,7 +210,7 @@ def test_operations_dashboard_opt_in_derives_partial_without_order_or_leader(tmp
     sources,project=fixture(tmp_path)
     folder=sources/"market_1014"
     folder.mkdir()
-    source(folder)
+    source(folder,market_date=datetime.now(timezone.utc).date().isoformat(),clock=datetime.now(timezone.utc))
     script=Path(__file__).resolve().parents[1]/"scripts"/"render_local_operations.py"
     command=[sys.executable,str(script),"--project",str(project),
              "--marketwide-source-root",str(sources),

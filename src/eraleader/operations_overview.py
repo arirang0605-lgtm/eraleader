@@ -6,6 +6,7 @@ no scheduled jobs and no claims about success/precision. Read only the three
 """
 from __future__ import annotations
 
+from zoneinfo import ZoneInfo
 from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 from html import escape
@@ -683,7 +684,7 @@ def _latest_early_watch(root:Path,now:datetime)->dict|None:
             observed=date.fromisoformat(content["source_market_session"])
             first=datetime.fromisoformat(content["watch_published_at_utc"])
             if (sub.name!="KR_"+observed.strftime("%Y%m%d")+"_"+version
-                    or observed>now.date() or page.read_bytes()!=_html(content)):
+                    or observed>now.astimezone(ZoneInfo("Asia/Seoul")).date() or page.read_bytes()!=_html(content)):
                 continue
             val={
                 "href":"../../early_leader_watch_queue/"+sub.name+"/index.html",

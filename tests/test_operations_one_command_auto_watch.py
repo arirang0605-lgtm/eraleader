@@ -5,7 +5,8 @@ they do not require an extra validation service or a real API call.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from hashlib import sha256
 from pathlib import Path
 import json
@@ -21,7 +22,7 @@ from test_marketwide_auto_refresh import fixture, put
 from test_official_partial_factor_bridge import source
 
 SCRIPT=Path(__file__).resolve().parents[1]/"scripts"/"render_local_operations.py"
-NOW=datetime(2026,10,14,9,tzinfo=timezone.utc)
+NOW=datetime.now(timezone.utc)
 
 
 def cli(project,root,*extra):
@@ -40,7 +41,7 @@ def prepared(tmp_path):
     root,project=fixture(tmp_path)
     target=root/"current"
     target.mkdir()
-    report,info=source(target)
+    report,info=source(target,market_date=NOW.astimezone(ZoneInfo("Asia/Seoul")).date().isoformat(),clock=NOW)
     return root,project,report,info
 
 
@@ -92,7 +93,7 @@ def test_one_command_prefers_existing_same_source_flow_snapshot(tmp_path):
 
 def test_old_source_reports_hold_without_making_fictitious_new_watch(tmp_path):
     root,project=fixture(tmp_path)
-    put(root,"older",day="2026-10-08")
+    put(root,"older",day=(NOW.astimezone(ZoneInfo("Asia/Seoul")).date()-timedelta(days=7)).isoformat())
     result=cli(project,root)
     assert result["marketwide_auto_watch_status"]=="NO_FRESH_VERIFIED_SOURCE"
     assert result["marketwide_auto_watch_candidates"]==0

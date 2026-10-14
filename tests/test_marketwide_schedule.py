@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 import plistlib
 import stat
@@ -80,7 +82,7 @@ def test_auto_watch_schedule_executes_early_watch_daily_brief(tmp_path):
     sources,project=schedule_fixture(tmp_path)
     snapshot=sources/"verified"
     snapshot.mkdir()
-    source(snapshot)
+    source(snapshot, market_date=datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat(), clock=datetime.now(ZoneInfo("Asia/Seoul")))
     plist=project/"output"/"auto_watch.plist"
     result=generate_marketwide_plist(
         project=project,source_root=sources,destination=plist,auto_watch=True)

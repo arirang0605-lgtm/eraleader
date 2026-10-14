@@ -1970,3 +1970,10 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 실제 SHA 기반 2026-10-13 KRX 2,761종목/재무49/산업49/50점 연구38/일치 수급1 → 새 `output/marketwide_kr_search_20261014_v2/` 발행 성공. 운영 인덱스 최신 10/13 링크 PASS, 구 10/08 화면 불변. 출력은 Git 제외. 이전 `output/operations` 로컬 예약 체크포인트 없음은 정직하게 N/A 표시.
 - 변경 영향 `tests/test_marketwide_live_search.py`, `tests/test_operations_marketwide_navigation.py`, `tests/test_operations_overview.py` **59 PASS/0 FAIL/exit0**. Python compile/diffcheck PASS. 재현·제약 `docs/161_KR_MARKETWIDE_OPERATIONS_LATEST_SEARCH_20261014.md`.
 - NEXT: 화면 통합 브랜치 정리 및 실제 5요소 연구 충족 확대→대장주 선정 이력→프로젝트 중립 송신. 실전 주문/수신 프로젝트 연동0. 기존 과거 엄격 38%는 실사용 전체 진행률 아님. 이번 변경만으로 새로운 정량 전체 진척률은 산정하지 않음.
+
+## 2026-10-14 KST | CONTINUE | 1_2·3_4·3_5·6_2·6_5 | 최신 KR 전체시장 로컬 자동 검색 갱신
+
+- 보호: 원본 main 미커밋 `native_first_capture.py` 변경, 원본 SQLite/API/시장 SHA, 기존 다른 worktree, MarketOS·NewsCatalystOS·CoreAStock 수정0. 현재 분리 feature/kr-marketwide-search-20261014에서 기존 정상 검색/운영화면 재사용.
+- 신규 `marketwide_auto_refresh.py`: 운영자 source-root 내부 기존 시장전체 자료를 SHA/계약 확인 후 거래일 우선 → 동일일자 재무/부분요소/수급 더 충실한 보고서로 자동 선택, 이전 날짜·소스 무효일 때 구자료 보존·날짜 명시. 원천 SHA 버전+조회일 폴더 신규발행, 멱등·중복/변조 거부. 기존 `render_local_operations.py`에는 opt-in `--marketwide-source-root`만 최소 연결(실거래/API 조회0). 설치된 스케줄러 설정 변경0.
+- 실물 T5DATA 최신 2026-10-13 KR 2,761 가격 / CFS49/산업49 / 연구50점 평가38/일치 수급1을 자동 선택해 신규 검색+기존 운영 URL 연결 성공, 반복 실행 `KR_MARKETWIDE_SEARCH_ALREADY_CURRENT`. 검증 `PYTHONPATH=src python3 -m pytest tests/test_marketwide_auto_refresh.py tests/test_marketwide_live_search.py tests/test_operations_marketwide_navigation.py tests/test_operations_overview.py -q --tb=short`: **67 PASS/0 FAIL/exit0**. Python compile/diffcheck PASS. 로그 `output/verification_logs/marketwide_autorefresh_scope_20261014.log`, 상세 `docs/162_KR_MARKETWIDE_AUTO_REFRESH_20261014.md`.
+- 비완료: 현 기능은 기존 연구자료 read-only 갱신이며 실시간 공식 거래소 직접 호출, 매일 주기적 자동 실행 설치, 정식100점 대장주·예측 성능 확정은 아님. 수신 매매전략 연결0. 다음 실제 운영 기능: 공통 일정과 최신 공식 수집본 연결(옵션), 5요소 자료 범위 확대와 정식 선발 이력·중립 송신.

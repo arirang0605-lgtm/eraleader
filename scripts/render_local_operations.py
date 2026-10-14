@@ -16,20 +16,38 @@ def main(argv=None):
                         help="Opt-in read-only joined operations/outbox page, no delivery")
     parser.add_argument("--marketwide-source-root",type=Path,default=None,
                         help="Opt-in refresh of latest already-verified KR marketwide research under a source output folder")
+    parser.add_argument("--marketwide-publish-outbox",action="store_true",
+                        help="Opt-in project-neutral PRICE WATCH20 JSON only; no recipient or orders")
     args=parser.parse_args(argv)
+    if args.marketwide_publish_outbox and args.marketwide_source_root is None:
+        raise ValueError("Research outbox requires --marketwide-source-root")
     root=args.project.resolve(strict=True)
     sys.path.insert(0,str(root/"src"))
     refresh=None
     if args.marketwide_source_root is not None:
-        from eraleader.marketwide_auto_refresh import refresh_latest_marketwide
-        refresh=refresh_latest_marketwide(source_root=args.marketwide_source_root,
-                                         project=root,request_day="today")
+        if args.marketwide_publish_outbox:
+            from eraleader.marketwide_handoff_bridge import publish_latest_marketwide_handoff
+            handoff=publish_latest_marketwide_handoff(
+                source_root=args.marketwide_source_root,project=root,request_day="today")
+            refresh={
+                "status":handoff.get("search_status",handoff["status"]),
+                "source_market_session":handoff.get("source_market_session"),
+            }
+        else:
+            from eraleader.marketwide_auto_refresh import refresh_latest_marketwide
+            refresh=refresh_latest_marketwide(source_root=args.marketwide_source_root,
+                                             project=root,request_day="today")
     if args.include_local_outbox:
         from eraleader.operations_alert_bridge import publish_operations_alert_dashboard
         report=publish_operations_alert_dashboard(root)
     else:
         from eraleader.operations_overview import publish_operations_overview
         report=publish_operations_overview(root)
+    if args.marketwide_publish_outbox:
+        report["marketwide_handoff_status"]=handoff["status"]
+        report["marketwide_handoff_watchlist_count"]=handoff["watchlist_count"]
+        report["marketwide_handoff_selected_count"]=0
+        report["marketwide_handoff_orders"]=0
     if refresh is not None:
         report["marketwide_refresh_status"]=refresh["status"]
         report["marketwide_observation_session"]=refresh.get("source_market_session")

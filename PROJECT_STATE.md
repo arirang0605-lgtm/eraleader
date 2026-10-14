@@ -1985,3 +1985,10 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - Mac 실물 `output/kr_marketwide_research_weekdays_1840.plist` 생성 exit0, `plutil -lint` OK, 옵션 5평일, `RunAtLoad=false`, chmod 실제0700. 해당 `ProgramArguments` 직접 실행 exit0/최신 공식 KR 2026-10-13 2,761종목, 이미 생성한 연구 페이지 SHA/idempotent `ALREADY_CURRENT`, 원래 운영 링크 정상.
 - 테스트: `output/verification_logs/marketwide_schedule_final_20261014.xml` **79 tests 0 failures 0 errors 0 skipped exit0**, py_compile/git diffcheck PASS. 상세 `docs/163_KR_MARKETWIDE_WEEKDAY_SCHEDULE_20261014.md`. Public git staged-only secrets scan 후 별도 feature commit/push.
 - NEXT: 사용자 실제 운영 최소 기준에 맞춰 5요소 실제 데이터/상태 자동 선정과 범용 JSON 송신 기능 강화. schedule은 `PREPARED_NOT_INSTALLED`, Mac login/background job 실제 설치 및 SSD off/on 물리 시험 미실시. 기존 전체 실사용 진행률은 새 기준 산정 전이며, 옛 엄격 PIT 38%로 완료율 오인 금지.
+
+## 2026-10-14 KST | CONTINUE | 3_4·4_1·6_2·6_4 | KR 공식 최신 가격 WATCH20 중립 JSON 자동 송신
+
+- 원본 main `a244002` 및 기존 미커밋 `native_first_capture.py` 6+/1-, DECISIONS/PROJECT_STATE 및 사용자 미추적 파일 보존. `feature/kr-marketwide-search-20261014` 기존 검색·자동갱신 기능을 재사용, 다른 core/NewsCatalystOS/MarketOS/전략프로젝트 비수정.
+- 신규 `marketwide_handoff_bridge.py`와 기존 `render_local_operations.py --marketwide-publish-outbox` opt-in. 최신 시장 SHA·가격 WATCH20를 재검사하여 기존 `strategy_handoff` 방식으로 프로젝트 중립 immutable source-versioned JSON 발행. 자료가 늦어지면 원래 발행시간을 오늘 날짜로 소급하지 않고 동일 source 버전 재사용, 변조/19개 일부 PRICE WATCH는 차단. 5요소 정식 판정·주문·수신 연결0.
+- 실제 2026-10-13 KRX 2,761/CFS49/산업49/연구50점38/수급1 기존 자료에서 WATCH20, 정식 선정0, 주문0 `output/strategy_outbox/KR_20261013_a59b7ecdfaa0b707.json` 검증 발행 및 반복 재생성 없이 replay exit0. 변경영향 `output/verification_logs/marketwide_handoff_bridge_final_20261014.xml` **87/87 PASS, FAIL0, ERR0, SKIP0, exit0**, Python compile + Git diffcheck PASS.
+- 출처 PIT 인증/진짜 미래 발굴 적중률은 이 기능 테스트와 무관하며 여전히 N/A. 다음 작업: 실제 동시점 5요소 입력·상태 판정 및 neutral JSON의 정식선정 전이. 이번 실제 근거 `docs/164_KR_LATEST_PRICE_WATCH_NEUTRAL_OUTBOX_20261014.md`; 변경 파일만 public 안전검사 후 커밋·푸시. API 제외 실사용 전체 진행률은 재산정 전.

@@ -1992,3 +1992,10 @@ Public Git staged 11 tested code/test/doc paths including inherited 8; safety `s
 - 신규 `marketwide_handoff_bridge.py`와 기존 `render_local_operations.py --marketwide-publish-outbox` opt-in. 최신 시장 SHA·가격 WATCH20를 재검사하여 기존 `strategy_handoff` 방식으로 프로젝트 중립 immutable source-versioned JSON 발행. 자료가 늦어지면 원래 발행시간을 오늘 날짜로 소급하지 않고 동일 source 버전 재사용, 변조/19개 일부 PRICE WATCH는 차단. 5요소 정식 판정·주문·수신 연결0.
 - 실제 2026-10-13 KRX 2,761/CFS49/산업49/연구50점38/수급1 기존 자료에서 WATCH20, 정식 선정0, 주문0 `output/strategy_outbox/KR_20261013_a59b7ecdfaa0b707.json` 검증 발행 및 반복 재생성 없이 replay exit0. 변경영향 `output/verification_logs/marketwide_handoff_bridge_final_20261014.xml` **87/87 PASS, FAIL0, ERR0, SKIP0, exit0**, Python compile + Git diffcheck PASS.
 - 출처 PIT 인증/진짜 미래 발굴 적중률은 이 기능 테스트와 무관하며 여전히 N/A. 다음 작업: 실제 동시점 5요소 입력·상태 판정 및 neutral JSON의 정식선정 전이. 이번 실제 근거 `docs/164_KR_LATEST_PRICE_WATCH_NEUTRAL_OUTBOX_20261014.md`; 변경 파일만 public 안전검사 후 커밋·푸시. API 제외 실사용 전체 진행률은 재산정 전.
+
+## 2026-10-14 KST | CONTINUE | 4_1·4_2·4_3·6_4 | KR 가격 WATCH 상태 이력·중립 송신 통합
+
+- 실제 Mac T5DATA online. `main=a244002`의 기존 미커밋 `native_first_capture.py` 7줄·문서·사용자 원본 및 타 프로젝트 코드 보존. 분리 `feature/kr-marketwide-search-20261014` 최신 중립 outbox `e9e5544`부터 재사용.
+- 완료: 기존 core 브랜치의 `official_watch_state_bridge.py` 정상 코드 재사용, 최신 검증 KRX 전체시장 WATCH20 → 기존 `StateHistory` 연구 SQLite 원장 → 프로젝트 중립 JSON 출판의 opt-in `--marketwide-record-watch-history`. 새 원장 전용 식별자 `KR_PRICE_OBSERVED`, 선정/POTENTIAL/CONFIRMED/WEAKENING/주문0. 같은 날짜 반복 불변·멱등, 자동 이탈매도0.
+- 실제 T5DATA에서 새 SQLite를 `StateHistory` 열린 뒤 chmod하던 기존 로직은 readonly write 에러. 안전한 O_EXCL mode0600 **선생성 후 연결** 순서로 최소 수정. 실제 격리 원장 10/08 WATCH20 + 10/13 WATCH20 = WATCH40 / 상태전이0 / 확정0 E2E PASS, 당일 운영원장 WATCH20 재호출 exit0 PASS. 외부 주문·계좌/실메시지0.
+- 변경 영향 테스트 `output/verification_logs/marketwide_state_history_final_20261014.xml` **97 PASS, failures0/errors0/skips0**, py_compile/diffcheck PASS. 코드·재현·제약 `docs/165_KR_PRICE_WATCH_STATE_HISTORY_NEUTRAL_OUTBOX_20261014.md`. 전체 회귀는 현재 실사용 지침에 따라 미실행. 다음: 동시점 실제 다섯 요인 완전성/영구ID 보완→정식 후보 전이/중립 송신; 5요소 미충족 동안 정식 리더0 유지. 실사용 완료율 재산정 전.

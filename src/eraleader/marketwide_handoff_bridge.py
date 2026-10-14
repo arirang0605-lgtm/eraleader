@@ -17,7 +17,8 @@ from .strategy_handoff import (
 
 def publish_latest_marketwide_handoff(*, source_root: Path, project: Path,
                                     request_day: str = "today",
-                                    clock: datetime | None = None) -> dict:
+                                    clock: datetime | None = None,
+                                    record_watch_history: bool = False) -> dict:
     now = clock or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:
         raise ValueError("MARKETWIDE_HANDOFF_CLOCK_REQUIRED")
@@ -48,6 +49,22 @@ def publish_latest_marketwide_handoff(*, source_root: Path, project: Path,
             handoff["watchlist_count"]!=20):
         raise ValueError("MARKETWIDE_HANDOFF_NOT_PRICE_WATCH_ONLY")
     output = _owned_output(project)
+    history = None
+    if record_watch_history:
+        from .official_watch_state_bridge import (
+            LEDGER_NAME, record_official_watch_history,
+        )
+        history = record_official_watch_history(
+            source, output/LEDGER_NAME, clock=now)
+        if (history["input_marketwide_sha256"]!=handoff["source_sha256"] or
+                history["market_session"]!=handoff["source_observed_as_of"] or
+                history["recorded_watch_count"]!=20 or
+                history["leader_selection_count"]!=0 or
+                history["state_history_events"]!=0 or
+                history["state_counts"]!={"WATCH":20,"POTENTIAL":0,
+                                          "CONFIRMED":0,"WEAKENING":0,"EXITED":0} or
+                history["orders_enabled"] is not False):
+            raise ValueError("MARKETWIDE_HANDOFF_STAGE4_NOT_RESEARCH_ONLY")
     outbox = output/"strategy_outbox"
     if outbox.is_symlink():
         raise ValueError("MARKETWIDE_HANDOFF_UNSAFE_OUTBOX")
@@ -98,4 +115,9 @@ def publish_latest_marketwide_handoff(*, source_root: Path, project: Path,
         "historical_pit_certified":False,
         "execution_authority":False,
         "orders":0,
+        "watch_history_status":(
+            "RESEARCH_WATCH_RECORDED" if history is not None else "NOT_REQUESTED"),
+        "watch_history_rows":(
+            history["recorded_watch_count"] if history is not None else 0),
+        "watch_history_leader_events":0,
     }

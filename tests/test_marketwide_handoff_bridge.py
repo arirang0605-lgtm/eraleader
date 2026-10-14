@@ -187,3 +187,115 @@ def test_outbox_opt_in_cannot_be_run_without_source_root(tmp_path):
                           capture_output=True,text=True)
     assert result.returncode!=0
     assert not (project/"output"/"strategy_outbox").exists()
+
+
+def test_stage4_history_opt_in_records_price_watch_without_verified_leaders(tmp_path):
+    from eraleader.official_watch_state_bridge import LEDGER_NAME
+    from eraleader.state_history import StateHistory
+    root,project=fixture(tmp_path)
+    put_twenty(root,"current")
+    base=deliver(root,project)
+    assert base["watch_history_status"]=="NOT_REQUESTED"
+    assert not (project/"output"/LEDGER_NAME).exists()
+
+    info=publish_latest_marketwide_handoff(
+        source_root=root,project=project,request_day="2026-10-14",
+        clock=NOW,record_watch_history=True)
+    assert info["watch_history_status"]=="RESEARCH_WATCH_RECORDED"
+    assert info["watch_history_rows"]==20
+    assert info["watch_history_leader_events"]==0
+    assert info["selected_count"]==0
+    assert info["delivery_status"]=="ALREADY_DELIVERED"
+    db=StateHistory(project/"output"/LEDGER_NAME)
+    try:
+        assert db.db.execute("SELECT COUNT(*) FROM state_history").fetchone()[0]==20
+        assert db.db.execute("SELECT COUNT(*) FROM state_events").fetchone()[0]==0
+        history=db.history("KR","KR_PRICE_OBSERVED:000100")
+        assert len(history)==1 and history[0]["state"]=="WATCH"
+        assert history[0]["score"] is None
+    finally:
+        db.close()
+    again=publish_latest_marketwide_handoff(
+        source_root=root,project=project,request_day="2026-10-14",
+        clock=NOW,record_watch_history=True)
+    assert again["watch_history_rows"]==20
+    db=StateHistory(project/"output"/LEDGER_NAME)
+    try:
+        assert db.db.execute("SELECT COUNT(*) FROM state_history").fetchone()[0]==20
+    finally:
+        db.close()
+
+
+def test_state_history_two_observation_days_price_only_no_false_exit(tmp_path):
+    from eraleader.official_watch_state_bridge import LEDGER_NAME
+    from eraleader.state_history import StateHistory
+    root,project=fixture(tmp_path)
+    put_twenty(root,"first",session="2026-10-08",start=100)
+    first=deliver(root,project,now=NOW)
+    first_state=publish_latest_marketwide_handoff(
+        source_root=root,project=project,request_day="2026-10-14",
+        clock=NOW,record_watch_history=True)
+    assert first_state["source_market_session"]=="2026-10-08"
+    put_twenty(root,"second",session="2026-10-13",start=101,later_source=True)
+    second=publish_latest_marketwide_handoff(
+        source_root=root,project=project,request_day="2026-10-14",
+        clock=NOW,record_watch_history=True)
+    assert second["source_market_session"]=="2026-10-13"
+    assert second["watch_history_leader_events"]==0
+    db=StateHistory(project/"output"/LEDGER_NAME)
+    try:
+        assert db.db.execute("SELECT COUNT(*) FROM state_history").fetchone()[0]==40
+        assert db.db.execute("SELECT COUNT(*) FROM state_events").fetchone()[0]==0
+        assert [r["state"] for r in db.history("KR","KR_PRICE_OBSERVED:000101")]==["WATCH","WATCH"]
+        assert len(db.history("KR","KR_PRICE_OBSERVED:000100"))==1
+        assert len(db.history("KR","KR_PRICE_OBSERVED:000120"))==1
+    finally:
+        db.close()
+
+
+def test_price_only_history_cli_research_e2e(tmp_path):
+    from eraleader.official_watch_state_bridge import LEDGER_NAME
+    root,project=fixture(tmp_path)
+    put_twenty(root,"day")
+    script=Path(__file__).resolve().parents[1]/"scripts"/"render_local_operations.py"
+    cmd=[sys.executable,str(script),"--project",str(project),
+         "--marketwide-source-root",str(root),"--marketwide-publish-outbox",
+         "--marketwide-record-watch-history"]
+    result=subprocess.run(cmd,capture_output=True,text=True)
+    assert result.returncode==0,result.stderr
+    doc=json.loads(result.stdout)
+    assert doc["marketwide_watch_state_status"]=="RESEARCH_WATCH_RECORDED"
+    assert doc["marketwide_watch_state_rows"]==20
+    assert doc["marketwide_verified_leader_events"]==0
+    assert doc["marketwide_handoff_orders"]==0
+    assert (project/"output"/LEDGER_NAME).is_file()
+    replay=subprocess.run(cmd,capture_output=True,text=True)
+    assert replay.returncode==0,replay.stderr
+    assert len(list((project/"output"/"strategy_outbox").glob("KR_*.json")))==1
+
+
+def test_price_only_history_flag_without_explicit_outbox_denied(tmp_path):
+    from eraleader.official_watch_state_bridge import LEDGER_NAME
+    root,project=fixture(tmp_path)
+    put_twenty(root,"day")
+    script=Path(__file__).resolve().parents[1]/"scripts"/"render_local_operations.py"
+    run=subprocess.run([sys.executable,str(script),"--project",str(project),
+                        "--marketwide-source-root",str(root),
+                        "--marketwide-record-watch-history"],capture_output=True,text=True)
+    assert run.returncode!=0
+    assert not (project/"output"/LEDGER_NAME).exists()
+
+def test_new_history_ledger_never_chmods_an_already_open_sqlite_handle(
+        tmp_path, monkeypatch):
+    """Regression: T5DATA filesystem reported read-only SQLite after post-open chmod."""
+    import eraleader.official_watch_state_bridge as bridge
+    root, project = fixture(tmp_path)
+    source = put_twenty(root, "initial")
+    def reject_postopen_chmod(*_args, **_kw):
+        raise AssertionError("CHMOD_AFTER_OPEN_ON_T5DATA_FORBIDDEN")
+    monkeypatch.setattr(bridge.os, "chmod", reject_postopen_chmod)
+    ledger = project/"output"/bridge.LEDGER_NAME
+    observed=bridge.record_official_watch_history(source,ledger,clock=NOW)
+    assert observed["recorded_watch_count"]==20
+    assert ledger.exists()
+    assert (ledger.stat().st_mode & 0o077)==0

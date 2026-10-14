@@ -536,3 +536,124 @@ def test_marketwide_two_factor_comparison_passes_only_as_nontrading_research(tmp
     second.write_bytes(module.canonical(invalid)+b"\n")
     with pytest.raises(ValueError,match="HANDOFF_50_RESEARCH_ROW_INVALID"):
         verify_handoff(second)
+
+
+def test_official_observed_price_watch_rotation_never_promotes_states():
+    from eraleader.discovery import run_id_for
+    old={
+        "source_market":"KR",
+        "classification_quality":"PRICE_ONLY_RESEARCH_NOT_PIT_CERTIFIED",
+        "market_last_observation":"2026-10-08",
+        "as_of_requested":"2026-10-13",
+        "rows":[
+            {"rank":1,"security_id":"005930","name":"삼성전자","state":"WATCH"},
+            {"rank":2,"security_id":"000660","name":"SK하이닉스","state":"WATCH"}],
+        "official_api_evidence":{
+            "api_observation_day":"2026-10-08",
+            "historic_universe_pit_verified":False,"official_leaders":0},
+    }
+    new=copy.deepcopy(old)
+    new["market_last_observation"]="2026-10-13"
+    new["as_of_requested"]="2026-10-14"
+    new["official_api_evidence"]["api_observation_day"]="2026-10-13"
+    new["rows"]=[
+        {"rank":1,"security_id":"000660","name":"SK하이닉스","state":"WATCH"},
+        {"rank":2,"security_id":"035420","name":"NAVER","state":"WATCH"}]
+    old["run_id"]=run_id_for("KR",old["as_of_requested"],old["rows"])
+    new["run_id"]=run_id_for("KR",new["as_of_requested"],new["rows"])
+    diff=module.compare_official_price_watch(old,new)
+    assert diff["new_count"]==1
+    assert diff["left_count"]==1
+    assert diff["rank_changed_count"]==1
+    assert diff["new_technical_watch_events"][0]["security_id"]=="035420"
+    assert diff["left_price_watch_observations"][0]["security_id"]=="005930"
+    assert diff["left_price_watch_observations"][0]["status"]==(
+        "DROPPED_FROM_PRICE_WATCH_NOT_DELISTED_OR_SOLD")
+    assert diff["observations_only_no_leader_state_transition"] is True
+    with pytest.raises(ValueError,match="REQUIRES_NEWER_SESSION"):
+        module.compare_official_price_watch(new,old)
+    broken=copy.deepcopy(new)
+    broken["rows"][1]["name"]="TAMPERED"
+    with pytest.raises(ValueError,match="CURRENT_WATCH_UNVERIFIED"):
+        module.compare_official_price_watch(old,broken)
+
+
+def test_marketwide_cli_publishes_research_and_receiver_neutral_outbox(
+        tmp_path,monkeypatch,capsys):
+    from scripts import publish_official_marketwide_coverage as publisher
+    from eraleader.strategy_handoff import verify_handoff
+    from datetime import datetime,timezone
+    cohort,root,*_=fixture(tmp_path,monkeypatch)
+    report=module.build_marketwide_coverage(
+        cohort,root,clock=datetime.now(timezone.utc))
+    monkeypatch.setattr(publisher,"ROOT",tmp_path)
+    monkeypatch.setattr(publisher,"refresh_saved_marketwide_flow",
+                        lambda *a:report)
+    outparent=tmp_path/"output"
+    outparent.mkdir(mode=0o700)
+    outbox=outparent/"strategy_outbox"
+    outbox.mkdir(mode=0o700)
+    other=tmp_path/"broker"
+    other.mkdir()
+    with pytest.raises(SystemExit):
+        publisher.main([
+            "--verified-marketwide-report",str(other/"unused.json"),
+            "--kiwoom-flow-folder",str(other),
+            "--strategy-outbox-dir",str(other),
+            "--out",str(outparent/"bad")])
+    result=publisher.main([
+        "--verified-marketwide-report",str(other/"unused.json"),
+        "--kiwoom-flow-folder",str(other),
+        "--strategy-outbox-dir",str(outbox),
+        "--out",str(outparent/"published")])
+    assert result==0
+    payload=json.loads(capsys.readouterr().out)
+    assert payload["observed"]==3
+    assert payload["formal_leaders"]==0
+    assert payload["handoff"]["watchlist_count"]==2
+    assert payload["handoff"]["selected_count"]==0
+    saved=Path(payload["handoff"]["path"])
+    assert saved.parent==outbox
+    assert verify_handoff(saved,expected_market="KR")["order_instruction"] is False
+
+
+def test_marketwide_rotations_handoff_as_observations_not_state_transitions(
+        tmp_path,monkeypatch):
+    from eraleader.strategy_handoff import (
+        marketwide_research_handoff,publish_handoff,verify_handoff)
+    cohort,root,*_=fixture(tmp_path,monkeypatch)
+    report=module.build_marketwide_coverage(cohort,root,clock=NOW)
+    report["watch_changes_research"]={
+        "observations_only_no_leader_state_transition":True,
+        "current_market_session":report["market_session"],
+        "previous_market_session":"2026-10-07",
+        "new_count":1,"left_count":1,"rank_changed_count":1,
+        "new_technical_watch_events":[{
+            "kind":"NEW_TECHNICAL_WATCH","security_id":CODE_A}],
+        "left_price_watch_observations":[{
+            "security_id":CODE_C,
+            "status":"DROPPED_FROM_PRICE_WATCH_NOT_DELISTED_OR_SOLD"}],
+        "existing_watch_rank_changes":[{"security_id":CODE_B}],
+    }
+    report.pop("content_sha256")
+    report["content_sha256"]=sha256(module.canonical(report)).hexdigest()
+    source,_=module.publish_marketwide_coverage(report,tmp_path/"fresh")
+    handoff=marketwide_research_handoff(
+        source,request_day="2026-10-14",clock=NOW)
+    assert handoff["technical_watch_change_count"]==3
+    assert handoff["state_changes"]==[]
+    assert handoff["selection_count"]==0
+    assert {x["kind"] for x in handoff["technical_watch_changes"]}=={
+        "NEW_TECHNICAL_WATCH","LEFT_TECHNICAL_WATCH",
+        "PRICE_WATCH_RANK_MOVED"}
+    out=tmp_path/"feed.json"
+    assert publish_handoff(handoff,out)["selected_count"]==0
+    assert verify_handoff(out,expected_market="KR")==handoff
+    corrupted=copy.deepcopy(handoff)
+    corrupted["technical_watch_changes"][0]["selection_state"]="CONFIRMED"
+    corrupted.pop("content_sha256")
+    corrupted["content_sha256"]=sha256(module.canonical(corrupted)).hexdigest()
+    out2=tmp_path/"malicious.json"
+    out2.write_bytes(module.canonical(corrupted)+b"\n")
+    with pytest.raises(ValueError,match="TECHNICAL_CHANGE_ROW_INVALID"):
+        verify_handoff(out2)

@@ -308,3 +308,23 @@ def test_versioned_feed_preflight_rejects_untrusted_payload_before_write(tmp_pat
     with pytest.raises(ValueError,match="PREPUBLICATION_INVALID"):
         feed.publish_versioned_handoff(forged,outbox)
     assert not list(outbox.iterdir())
+
+
+def test_same_source_research_contract_revision_gets_new_immutable_feed(tmp_path):
+    cohort=research_source(tmp_path)
+    outbox=tmp_path/"neutral_outbox"
+    outbox.mkdir(mode=0o700)
+    first=feed.research_cohort_handoff(
+        cohort,request_day="2026-10-14",clock=NOW)
+    path1=Path(feed.publish_versioned_handoff(first,outbox)["path"])
+    revised=dict(first)
+    revised["additional_readonly_research_contract"]={
+        "state":"WATCH_ONLY","orders_enabled":False}
+    revised.pop("content_sha256")
+    revised["content_sha256"]=sha256(feed.canonical(revised)).hexdigest()
+    path2=Path(feed.publish_versioned_handoff(revised,outbox)["path"])
+    assert path1!=path2
+    assert feed.verify_handoff(path1,expected_market="KR")==first
+    assert feed.verify_handoff(path2,expected_market="KR")==revised
+    assert feed.publish_versioned_handoff(revised,outbox)["status"]=="ALREADY_DELIVERED"
+    assert len(list(outbox.glob("*.json")))==2

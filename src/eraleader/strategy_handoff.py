@@ -261,6 +261,48 @@ def marketwide_research_handoff(path: Path, *, request_day: str,
     research.sort(key=lambda r:r["research_order"])
     if [r["research_order"] for r in research]!=list(range(1,len(research)+1)):
         raise ValueError("HANDOFF_RESEARCH_50_POINT_ORDER_INVALID")
+    technical=[]
+    changes=report.get("watch_changes_research")
+    if changes is not None:
+        if (type(changes) is not dict or
+                changes.get("observations_only_no_leader_state_transition") is not True or
+                changes.get("current_market_session")!=report["market_session"] or
+                any(type(changes.get(k)) is not list or len(changes[k])>20
+                    for k in ("new_technical_watch_events",
+                              "left_price_watch_observations",
+                              "existing_watch_rank_changes")) or
+                changes.get("new_count") != len(changes["new_technical_watch_events"]) or
+                changes.get("left_count") != len(changes["left_price_watch_observations"]) or
+                changes.get("rank_changed_count") != len(changes["existing_watch_rank_changes"])):
+            raise ValueError("HANDOFF_TECHNICAL_ROTATION_SOURCE_INVALID")
+        in_watch={r["security_id"] for r in watch}
+        for event in changes["new_technical_watch_events"]:
+            code=event.get("security_id")
+            if (code not in in_watch or event.get("kind")!="NEW_TECHNICAL_WATCH"):
+                raise ValueError("HANDOFF_NEW_WATCH_SOURCE_INVALID")
+            technical.append(("NEW_TECHNICAL_WATCH",code))
+        for event in changes["left_price_watch_observations"]:
+            code=event.get("security_id")
+            if (code in in_watch or
+                    event.get("status")!="DROPPED_FROM_PRICE_WATCH_NOT_DELISTED_OR_SOLD"):
+                raise ValueError("HANDOFF_LEFT_WATCH_SOURCE_INVALID")
+            technical.append(("LEFT_TECHNICAL_WATCH",code))
+        for event in changes["existing_watch_rank_changes"]:
+            code=event.get("security_id")
+            if code not in in_watch:
+                raise ValueError("HANDOFF_RANK_CHANGE_SOURCE_INVALID")
+            technical.append(("PRICE_WATCH_RANK_MOVED",code))
+    observations=[]
+    for kind,code in technical:
+        if type(code) is not str or KRX_OBSERVED_CODE.fullmatch(code) is None:
+            raise ValueError("HANDOFF_TECHNICAL_ROTATION_ID_INVALID")
+        observations.append({
+            "market":"KR","security_id":code,"kind":kind,
+            "observed_market_session":report["market_session"],
+            "category":"PRICE_OBSERVATION_NOT_LEADER_STATE_TRANSITION",
+            "first_known_at_utc":report["built_at_utc"],
+            "score_100":None,"strategy_research_allowed":False,
+        })
     return _finalize({
         "market":"KR","source_kind":"MARKETWIDE_KRX_DART_COVERAGE_RESEARCH",
         "as_of":request_day,"source_observed_as_of":report["market_session"],
@@ -270,6 +312,8 @@ def marketwide_research_handoff(path: Path, *, request_day: str,
         "selected_candidates":[],"research_watchlist":watch,
         "two_factor_research_watchlist":research,
         "two_factor_research_count":len(research),
+        "technical_watch_changes":observations,
+        "technical_watch_change_count":len(observations),
         "state_changes":[],
         "selection_count":0,"watchlist_count":len(watch),
         "status":"WATCHLIST_ONLY_NO_VERIFIED_LEADER_SELECTION",
@@ -470,6 +514,28 @@ def verify_handoff(path: Path, *, expected_market: str | None = None) -> dict:
                     type(score) not in (int,float) or not math.isfinite(score) or
                     not 0<=score<=50):
                 raise ValueError("HANDOFF_50_RESEARCH_ROW_INVALID")
+    if "technical_watch_changes" in payload:
+        changes=payload["technical_watch_changes"]
+        if (payload.get("source_kind")!="MARKETWIDE_KRX_DART_COVERAGE_RESEARCH" or
+                type(changes) is not list or len(changes)>60 or
+                payload.get("technical_watch_change_count")!=len(changes) or
+                payload["state_changes"]):
+            raise ValueError("HANDOFF_TECHNICAL_CHANGE_CONTRACT_INVALID")
+        for row in changes:
+            if (type(row) is not dict or
+                    row.get("kind") not in (
+                        "NEW_TECHNICAL_WATCH",
+                        "LEFT_TECHNICAL_WATCH",
+                        "PRICE_WATCH_RANK_MOVED") or
+                    type(row.get("security_id")) is not str or
+                    KRX_OBSERVED_CODE.fullmatch(row["security_id"]) is None or
+                    row.get("observed_market_session")!=payload.get(
+                        "source_observed_as_of") or
+                    row.get("category")!="PRICE_OBSERVATION_NOT_LEADER_STATE_TRANSITION" or
+                    row.get("score_100") is not None or
+                    row.get("strategy_research_allowed") is not False or
+                    "selection_state" in row):
+                raise ValueError("HANDOFF_TECHNICAL_CHANGE_ROW_INVALID")
     for row in payload["selected_candidates"]:
         _identity(row["security_id"])
         ticker = row.get("ticker")
@@ -516,7 +582,16 @@ def publish_versioned_handoff(report: dict, outbox: Path) -> dict:
         raise ValueError("HANDOFF_VERSION_OBSERVED_DATE_INVALID") from None
     if moment != observed.isoformat() and moment[:10] != observed.isoformat():
         raise ValueError("HANDOFF_VERSION_OBSERVED_DATE_INVALID")
-    filename = f"{market}_{observed.strftime('%Y%m%d')}_{pin[:16]}.json"
+    # Multiple safe research-contract revisions can refer to the same immutable
+    # market originals. Their JSON must occupy different immutable paths.
+    semantic=dict(report)
+    semantic.pop("generated_at_utc",None)
+    semantic.pop("content_sha256",None)
+    if report.get("source_kind")=="LOCAL_STATE_HISTORY":
+        semantic.pop("source_decision_at_utc",None)
+    contract_pin=sha256(canonical(semantic)).hexdigest()[:12]
+    filename=(f"{market}_{observed.strftime('%Y%m%d')}_"
+              f"{pin[:12]}_{contract_pin}.json")
     result = publish_handoff(report,outbox / filename)
     result["outbox_mode"] = "IMMUTABLE_VERSIONED_RESEARCH_FEED"
     return result

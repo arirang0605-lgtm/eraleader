@@ -21,7 +21,7 @@ from .official_company_explorer import _verified, BASIC, PEER, canonical
 from .official_dart_financials import verify_dart_financial, annual_growth_diagnostic
 from .official_dart_industry import verify_company_profile
 from .kiwoom_investor_flow import verify_flow
-from .discovery import run_id_for, score_price_observations
+from .discovery import run_id_for, score_price_observations, detect_watch_changes
 from .data import LEGACY_DEFAULT, read_market_bars, validate_bars
 from datetime import date
 from zoneinfo import ZoneInfo
@@ -181,13 +181,69 @@ def attach_matched_session_investor_flow(observed: dict[str,dict],
         "flow_certification":"FIRST_LOCAL_RECEIPT_RESEARCH_ONLY_NOT_HISTORIC_PIT",
     }
 
+
+def compare_official_price_watch(previous: dict, current: dict) -> dict:
+    """Observed WATCH rotations only; use existing discovery event detector.
+
+    No historical state rewrite or POTENTIAL/CONFIRMED promotion. Market dates
+    are observed sessions, while evidence first-known times may be later.
+    """
+    for label, snap in (("PREVIOUS",previous),("CURRENT",current)):
+        if (type(snap) is not dict or snap.get("source_market")!="KR" or
+                snap.get("classification_quality")!="PRICE_ONLY_RESEARCH_NOT_PIT_CERTIFIED" or
+                type(snap.get("rows")) is not list or
+                snap.get("run_id") != run_id_for(
+                    "KR",snap["as_of_requested"],snap["rows"]) or
+                snap.get("official_api_evidence",{}).get(
+                    "historic_universe_pit_verified") is not False or
+                snap.get("official_api_evidence",{}).get("official_leaders")!=0):
+            raise ValueError("MARKETWIDE_"+label+"_WATCH_UNVERIFIED")
+        ranks=[r.get("rank") for r in snap["rows"]]
+        if (len(snap["rows"])>20 or not snap["rows"] or
+                ranks!=list(range(1,len(ranks)+1)) or
+                len({r["security_id"] for r in snap["rows"]})!=len(ranks) or
+                any(r.get("state")!="WATCH" for r in snap["rows"])):
+            raise ValueError("MARKETWIDE_"+label+"_WATCH_ROWS_INVALID")
+        if snap["market_last_observation"]!=snap[
+                "official_api_evidence"]["api_observation_day"]:
+            raise ValueError("MARKETWIDE_"+label+"_WATCH_DAY_INVALID")
+    earlier=date.fromisoformat(previous["market_last_observation"])
+    latest=date.fromisoformat(current["market_last_observation"])
+    if earlier>=latest:
+        raise ValueError("MARKETWIDE_PRICE_WATCH_REQUIRES_NEWER_SESSION")
+    new_events=detect_watch_changes(previous,current,current["run_id"])
+    new_ids={r["security_id"] for r in current["rows"]}
+    removed=[{"security_id":r["security_id"],"name":r["name"],
+              "previous_price_rank":r["rank"],
+              "status":"DROPPED_FROM_PRICE_WATCH_NOT_DELISTED_OR_SOLD"}
+             for r in previous["rows"] if r["security_id"] not in new_ids]
+    previous_rank={r["security_id"]:r["rank"] for r in previous["rows"]}
+    rank_moves=[{"security_id":r["security_id"],"name":r["name"],
+                 "previous_price_rank":previous_rank[r["security_id"]],
+                 "current_price_rank":r["rank"]}
+                for r in current["rows"] if r["security_id"] in previous_rank and
+                r["rank"]!=previous_rank[r["security_id"]]]
+    return {
+        "previous_market_session":earlier.isoformat(),
+        "current_market_session":latest.isoformat(),
+        "previous_watch_run_id":previous["run_id"],
+        "current_watch_run_id":current["run_id"],
+        "new_technical_watch_events":new_events,
+        "left_price_watch_observations":removed,
+        "existing_watch_rank_changes":rank_moves,
+        "new_count":len(new_events),"left_count":len(removed),
+        "rank_changed_count":len(rank_moves),
+        "observations_only_no_leader_state_transition":True,
+    }
+
 def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
                               clock: datetime | None = None,
                               extra_cfs_manifests: tuple[Path, ...] = (),
                               extra_industry_manifests: tuple[Path, ...] = (),
                               full_price_lookback: bool = False,
                               legacy_root: Path = LEGACY_DEFAULT,
-                              kiwoom_flow_folder: Path | None = None) -> dict:
+                              kiwoom_flow_folder: Path | None = None,
+                              previous_watch_file: Path | None = None) -> dict:
     """Recheck pinned originals and join every observed KRX issue exactly once."""
     now = clock or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:
@@ -487,6 +543,17 @@ def build_marketwide_coverage(cohort: Path, capture_root: Path, *,
                     "historic issuer/class and availability PIT are not certified."),
         "securities": rows,
     }
+    if previous_watch_file is not None:
+        if (not previous_watch_file.is_absolute() or
+                previous_watch_file.is_symlink() or
+                not previous_watch_file.is_file() or
+                any(parent.is_symlink() for parent in previous_watch_file.parents)):
+            raise ValueError("MARKETWIDE_PREVIOUS_WATCH_FILE_UNSAFE")
+        previous=json.loads(previous_watch_file.read_bytes())
+        result["watch_changes_research"]=compare_official_price_watch(
+            previous,snapshot)
+    else:
+        result["watch_changes_research"]=None
     result["content_sha256"] = sha256(canonical(result)).hexdigest()
     return result
 
@@ -620,7 +687,15 @@ def publish_marketwide_coverage(report: dict, dest: Path) -> tuple[Path, Path]:
         "사 · 영업익 성장 비교 "+str(report.get("operating_income_yoy_peer_evaluable",0))+
         "사. 정확한 업종코드가 일치하는 수집 기업끼리만 비교하며 "
         "시장 전체 업종 성장률이나 기업 경쟁력 평가가 아닙니다. "
-        "종목별 상대위치는 marketwide_kr.json에서 확인합니다.</p>"
+        "종목별 상대위치는 marketwide_kr.json에서 확인합니다.</p>" +
+        ("<p><strong>공식 거래일별 기술 관찰 변화</strong> 신규 "+
+         str(report["watch_changes_research"]["new_count"])+
+         "종목, 가격 관찰 밖 이동 "+
+         str(report["watch_changes_research"]["left_count"])+
+         "종목, 기존 목록 내 순서 변경 "+
+         str(report["watch_changes_research"]["rank_changed_count"])+
+         "종목. 상장폐지·매도·정식 대장주 교체 신호가 아닙니다.</p>"
+         if report.get("watch_changes_research") else "")+
         "<p>전체 KRX 종목별 자료 확보 여부: marketwide_kr.json (동일 폴더). "
         "재무/산업은 현재 수집 표본이며 과거 주권 PIT 인증은 N/A.</p>"
         "</main></html>")

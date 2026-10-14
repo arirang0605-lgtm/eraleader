@@ -938,3 +938,8 @@ EraLeader는 대장주 발굴 및 **범용 JSON 송신·발행**까지만 개발
 - 현재 실물 KRX 2026-10-13 2,761주권, 상대강도2,263, 재무/업종49, 가격+실적 50점 연구38, 키움 실측일치 수급1. 정식 5요소100점/CONFIRMED0. 추가 FY DART 수신 당시 10/13 이전 이용 가능 PIT로 소급하지 않음.
 - 신규 `src/eraleader/official_watch_state_bridge.py` + `scripts/record_official_watch_history.py`는 공식시장 PRICE WATCH20을 기존 Stage4 `StateHistory` 별도 연구 SQLite에 기록, 10/08/10/13 실제 각20 행=총40 WATCH, 상태전이0, selected0, orders0. `scripts/publish_official_marketwide_coverage.py --watch-state-ledger`로 JSON/HTML+해당 SQLite+중립 JSON outbox 한 번에 작업 가능.
 - 다음 최우선은 **정식 5요소 확인 가능한 실사용 후보 TOP20·잠재/확정/약화/교체** 결선. 소규모 수정 테스트/실물 E2E 후 Git, 외부 수신기(D-030) 미결정 유지.
+
+## 2026-10-14 최신 P2 실제 증거 통합 — 5요소 준비도
+- 기존 분리 worktree/feature 브랜치 실제 `git rev-parse HEAD` 부터, 원본 main 미커밋 보호. `docs/161_P2_REAL_5FACTOR_READINESS_AND_DASHBOARD_20261014.md` 및 PROJECT_STATE 맨 끝.
+- 신규 P2 `src/eraleader/official_p2_readiness.py`와 `scripts/publish_official_p2_readiness.py` 실물 SHA 한국시장 평가요소 커버리지: KRX2761, 가격2263, 실적38, 업종성장0/독립경쟁력0/정규화 수급0 → 정식선정0. 2요소50점 연구 우선목록 TOP20만 표시. 이미 수집된 업종코드49사/기관외국인 주수1사를 업종성장20/경쟁력20/수급10으로 위조하지 말 것.
+- 기존 시장 발행기 `--reuse-marketwide-report` + `--p2-readiness-out` + `--watch-state-ledger` + `--strategy-outbox-dir`로 기존 서명 SHA 시장 보고·Stage4 WATCH 이력·P2 HTML/JSON·범용 전략 관찰 JSON을 단일 호출에서 실제 실행, 멱등 확인. 다음 5요소 데이터 근거 확보→정식 100점 TOP20/상태→프로젝트 독립 송신.
